@@ -1,0 +1,19 @@
+ticker,name,cik,sic,sic_description,bea_code,bea_name,role,justification,status
+COP,ConocoPhillips,1163165,2911,Petroleum Refining,211,Oil and gas extraction,oil_producer,Pure exploration and production since the 2012 Phillips 66 spin-off; EDGAR SIC 2911 is outdated. Daily 2021-2023: wti +0.515 (t=20.3).,confirmed
+EOG,EOG Resources,821189,1311,Crude Petroleum & Natural Gas,211,Oil and gas extraction,oil_producer,Crude oil and natural gas producer (SIC 1311). Daily 2021-2023: wti +0.552 (t=18.9).,confirmed
+VLO,Valero Energy,1035002,2911,Petroleum Refining,324,Petroleum and coal products,refiner,Petroleum refiner (SIC 2911); BEA 324 spends 50.8% of output on oil and gas. Daily 2021-2023: wti +0.430 (t=14.1).,confirmed
+MPC,Marathon Petroleum,1510295,2911,Petroleum Refining,324,Petroleum and coal products,refiner,Petroleum refiner (SIC 2911). Daily 2021-2023: wti +0.349 (t=14.0).,confirmed
+NEE,NextEra Energy,753308,4911,Electric Services,22,Utilities,utility,"Electric utility (SIC 4911); primary metals (BEA 331) spend 2.1% of their output on utilities. Daily 2021-2023: henry_hub +0.001 (t=0.2), weak.",confirmed
+DUK,Duke Energy,1326160,4931,Electric & Other Services Combined,22,Utilities,utility,"Electric utility (SIC 4931). Daily 2021-2023: henry_hub +0.000 (t=0.1), weak.",confirmed
+DAL,Delta Air Lines,27904,4512,"Air Transportation, Scheduled",481,Air transportation,airline,"Scheduled airline (SIC 4512); BEA 481 spends 12.9% of output on petroleum products. Daily 2021-2023: wti -0.043 (t=-1.5); with VLO: VLO +0.222, wti -0.139.",confirmed
+UAL,United Airlines Holdings,100517,4512,"Air Transportation, Scheduled",481,Air transportation,airline,Scheduled airline (SIC 4512). Daily 2021-2023: wti -0.070 (t=-1.9).,confirmed
+ODFL,Old Dominion Freight Line,878927,4213,Trucking (No Local),484,Truck transportation,trucking,"Less-than-truckload carrier (SIC 4213); fuel consumer. Daily 2021-2023: wti -0.018 (t=-0.7), weak.",confirmed
+FCX,Freeport-McMoRan,831259,1000,Metal Mining,212,"Mining, except oil and gas",miner_copper,Copper miner (SIC 1000). Daily 2021-2023: copper +1.021 (t=22.0).,confirmed
+NEM,Newmont,1164727,1040,Gold and Silver Ores,212,"Mining, except oil and gas",miner_gold,Gold miner (SIC 1040). Daily 2021-2023: gold +1.290 (t=20.1).,confirmed
+NUE,Nucor,73309,3312,"Steel Works, Blast Furnaces & Rolling Mills (Coke Ovens)",331,Primary metals,metals,Steel producer (SIC 3312); electricity-intensive. Daily 2021-2023: copper +0.365 (t=7.1).,confirmed
+AA,Alcoa,1675149,3334,Primary Production of Aluminum,331,Primary metals,metals,Primary aluminum producer (SIC 3334); electricity-intensive. Daily 2021-2023: copper +0.959 (t=13.0).,confirmed
+NVDA,NVIDIA,1045810,3674,Semiconductors & Related Devices,334,Computer and electronic products,semiconductors,Semiconductors (SIC 3674); AI hardware supplier to internet/AI services (manual edge). No copper link (t=-0.5).,confirmed
+AMD,Advanced Micro Devices,2488,3674,Semiconductors & Related Devices,334,Computer and electronic products,semiconductors,Semiconductors (SIC 3674); AI hardware. No copper link (t=-1.1).,confirmed
+GOOGL,Alphabet,1652044,7370,"Services-Computer Programming, Data Processing, Etc.",514,"Data processing, internet publishing, and other information services",internet_ai,"Internet services and AI (SIC 7370 -> BEA 514). Linked to semiconductors by a manual edge (NVDA +0.088, t=4.2).",confirmed
+META,Meta Platforms,1326801,7370,"Services-Computer Programming, Data Processing, Etc.",514,"Data processing, internet publishing, and other information services",internet_ai,Internet services and AI (SIC 7370 -> BEA 514). Market beta 1.68.,confirmed
+JPM,JPMorgan Chase,19617,6021,National Commercial Banks,521CI,"Federal Reserve banks, credit intermediation, and related activities",bank_control,"Commercial bank (SIC 6021). Control company: no commodity or supply-chain edges, only the market index (beta 0.87).",confirmed

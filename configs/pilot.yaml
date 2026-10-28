@@ -1,0 +1,24 @@
+# Contract K4 example: a small pilot experiment on the test chain (wti -> COP -> VLO -> DAL).
+# Top-level fields are fixed by the contract (src/marketsim/experiments/config.py);
+# the `agents` section belongs to the simulation owner (S) and is free-form.
+base:
+  name: pilot_chain
+  exchange_backend: python        # "python" (reference) or "cpp" (lob_core)
+  graph: graph_chain              # data/graph/<name> or data/fixtures/<name>
+  external: oil_shock             # data/processed/external_<name>.parquet or data/fixtures/external_<name>.csv
+  use_market_index: true
+  n_sessions: 10
+  warmup_sessions: 2
+  sample_dt: 0.01                 # snapshot every 1% of a session
+  agents:
+    valuers_myopic: 100
+    valuers_network: 100
+    trend: 50
+    noise: 50
+    market_makers_per_asset: 1
+    herding:
+      h: 0.3
+      neighbors: 5
+seeds: [1, 2, 3]
+grid:
+  agents.herding.h: [0.0, 0.3, 0.6]

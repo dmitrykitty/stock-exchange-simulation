@@ -1,6 +1,6 @@
-# Instructions for AI coding agents
+# Repository rules
 
-Full human rules: `CONTRIBUTING.md` (Russian). The rules below are mandatory.
+Mandatory for everyone who works in this repository: team members and AI coding agents.
 
 ## Language
 
@@ -12,6 +12,21 @@ Full human rules: `CONTRIBUTING.md` (Russian). The rules below are mandatory.
 - Never push to `main`. Work on a branch named `<area>/<short-description>` (areas: `engine`, `data`, `graph`, `sim`, `agents`, `metrics`, `viz`, `docs`, `ci`, `fix`) and open a pull request.
 - Small commits, imperative messages prefixed with the area: `engine: add self-trade check`.
 - Run `pytest` before proposing a PR.
+
+## Ownership and review
+
+A pull request is approved by the owner of the area it touches; contract changes need the owner and every consumer (`docs/model/contracts.md`). Merge with squash after approval and green CI.
+
+| Path | Owner |
+|---|---|
+| `cpp/`, `src/marketsim/market/` | O |
+| `src/marketsim/data/`, `data/mapping/` | D1 (price series), D2 (BEA, EDGAR, mapping) |
+| `src/marketsim/graph/`, `data/graph/` | D2 |
+| `src/marketsim/sim/`, `src/marketsim/agents/`, `src/marketsim/experiments/`, `configs/` | S |
+| `src/marketsim/metrics/`, `src/marketsim/validation/` | D1 |
+| `src/marketsim/viz/` | D1 (charts), O (order book, live mode) |
+| `tests/contracts/` | owner of the corresponding contract |
+| `docs/`, `README.md`, `AGENTS.md` | everyone |
 
 ## Contracts (do not break)
 

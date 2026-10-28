@@ -1,0 +1,16 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "nanobind>=2.2"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "lob-core"
+version = "0.1.0"
+description = "Order book and matching engine (C++), contract K1"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26"]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+cmake.build-type = "Release"
+wheel.license-files = []

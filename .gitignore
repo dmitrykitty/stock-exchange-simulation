@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.ipynb_checkpoints/
+
+# C++ build
+build/
+cpp/build/
+*.so
+*.pyd
+
+# Data: can always be re-downloaded by script (docs/guides/data_collection.md)
+data/raw/
+data/processed/
+# data/mapping/, data/graph/ and data/fixtures/ ARE committed: manual work and contract fixtures
+
+# Simulation run outputs
+runs/
+
+# IDE
+.idea/
+.vscode/

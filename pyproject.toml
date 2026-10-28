@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "marketsim"
+version = "0.1.0"
+description = "Agent-based stock market simulation with an asset dependency graph"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "pyarrow>=15",
+    "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+# Data collection (D1, D2): FRED, Yahoo, BEA, EDGAR, French, World Bank.
+data = [
+    "requests>=2.31",
+    "yfinance==1.7.0",  # unofficial library: pinned because its output format changes between versions
+    "openpyxl>=3.1",
+]
+# Development and contract tests.
+dev = [
+    "pytest>=8",
+    "hypothesis>=6.100",
+    "ruff>=0.6",
+]
+# Analysis notebooks.
+notebooks = [
+    "jupyterlab>=4",
+    "matplotlib>=3.8",
+]
+# Visualization (phase F9).
+viz = [
+    "plotly>=5.20",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/marketsim"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 110
+src = ["src", "tests"]

@@ -12,7 +12,7 @@ About 1000 agents trade the shares of 18 real US companies on simulated limit or
 | Research proposal (Polish) | [docs/research_proposal.md](docs/research_proposal.md) |
 | Plan, phases F0–F10, roles (Russian) | [docs/plans/overall_plan.md](docs/plans/overall_plan.md) |
 | Interfaces between parts | [docs/model/contracts.md](docs/model/contracts.md) |
-| **Repository rules** | [CONTRIBUTING.md](CONTRIBUTING.md) (humans), [AGENTS.md](AGENTS.md) (AI agents) |
+| **Repository rules** (team and AI agents) | [AGENTS.md](AGENTS.md) |
 
 ## Team roles
 

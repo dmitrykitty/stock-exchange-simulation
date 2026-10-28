@@ -8,7 +8,7 @@ The documents in this folder are written in Russian; the research proposal is in
 1. [model/explainer.md](model/explainer.md): the model in plain language, with worked numbers.
 2. [plans/overall_plan.md](plans/overall_plan.md): phases, schedule, milestones, the goal for Friday.
 3. Your role plan: [O, engine](plans/roles/engine_owner.md) · [D1, D2, data and graph](plans/roles/data_team.md) · [S, simulation](plans/roles/simulation_owner.md).
-4. [../CONTRIBUTING.md](../CONTRIBUTING.md): repository rules.
+4. [../AGENTS.md](../AGENTS.md): repository rules.
 
 ## All documents
 

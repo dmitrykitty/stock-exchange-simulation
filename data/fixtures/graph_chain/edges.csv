@@ -1,0 +1,9 @@
+parent,child,w_direct,w_full,t_stat_direct,t_stat_full,source,justification
+wti,COP,0.516,0.516,20.4,20.4,commodity,COP is an oil and gas producer; its revenue follows the oil price
+sp500,COP,0.619,0.619,10.9,10.9,index,common market factor
+wti,VLO,0.43,0.069,14.1,2.2,commodity,crude oil is the main input of refiners
+sp500,VLO,0.603,0.169,8.9,2.8,index,common market factor
+COP,VLO,,0.701,,19.6,bea,BEA 2023: petroleum refining (324) spends 50.8% of output on oil and gas extraction (211)
+wti,DAL,-0.043,-0.139,-1.5,-4.4,commodity,jet fuel cost
+sp500,DAL,1.274,1.14,19.6,17.1,index,common market factor
+VLO,DAL,,0.222,,6.5,bea,BEA 2023: air transportation (481) spends 12.9% of output on petroleum products (324)

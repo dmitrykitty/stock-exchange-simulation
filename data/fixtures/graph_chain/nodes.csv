@@ -1,0 +1,6 @@
+node,kind,ticker,bea_code,start_price
+wti,external,,,
+sp500,external,,,
+COP,company,COP,211,100.0
+VLO,company,VLO,324,100.0
+DAL,company,DAL,481,100.0

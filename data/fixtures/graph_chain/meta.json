@@ -1,0 +1,7 @@
+{
+  "name": "graph_chain",
+  "description": "Test chain wti -> COP -> VLO -> DAL with real regression weights (daily log returns 2021-01..2023-12, 752 days, S&P 500 as a parent). Start prices normalized to 100.",
+  "estimation_period": "2021-01-05..2023-12-29",
+  "n_days": 752,
+  "computed_on": "2026-10-28"
+}

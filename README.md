@@ -6,6 +6,7 @@ About 1000 agents trade the shares of 18 real US companies on simulated limit or
 
 | Start here | |
 |---|---|
+| **Team checklist (Russian): start here** | [docs/team_checklist.md](docs/team_checklist.md) |
 | Plain-language explainer (Russian) | [docs/model/explainer.md](docs/model/explainer.md) |
 | Model description (Russian) | [docs/model/model_description.md](docs/model/model_description.md) |
 | Research proposal (Polish) | [docs/research_proposal.md](docs/research_proposal.md) |

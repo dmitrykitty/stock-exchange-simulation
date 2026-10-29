@@ -77,7 +77,7 @@ def estimate_weights(
         all_parents = set(external_parents + full_parents)
         for parent in all_parents:
             if parent == market:
-                source = "market"
+                source = "index"
             else:
                 matching_edge = edges[(edges["child"] == child) & (edges["parent"] == parent)]
                 source = matching_edge["source"].iloc[0] if not matching_edge.empty else "unknown"

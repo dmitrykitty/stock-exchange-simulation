@@ -43,7 +43,7 @@ def estimate_weights(
         if child not in returns.columns:
             continue
             
-        external_parents = edges[(edges["child"] == child) & (edges["source"] == "external")]["parent"].tolist()
+        external_parents = edges[(edges["child"] == child) & (edges["source"].isin(["commodity", "index"]))]["parent"].tolist()
         if market not in external_parents and market in returns.columns:
             external_parents.append(market)
             

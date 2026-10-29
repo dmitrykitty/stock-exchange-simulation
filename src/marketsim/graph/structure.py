@@ -25,4 +25,29 @@ def candidate_company_edges(io_matrix: pd.DataFrame, companies: pd.DataFrame, th
     graph does not connect everything that merely correlates.
     Used by: estimate_weights (D2), then the graph files read by the simulation (S).
     """
-    raise NotImplementedError("candidate_company_edges (owner: D2)")
+    edges = []
+
+    for _, child in companies.iterrows():
+        child_ticker = child["ticker"]
+        child_bea = str(child["bea_code"])
+
+        for _, parent in companies.iterrows():
+            parent_ticker = parent["ticker"]
+            parent_bea = str(parent_bea_code := parent["bea_code"])
+
+            if child_ticker == parent_ticker:
+                continue
+
+            if parent_bea in io_matrix.index and child_bea in io_matrix.columns:
+                cost_share = float(io_matrix.loc[parent_bea, child_bea])
+
+                if cost_share >= threshold:
+                    edges.append({
+                        "parent": parent_ticker,
+                        "child": child_ticker,
+                        "parent_bea": parent_bea,
+                        "child_bea": child_bea,
+                        "cost_share": cost_share,
+                    })
+
+    return pd.DataFrame(edges)

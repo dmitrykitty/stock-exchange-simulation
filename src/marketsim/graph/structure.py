@@ -35,10 +35,19 @@ def candidate_company_edges(io_matrix: pd.DataFrame, companies: pd.DataFrame, th
             parent_ticker = parent["ticker"]
             parent_bea = str(parent["bea_code"])
 
-            if child_ticker == parent_ticker:
-                continue
+            if child_bea not in io_matrix.columns:
+                raise ValueError(f"Company {child_ticker} has bea_code {child_bea} which is missing from io_matrix columns.")
 
-            if parent_bea in io_matrix.index and child_bea in io_matrix.columns:
+            for _, parent in companies.iterrows():
+                parent_ticker = parent["ticker"]
+                parent_bea = str(parent["bea_code"])
+
+                if child_ticker == parent_ticker:
+                    continue
+
+                if parent_bea not in io_matrix.index:
+                    raise ValueError(f"Company {parent_ticker} has bea_code {parent_bea} which is missing from io_matrix index.")
+
                 cost_share = float(io_matrix.loc[parent_bea, child_bea])
 
                 if cost_share >= threshold:
@@ -49,5 +58,8 @@ def candidate_company_edges(io_matrix: pd.DataFrame, companies: pd.DataFrame, th
                         "child_bea": child_bea,
                         "cost_share": cost_share,
                     })
+
+    if not edges:
+        return pd.DataFrame(columns=["parent", "child", "parent_bea", "child_bea", "cost_share"])
 
     return pd.DataFrame(edges)

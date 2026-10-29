@@ -16,6 +16,7 @@ Stability rule: keep the function signature and output columns; extend the imple
 from __future__ import annotations
 
 import pandas as pd
+import statsmodels.api as sm
 
 
 def estimate_weights(

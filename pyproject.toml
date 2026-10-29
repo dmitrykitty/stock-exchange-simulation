@@ -21,7 +21,6 @@ data = [
     "requests>=2.31",
     "yfinance==1.7.0",  # unofficial library: pinned because its output format changes between versions
     "openpyxl>=3.1",
-    "statsmodels>=0.14",
 ]
 # Development and contract tests.
 dev = [

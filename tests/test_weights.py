@@ -4,9 +4,22 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from marketsim.graph.api import DependencyGraph, Edge, Node
-from marketsim.graph.weights import estimate_weights
+from marketsim.graph.weights import estimate_weights, ols
+
+
+def test_ols_returns_coefficients_t_statistics_and_r_squared():
+    rng = np.random.default_rng(7)
+    X = pd.DataFrame({"parent": rng.normal(size=100)})
+    y = 0.4 + 1.25 * X["parent"] + rng.normal(0, 0.1, len(X))
+
+    coefficients, t_statistics, r_squared = ols(y, X)
+
+    assert coefficients["parent"] == pytest.approx(1.25, abs=0.03)
+    assert t_statistics["parent"] > 10
+    assert r_squared > 0.98
 
 
 def test_weights_recover_direct_and_full_coefficients_and_validate_graph():

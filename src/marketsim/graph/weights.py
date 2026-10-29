@@ -15,8 +15,20 @@ Stability rule: keep the function signature and output columns; extend the imple
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
-import statsmodels.api as sm
+
+
+def ols(y, X):
+    """y: Series; X: DataFrame of parents. Returns (coefficients, t-statistics, R^2) without the intercept."""
+    Xm = np.column_stack([np.ones(len(X)), X.to_numpy()])
+    b, *_ = np.linalg.lstsq(Xm, y.to_numpy(), rcond=None)
+    resid = y.to_numpy() - Xm @ b
+    s2 = resid @ resid / (len(y) - Xm.shape[1])
+    se = np.sqrt(np.diag(s2 * np.linalg.inv(Xm.T @ Xm)))
+    r2 = 1 - resid.var() / y.to_numpy().var()
+    return dict(zip(X.columns, b[1:])), dict(zip(X.columns, b[1:] / se[1:])), r2
+
 
 
 def estimate_weights(
@@ -49,15 +61,14 @@ def estimate_weights(
             
         X_dir_cols = [p for p in external_parents if p in returns.columns]
         if X_dir_cols:
-            X_dir = sm.add_constant(returns[X_dir_cols])
             y = returns[child]
-            data_dir = pd.concat([y, X_dir], axis=1).dropna()
+            data_dir = pd.concat([y, returns[X_dir_cols]], axis=1).dropna()
             if len(data_dir) > 10:
-                model_dir = sm.OLS(data_dir[child], data_dir[X_dir_cols + ["const"]]).fit()
+                params_dir, t_stats_dir, _ = ols(data_dir[child], data_dir[X_dir_cols])
             else:
-                model_dir = None
+                params_dir, t_stats_dir = {}, {}
         else:
-            model_dir = None
+            params_dir, t_stats_dir = {}, {}
 
         full_parents = edges[edges["child"] == child]["parent"].tolist()
         if market not in full_parents and market in returns.columns:
@@ -65,14 +76,13 @@ def estimate_weights(
             
         X_full_cols = [p for p in full_parents if p in returns.columns]
         if X_full_cols:
-            X_full = sm.add_constant(returns[X_full_cols])
-            data_full = pd.concat([returns[child], X_full], axis=1).dropna()
+            data_full = pd.concat([returns[child], returns[X_full_cols]], axis=1).dropna()
             if len(data_full) > 10:
-                model_full = sm.OLS(data_full[child], data_full[X_full_cols + ["const"]]).fit()
+                params_full, t_stats_full, _ = ols(data_full[child], data_full[X_full_cols])
             else:
-                model_full = None
+                params_full, t_stats_full = {}, {}
         else:
-            model_full = None
+            params_full, t_stats_full = {}, {}
 
         all_parents = set(external_parents + full_parents)
         for parent in all_parents:
@@ -83,14 +93,14 @@ def estimate_weights(
                 source = matching_edge["source"].iloc[0] if not matching_edge.empty else "unknown"
 
             w_dir, t_dir = float("nan"), float("nan")
-            if model_dir and parent in model_dir.params:
-                w_dir = float(model_dir.params[parent])
-                t_dir = float(model_dir.tvalues[parent])
+            if parent in params_dir:
+                w_dir = float(params_dir[parent])
+                t_dir = float(t_stats_dir[parent])
 
             w_full, t_full = float("nan"), float("nan")
-            if model_full and parent in model_full.params:
-                w_full = float(model_full.params[parent])
-                t_full = float(model_full.tvalues[parent])
+            if parent in params_full:
+                w_full = float(params_full[parent])
+                t_full = float(t_stats_full[parent])
 
             results.append({
                 "parent": parent,

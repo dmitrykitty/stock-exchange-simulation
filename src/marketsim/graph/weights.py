@@ -18,6 +18,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+WEIGHT_COLUMNS = ["parent", "child", "w_direct", "w_full", "t_stat_direct", "t_stat_full", "source"]
+
 
 def ols(y, X):
     """y: Series; X: DataFrame of parents. Returns (coefficients, t-statistics, R^2) without the intercept."""
@@ -84,13 +86,16 @@ def estimate_weights(
         else:
             params_full, t_stats_full = {}, {}
 
-        all_parents = set(external_parents + full_parents)
+        # dict.fromkeys keeps first-seen order, so edges.csv is identical between runs (a set is not)
+        all_parents = list(dict.fromkeys(external_parents + full_parents))
         for parent in all_parents:
             if parent == market:
                 source = "index"
             else:
                 matching_edge = edges[(edges["child"] == child) & (edges["parent"] == parent)]
-                source = matching_edge["source"].iloc[0] if not matching_edge.empty else "unknown"
+                if matching_edge.empty:
+                    raise ValueError(f"no source for edge {parent} -> {child}")
+                source = matching_edge["source"].iloc[0]
 
             w_dir, t_dir = float("nan"), float("nan")
             if parent in params_dir:
@@ -112,4 +117,4 @@ def estimate_weights(
                 "source": source,
             })
 
-    return pd.DataFrame(results)
+    return pd.DataFrame(results, columns=WEIGHT_COLUMNS)

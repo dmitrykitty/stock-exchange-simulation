@@ -117,3 +117,15 @@ def test_weights_recover_direct_and_full_coefficients_and_validate_graph():
     ]
     graph = DependencyGraph(nodes=nodes, edges=graph_edges)
     assert graph.validate() is graph
+
+
+def test_weights_without_edges_keep_output_columns():
+    returns = pd.DataFrame({"sp500": [0.01, -0.02]}, index=pd.date_range("2021-01-04", periods=2, freq="B"))
+    edges = pd.DataFrame(columns=["parent", "child", "source"])
+
+    weights_df = estimate_weights(returns, edges)
+
+    assert weights_df.empty
+    assert list(weights_df.columns) == [
+        "parent", "child", "w_direct", "w_full", "t_stat_direct", "t_stat_full", "source",
+    ]

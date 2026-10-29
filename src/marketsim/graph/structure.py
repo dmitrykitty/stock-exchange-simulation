@@ -33,7 +33,7 @@ def candidate_company_edges(io_matrix: pd.DataFrame, companies: pd.DataFrame, th
 
         for _, parent in companies.iterrows():
             parent_ticker = parent["ticker"]
-            parent_bea = str(_ := parent["bea_code"])
+            parent_bea = str(parent["bea_code"])
 
             if child_ticker == parent_ticker:
                 continue

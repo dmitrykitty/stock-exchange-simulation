@@ -82,12 +82,12 @@ def estimate_weights(
                 matching_edge = edges[(edges["child"] == child) & (edges["parent"] == parent)]
                 source = matching_edge["source"].iloc[0] if not matching_edge.empty else "unknown"
 
-            w_dir, t_dir = 0.0, 0.0
+            w_dir, t_dir = float("nan"), float("nan")
             if model_dir and parent in model_dir.params:
                 w_dir = float(model_dir.params[parent])
                 t_dir = float(model_dir.tvalues[parent])
 
-            w_full, t_full = 0.0, 0.0
+            w_full, t_full = float("nan"), float("nan")
             if model_full and parent in model_full.params:
                 w_full = float(model_full.params[parent])
                 t_full = float(model_full.tvalues[parent])

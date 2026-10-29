@@ -18,7 +18,7 @@ from marketsim.agents.strategies import (
 )
 from marketsim.experiments.config import RunConfig
 from marketsim.market import Gateway, make_exchange
-from marketsim.market.api import TimeInForce
+from marketsim.market.api import Report, Status, TimeInForce
 from marketsim.sim.population import make_population
 from marketsim.sim.recorder import Recorder
 from marketsim.sim.scheduler import Scheduler
@@ -73,7 +73,7 @@ class Simulation:
         if remaining:
             self.recorder.event(now, kind, {"order_id": order_id, "agent": agent, "remaining_qty": remaining})
 
-    def _place(self, agent: int, intent: OrderIntent, now: float) -> None:
+    def _place(self, agent: int, intent: OrderIntent, now: float) -> Report:
         r = self.gateway.place(agent, 0, intent.side, intent.qty, intent.limit, intent.tif, now)
         self.recorder.order(now, agent, intent.side, intent.qty, intent.limit, intent.tif, r)
         self._owners[r.order_id] = agent
@@ -84,6 +84,7 @@ class Simulation:
         completed = self.recorder.fills(now, self.gateway.drain_fills())
         for order_id in completed:
             self._open[self._owners[order_id]].discard(order_id)
+        return r
 
     def _wake(self, agent: int, now: float) -> None:
         s = self.settings
@@ -108,15 +109,17 @@ class Simulation:
                 own = noise_signal(self._decision_rng[agent])
             h = 0.0 if s.ablation == "no_herding" else s.herding.h
             herd, signal = self.network.mix(agent, own, now, h)
-            direction = int(np.sign(signal)) if abs(signal) > s.threshold else 0
-            self.network.publish(agent, direction, now)
             self.recorder.rows["signals"].append({
                 "t": now, "agent": agent, "asset": 0, "own_signal": own,
                 "herd_signal": herd, "final_signal": signal,
             })
             intent = make_order(signal, price, self.gateway.market().top(0), portfolio, s, self._decision_rng[agent])
+            direction = 0
             if intent is not None:
-                self._place(agent, intent, now)
+                report = self._place(agent, intent, now)
+                if report.status not in (Status.REJECTED_FUNDS, Status.REJECTED_INVALID, Status.REJECTED_SELF_TRADE):
+                    direction = intent.side
+            self.network.publish(agent, direction, now)
         if s.debug:
             self._check()
         self._next_wake(agent, now)

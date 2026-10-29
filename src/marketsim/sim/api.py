@@ -28,6 +28,8 @@ from marketsim.sim.engine import Simulation
 from marketsim.sim.log_schema import LOG_VERSION, load_run
 from marketsim.sim.settings import AgentSettings
 
+_SIMULATION_VERSION = "f4-v2"
+
 
 def _validate(config: RunConfig, seed: int) -> tuple[AgentSettings, dict]:
     if type(seed) is not int or seed < 0:
@@ -63,7 +65,10 @@ def _git_commit() -> str:
 def run(config: RunConfig, seed: int, out_dir: Path) -> Path:
     """Run one simulation and write its log to ``out_dir / <run_id>``. Same config + seed -> same log."""
     settings, levels = _validate(config, seed)
-    identity = json.dumps({"config": asdict(config), "seed": seed, "simulation_version": "f4-v1"}, sort_keys=True)
+    identity = json.dumps({
+        "config": asdict(config), "seed": seed, "resolved_agents": asdict(settings),
+        "simulation_version": _SIMULATION_VERSION,
+    }, sort_keys=True)
     run_id = "f4_" + hashlib.sha256(identity.encode()).hexdigest()[:20]
     destination = Path(out_dir) / run_id
     if destination.exists():
@@ -78,7 +83,7 @@ def run(config: RunConfig, seed: int, out_dir: Path) -> Path:
         "config": asdict(config), "seed": seed, "git_commit": _git_commit(),
         "versions": {name: importlib.metadata.version(name) for name in ("marketsim", "numpy", "pandas", "pyarrow")},
         "started_at": started, "wall_time_s": time.perf_counter() - start, "assets": [settings.ticker],
-        "simulation_version": "f4-v1", "resolved_agents": asdict(settings),
+        "simulation_version": _SIMULATION_VERSION, "resolved_agents": asdict(settings),
         "initial_resources": initial_resources, "final_resources": simulation.resources(),
         "invariant_checks": simulation.invariant_checks,
         "population": {"kinds": simulation.population.kinds, "fund_ids": np.flatnonzero(simulation.population.funds).tolist()},

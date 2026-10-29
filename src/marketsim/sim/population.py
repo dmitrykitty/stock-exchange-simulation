@@ -31,8 +31,16 @@ def make_population(settings: AgentSettings, rng: np.random.Generator) -> Popula
     n = len(kinds)
     kinds += ["market_maker"] * s.market_makers_per_asset
     funds = np.zeros(len(kinds), dtype=bool)
-    # Random group membership is fixed by the run seed, never by C.
-    funds[rng.choice(n, s.n_funds, replace=False)] = True
+    # Largest-remainder quotas keep the fund strategy mix independent of the seed and C.
+    counts = (s.valuers, s.trend, s.noise)
+    quotas = [size * s.n_funds // n for size in counts]
+    remainders = [size * s.n_funds % n for size in counts]
+    for index in sorted(range(len(counts)), key=lambda i: (-remainders[i], i))[:s.n_funds - sum(quotas)]:
+        quotas[index] += 1
+    offset = 0
+    for size, quota in zip(counts, quotas):
+        funds[offset + rng.choice(size, quota, replace=False)] = True
+        offset += size
     fund_indices = np.flatnonzero(funds)
     retail_indices = np.flatnonzero(~funds[:n])
     cash = np.zeros(len(kinds), dtype=np.int64)

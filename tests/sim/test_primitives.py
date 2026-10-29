@@ -55,6 +55,45 @@ def test_concentration_changes_distribution_without_changing_resources_or_groups
         assert population.cash.dtype == population.shares.dtype == np.dtype("int64")
 
 
+@pytest.mark.parametrize("counts,n_funds,expected", [
+    ((40, 20, 20), 8, (4, 2, 2)),
+    ((7, 4, 3), 3, (1, 1, 1)),
+    ((2, 2, 0), 1, (1, 0, 0)),
+    ((0, 4, 4), 2, (0, 1, 1)),
+])
+def test_fund_strategy_quotas_are_proportional_and_independent_of_seed(counts, n_funds, expected):
+    from marketsim.sim.population import make_population
+    from marketsim.sim.settings import AgentSettings
+
+    settings = AgentSettings.from_dict({
+        "valuers": counts[0], "trend": counts[1], "noise": counts[2], "n_funds": n_funds,
+    })
+    for seed in range(5):
+        population = make_population(settings, np.random.default_rng(seed))
+        kinds = np.asarray(population.kinds)
+        actual = tuple(int(np.sum(population.funds & (kinds == kind))) for kind in ("valuer", "trend", "noise"))
+        assert actual == expected
+        assert not population.funds[-settings.market_makers_per_asset:].any()
+
+
+def test_concentration_preserves_strategy_capital_up_to_integer_allocation_error():
+    from marketsim.sim.population import make_population
+    from marketsim.sim.settings import AgentSettings
+
+    for concentration in (0.2, 0.5, 0.8):
+        for seed in range(5):
+            population = make_population(
+                AgentSettings.from_dict({"concentration": concentration}), np.random.default_rng(seed),
+            )
+            kinds = np.asarray(population.kinds)
+            for kind, count, cash, shares in (
+                ("valuer", 40, 40000000, 4000), ("trend", 20, 20000000, 2000), ("noise", 20, 20000000, 2000),
+            ):
+                # Each investor can receive at most one residual unit per resource allocation.
+                assert abs(int(population.cash[kinds == kind].sum()) - cash) <= count
+                assert abs(int(population.shares[kinds == kind].sum()) - shares) <= count
+
+
 @pytest.mark.parametrize("raw", [
     {"typo": 3}, {"rho": -1}, {"rho": float("nan")}, {"valuers": True},
     {"noise": 1.5}, {"initial_price_ticks": 0}, {"herding": {"h": 1.1}},

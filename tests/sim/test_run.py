@@ -130,3 +130,14 @@ def test_cpp_and_python_runs_have_identical_tables(tmp_path):
     b = load_run(run(replace(config, exchange_backend="cpp"), 8, tmp_path / "cpp"))
     for spec in RUN_TABLES:
         pd.testing.assert_frame_equal(a[spec.name], b[spec.name], check_exact=True)
+
+
+def test_agents_without_resources_do_not_influence_neighbors(tmp_path):
+    log = load_run(run(small_config(
+        valuers=0, trend=0, noise=4, n_funds=1, market_makers_per_asset=0,
+        total_cash_cents=0, total_shares=0, herding={"h": 0.6, "neighbors": 3},
+    ), 8, tmp_path))
+    assert log["orders"].empty
+    assert (log["signals"].own_signal != 0).any()
+    assert (log["signals"].herd_signal == 0).all()
+    np.testing.assert_allclose(log["signals"].final_signal, 0.4 * log["signals"].own_signal)

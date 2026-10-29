@@ -7,8 +7,9 @@ and that the resulting graph passes all DependencyGraph.validate() constraints.
 from __future__ import annotations
 
 import pandas as pd
+
+from marketsim.graph.api import DependencyGraph, Edge, Node
 from marketsim.graph.structure import candidate_company_edges
-from marketsim.graph.api import DependencyGraph, Node, Edge
 
 
 def test_structure():

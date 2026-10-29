@@ -112,4 +112,13 @@ A contract is the interface through which one part of the project uses another. 
 
 ## Status
 
-Skeleton: contracts, implementation stubs, test fixtures, contract tests. Each role implements its part following its phase document.
+The exchange, gateway and F4 single-asset simulation are implemented. Data collection and graph estimation
+remain under development. F4 runs on synthetic constant inputs and supports both exchange backends.
+
+```bash
+python -m marketsim.experiments.run configs/f4_pilot.yaml --out runs/f4/pilot
+```
+
+Use a new output directory for each experiment. See [the F4 guide](docs/guides/f4_simulation.md)
+for agent parameters, reproducibility, order lifecycle logging and E1–E3 configurations.
+The original `configs/pilot.yaml` describes the F5 graph chain and is not supported by F4.

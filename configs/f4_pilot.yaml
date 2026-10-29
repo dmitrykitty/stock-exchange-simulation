@@ -1,0 +1,36 @@
+base:
+  name: f4_pilot
+  exchange_backend: python
+  graph: single_asset
+  external: flat
+  use_market_index: false
+  n_sessions: 30
+  warmup_sessions: 5
+  sample_dt: 0.02
+  agents:
+    valuers: 40
+    trend: 20
+    noise: 20
+    n_funds: 8
+    concentration: 0.5
+    initial_price_ticks: 10000
+    total_cash_cents: 80000000
+    total_shares: 8000
+    rho: 0.02
+    decision_rate: 2.0
+    market_makers_per_asset: 1
+    market_maker_rate: 20.0
+    market_maker_qty: 20
+    market_maker_spread_ticks: 10
+    tif: GTD
+    order_lifetime: 0.5
+    ablation: none
+    herding:
+      h: 0.0
+      neighbors: 5
+      ttl: 0.5
+seeds:
+- 1
+- 2
+- 3
+grid: {}

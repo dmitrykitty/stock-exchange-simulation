@@ -3,20 +3,49 @@
 ``lob_core`` is built separately: ``pip install -e cpp/`` (needs a C++ compiler and CMake).
 If it is not installed, ``CppExchange`` raises ImportError and the rest of the project runs on PyExchange.
 
-The conversion to numpy currently goes through lists of Python objects: simple and correct, but slow.
-Optimizing it (returning buffers instead of lists) is internal to the engine and does not change the contract.
+Results cross the language boundary as one contiguous buffer of packed records per call (the ``*_packed``
+methods of lob_core). numpy takes the buffer without a copy and ``.view(dtype)`` reinterprets it with the
+contract dtypes, so no Python object is created per trade or per report. At import time the record layout
+reported by C++ (``lob_core.WIRE_LAYOUT``) is checked against the dtypes of market/api.py; a mismatch
+refuses to load instead of silently corrupting data.
 """
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
 
-from marketsim.market.api import CONTRACT_VERSION, DEPTH_DTYPE, FILL_DTYPE, REPORT_DTYPE, Report, Status, Top
+from marketsim.market.api import (
+    CONTRACT_VERSION,
+    DEPTH_DTYPE,
+    FILL_DTYPE,
+    ORDER_DTYPE,
+    REPORT_DTYPE,
+    Report,
+    Status,
+    Top,
+)
+
+_STATUS = {int(s): s for s in Status}
+_DTYPES = {"order": ORDER_DTYPE, "fill": FILL_DTYPE, "report": REPORT_DTYPE, "level": DEPTH_DTYPE}
+_lob_core = None
+
+
+def _check_layout(layout: dict) -> None:
+    for name, dtype in _DTYPES.items():
+        cpp = layout[name]
+        python_fields = [(field, dtype.fields[field][1]) for field in dtype.names]
+        cpp_fields = [(str(field), int(offset)) for field, offset in cpp["fields"]]
+        if int(cpp["size"]) != dtype.itemsize or cpp_fields != python_fields:
+            raise ImportError(
+                f"lob_core record layout of {name!r} {cpp_fields} (size {cpp['size']}) does not match "
+                f"the contract dtype {python_fields} (size {dtype.itemsize})"
+            )
 
 
 def _import_lob_core():
+    global _lob_core
+    if _lob_core is not None:
+        return _lob_core
     try:
         import lob_core
     except ImportError as exc:  # pragma: no cover - depends on the environment
@@ -25,6 +54,8 @@ def _import_lob_core():
         raise ImportError(
             f"lob_core contract version {lob_core.CONTRACT_VERSION} != Python contract version {CONTRACT_VERSION}"
         )
+    _check_layout(lob_core.WIRE_LAYOUT)
+    _lob_core = lob_core
     return lob_core
 
 
@@ -36,56 +67,40 @@ def is_available() -> bool:
     return True
 
 
-def _fills_to_array(fills) -> np.ndarray:
-    return np.array(
-        [(f.seq, f.asset, f.price, f.qty, f.taker_order, f.maker_order, f.taker_owner, f.maker_owner, f.taker_side)
-         for f in fills],
-        dtype=FILL_DTYPE,
-    )
-
-
-def _report(r) -> Report:
-    avg = float(r.avg_price) if r.filled_qty > 0 else math.nan
-    return Report(int(r.order_id), Status(r.status), int(r.filled_qty), int(r.resting_qty), avg)
+def _records(buffer, dtype: np.dtype) -> np.ndarray:
+    """A packed byte buffer from lob_core (or None) as a writable array of ``dtype`` records, without copying."""
+    if buffer is None:
+        return np.zeros(0, dtype=dtype)
+    return buffer.view(dtype)
 
 
 class CppExchange:
     def __init__(self, n_assets: int) -> None:
-        self._lob = _import_lob_core()
-        self._ex = self._lob.Exchange(n_assets)
+        self._ex = _import_lob_core().Exchange(n_assets)
 
     @property
     def n_assets(self) -> int:
         return int(self._ex.n_assets)
 
     def submit(self, asset: int, owner: int, side: int, qty: int, limit: int, tif: int) -> tuple[Report, np.ndarray]:
-        report, fills = self._ex.submit(asset, owner, side, qty, limit, tif)
-        return _report(report), _fills_to_array(fills)
+        order_id, status, filled, resting, avg, fills = self._ex.submit_packed(asset, owner, side, qty, limit, tif)
+        return Report(order_id, _STATUS[status], filled, resting, avg), _records(fills, FILL_DTYPE)
 
     def submit_batch(self, orders: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        requests = []
-        for o in orders:
-            r = self._lob.OrderRequest()
-            r.asset, r.owner, r.side = int(o["asset"]), int(o["owner"]), int(o["side"])
-            r.qty, r.limit, r.tif = int(o["qty"]), int(o["limit"]), int(o["tif"])
-            requests.append(r)
-        reports, fills = self._ex.submit_batch(requests)
-        rep = np.array(
-            [(r.order_id, r.status, r.filled_qty, r.resting_qty, r.avg_price if r.filled_qty > 0 else math.nan)
-             for r in reports],
-            dtype=REPORT_DTYPE,
-        )
-        return rep, _fills_to_array(fills)
+        packed = np.ascontiguousarray(orders, dtype=ORDER_DTYPE).view(np.uint8)
+        reports, fills = self._ex.submit_batch_packed(packed)
+        return _records(reports, REPORT_DTYPE), _records(fills, FILL_DTYPE)
 
     def cancel(self, order_id: int) -> int:
         return int(self._ex.cancel(order_id))
 
     def top(self, asset: int) -> Top:
-        return Top(*(int(v) for v in self._ex.top(asset)))
+        return Top(*self._ex.top(asset))
 
     def depth(self, asset: int, levels: int) -> np.ndarray:
-        return np.array(self._ex.depth(asset, levels), dtype=DEPTH_DTYPE)
+        if levels < 0:
+            raise ValueError("levels must be non-negative")
+        return _records(self._ex.depth_packed(asset, levels), DEPTH_DTYPE)
 
     def last_trade(self, asset: int) -> tuple[int, int]:
-        seq, price = self._ex.last_trade(asset)
-        return int(seq), int(price)
+        return self._ex.last_trade(asset)

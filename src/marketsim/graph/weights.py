@@ -27,11 +27,11 @@ def estimate_weights(
     end: str = "2023-12-31",
 ) -> pd.DataFrame:
     """
-    returns -- marketsim.data.api.load_returns_daily(): log returns of tickers, commodities and the index;
-    edges   -- columns parent, child, source: the graph structure (no weights yet).
-
     Returns columns: parent, child, w_direct, w_full, t_stat_direct, t_stat_full, source.
     The market index edge (``market`` -> child) is added for every company.
+
+    Why: the weights are the agents' knowledge of "how much this company moves when its parent moves".
+    Used by: save_graph -> data/graph/<name>/ -> valuers in the simulation (S); reference_path (D2).
     """
     returns = returns.loc[(returns.index >= start) & (returns.index <= end)]
     

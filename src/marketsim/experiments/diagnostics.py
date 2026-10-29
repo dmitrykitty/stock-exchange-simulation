@@ -16,12 +16,16 @@ def diagnose_run(log: RunLog) -> dict:
     """
     cfg = log.meta["config"]
     warmup, end = cfg["warmup_sessions"], cfg["n_sessions"]
-    book = log["book"].loc[lambda d: (d.t >= warmup) & (d.t <= end)]
+    all_book = log["book"]
+    all_valid = (all_book.best_bid != NO_PRICE) & (all_book.best_ask != NO_PRICE)
+    # A snapshot represents [t, next_t). Retain the part crossing an off-grid warmup.
+    times = all_book.t.to_numpy()
+    durations = np.diff(np.clip(np.append(times, end), warmup, end))
+    duration = float(durations.sum())
+    book = all_book.loc[lambda d: (d.t >= warmup) & (d.t <= end)]
     trades = log["trades"].loc[lambda d: d.t >= warmup]
     orders = log["orders"].loc[lambda d: d.t >= warmup]
     valid = (book.best_bid != NO_PRICE) & (book.best_ask != NO_PRICE)
-    durations = np.diff(np.append(book.t.to_numpy(), end))
-    duration = float(durations.sum())
     quotes = book.loc[valid]
     prices = (quotes.best_bid.to_numpy() + quotes.best_ask.to_numpy()) / 2
     values = log["valuations"].loc[lambda d: d.t >= warmup, "v_mean"]
@@ -29,7 +33,7 @@ def diagnose_run(log: RunLog) -> dict:
     return {
         "run_id": log.meta["run_id"], "seed": log.meta["seed"], "wall_time_s": log.meta["wall_time_s"],
         "trade_count": len(trades), "traded_shares": int(trades.qty.sum()), "order_count": len(orders),
-        "empty_side_fraction": float(np.sum(durations * (~valid).to_numpy()) / duration) if duration else float("nan"),
+        "empty_side_fraction": float(np.sum(durations * (~all_valid).to_numpy()) / duration) if duration else float("nan"),
         "mean_spread_ticks": float((quotes.best_ask - quotes.best_bid).mean()) if len(quotes) else float("nan"),
         "mean_depth5": float((book.depth5_bid + book.depth5_ask).mean()) if len(book) else float("nan"),
         "max_drawdown": float(np.max(1 - prices / np.maximum.accumulate(prices))) if len(prices) else float("nan"),

@@ -75,6 +75,8 @@ class AgentSettings:
             raise ConfigError("market_maker_spread_ticks must be >= 2")
         if settings.initial_price_ticks > 10**12:
             raise ConfigError("initial_price_ticks must be <= 1000000000000")
+        if settings.market_maker_spread_ticks > 10**12 or settings.passive_offset_ticks > 10**12:
+            raise ConfigError("quote offsets must be <= 1000000000000 ticks")
         count = settings.valuers + settings.trend + settings.noise
         if not 0 < settings.n_funds < count:
             raise ConfigError("need investors and 0 < n_funds < investor count")
@@ -110,4 +112,6 @@ class AgentSettings:
             raise ConfigError("total cash exceeds int64")
         if settings.total_shares + mm * settings.market_maker_shares > 2**63 - 1:
             raise ConfigError("total shares exceeds int64")
+        if settings.inventory_skew_ticks * (settings.total_shares + mm * settings.market_maker_shares) > 10**12:
+            raise ConfigError("maximum inventory skew must be <= 1000000000000 ticks")
         return settings

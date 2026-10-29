@@ -58,6 +58,23 @@ def test_small_grid_runs_and_writes_summary_with_overrides(tmp_path):
     assert metadata["config"] == config
 
 
+def test_empty_time_includes_interval_straddling_warmup():
+    from marketsim.experiments.diagnostics import diagnose_run
+
+    missing = np.iinfo(np.int64).min
+    book = pd.DataFrame({
+        "t": [0, 0.6, 1.2, 1.8, 2.0], "best_bid": [missing, missing, 9900, 9900, 9900],
+        "best_ask": [10100] * 5, "depth5_bid": [0, 0, 10, 10, 10], "depth5_ask": [10] * 5,
+    })
+    log = RunLog(paths.PROJECT_ROOT, {
+        "run_id": "off_grid", "seed": 1, "wall_time_s": 0,
+        "config": {"warmup_sessions": 1, "n_sessions": 2},
+    }, {"book": book, "valuations": pd.DataFrame({"t": [0, 1.2], "v_mean": [10000.0, 10000.0]}),
+        "trades": pd.DataFrame({"t": [], "qty": []}),
+        "orders": pd.DataFrame({"t": [], "qty": [], "filled_qty": []})})
+    assert diagnose_run(log)["empty_side_fraction"] == pytest.approx(0.2)
+
+
 def test_pilot_cli_produces_a_valid_run_and_summary(tmp_path):
     result = subprocess.run([
         sys.executable, "-m", "marketsim.experiments.run", "configs/f4_pilot.yaml",

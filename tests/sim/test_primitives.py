@@ -61,6 +61,8 @@ def test_concentration_changes_distribution_without_changing_resources_or_groups
     {"herding": {"ttl": 0}}, {"herding": {"neigbors": 5}}, {"decision_rate": 0},
     {"n_funds": 100000}, {"tif": "unknown"}, {"total_shares": -1},
     {"valuers_network": 2}, {"market_maker_spread_ticks": 1},
+    {"market_maker_spread_ticks": 2**64}, {"passive_offset_ticks": 2**64},
+    {"inventory_skew_ticks": 1e300},
 ])
 def test_invalid_agent_settings_are_rejected(raw):
     from marketsim.sim.settings import AgentSettings

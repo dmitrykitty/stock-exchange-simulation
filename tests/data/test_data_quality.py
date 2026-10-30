@@ -27,6 +27,22 @@ def _skip_if_missing(fn, *args):
         pytest.skip(str(exc))
 
 
+def test_ff49_mapping_parses_and_covers_transport_companies():
+    mapping = pd.read_csv(paths.mapping_dir() / "ff49_to_bea.csv", dtype=str)
+    assert list(mapping.columns) == ["ff_code", "ff_name", "bea_code", "bea_name", "notes"]
+    assert mapping.notna().all().all()
+    assert not mapping.duplicated(["ff_code", "bea_code"]).any()
+    assert set(mapping.loc[mapping["ff_code"] == "Trans", "bea_code"]) == {"481", "484"}
+    notes = mapping.set_index("bea_code")["notes"]
+    assert "4911, 4931" in notes["22"]
+    assert "furnaces, steel" in notes["331"]
+    assert "programming, data" in notes["514"]
+    companies = api.load_companies().set_index("ticker")
+    assert set(companies.loc[["DAL", "UAL", "ODFL"], "bea_code"]) <= set(
+        mapping.loc[mapping["ff_code"] == "Trans", "bea_code"]
+    )
+
+
 def test_yahoo_futures_match_worldbank_monthly():
     daily = _skip_if_missing(api.load_commodities_daily)
     monthly = _skip_if_missing(api.load_commodities_monthly)

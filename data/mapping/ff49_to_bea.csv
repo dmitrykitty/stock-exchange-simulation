@@ -1,13 +1,14 @@
-ffb_code,ff_name,bea_code,bea_name,notes
+ff_code,ff_name,bea_code,bea_name,notes
 Oil,Petroleum and Natural Gas,211,Oil and gas extraction,Primary upstream crude oil and natural gas extraction (also covers integrated refining in FF49; see BEA 324)
 Coal,Coal,212,"Mining, except oil and gas",Coal mining is part of BEA 212
 Gold,Precious Metals,212,"Mining, except oil and gas",Gold and silver ores (SIC 1040) map to BEA 212
 Mines,Non-Metallic and Industrial Metal Mining,212,"Mining, except oil and gas",Copper and industrial metal mining (SIC 1000) map to BEA 212
-Util,Utilities,22,Utilities,Electric and gas utilities (SIC 4911, 4931)
-Steel,Steel Works Etc,331,Primary metals,Blast furnaces, steel works and primary aluminum (SIC 3312, 3334)
+Util,Utilities,22,Utilities,"Electric and gas utilities (SIC 4911, 4931)"
+Steel,Steel Works Etc,331,Primary metals,"Blast furnaces, steel works and primary aluminum (SIC 3312, 3334)"
 Chips,Electronic Equipment,334,Computer and electronic products,Semiconductors and related devices (SIC 3674)
 Hardw,Computers,334,Computer and electronic products,Computer hardware and electronic equipment
 Softw,Computer Software,511,"Publishing industries, except internet (includes software)",Prepackaged software (SIC 7372)
-BusSv,Business Services,514,"Data processing, internet publishing, and other information services",Computer programming, data processing and internet/AI services (SIC 7370)
-Trans,Transportation,481,Air transportation,Scheduled air transportation (BEA 481) and truck transportation (BEA 484)
+BusSv,Business Services,514,"Data processing, internet publishing, and other information services","Computer programming, data processing and internet/AI services (SIC 7370)"
+Trans,Transportation,481,Air transportation,Scheduled air transportation (DAL and UAL)
+Trans,Transportation,484,Truck transportation,Truck transportation (ODFL)
 Banks,Banking,521CI,"Federal Reserve banks, credit intermediation, and related activities",National commercial banks (SIC 6021)

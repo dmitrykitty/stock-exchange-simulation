@@ -18,6 +18,7 @@ import pytest
 
 from marketsim import paths
 from marketsim.data import api
+from marketsim.data.clean import _build_outliers_report
 
 
 def _skip_if_missing(fn, *args):
@@ -41,6 +42,58 @@ def test_ff49_mapping_parses_and_covers_transport_companies():
     assert set(companies.loc[["DAL", "UAL", "ODFL"], "bea_code"]) <= set(
         mapping.loc[mapping["ff_code"] == "Trans", "bea_code"]
     )
+
+
+def test_committed_outlier_explanations_have_sources():
+    explanations = pd.read_csv(paths.mapping_dir() / "outlier_explanations.csv", dtype=str)
+    assert list(explanations.columns) == ["date", "series", "explanation", "source_url"]
+    assert not explanations.empty
+    assert explanations.notna().all().all()
+    assert not explanations.duplicated(["date", "series"]).any()
+    assert pd.to_datetime(explanations["date"], format="%Y-%m-%d").notna().all()
+    assert explanations["source_url"].str.match(r"https://[^/]+/.+").all()
+    assert explanations["explanation"].str.strip().ne("").all()
+    assert not explanations["explanation"].str.contains("unexplained|earnings release, contract roll").any()
+
+
+@pytest.mark.parametrize("empty", [False, True])
+def test_outlier_report_joins_sources_and_marks_unknown_moves(tmp_path, monkeypatch, empty):
+    monkeypatch.setenv("MARKETSIM_DATA", str(tmp_path))
+    paths.mapping_dir().mkdir()
+    pd.DataFrame(
+        [
+            ["2024-01-03", "AAA", "Company announced a dividend, plus a buyback.", "https://example.org/news"],
+            ["2024-01-02", "AAA", "Stale annotation must not create an outlier.", "https://example.org/old"],
+        ],
+        columns=["date", "series", "explanation", "source_url"],
+    ).to_csv(paths.mapping_dir() / "outlier_explanations.csv", index=False)
+    returns = pd.DataFrame(
+        {"AAA": [np.nan, 0.15, 0.16], "BBB": [np.nan, -0.15, -0.17], "copper": [0.4, 0.5, 0.6]},
+        index=pd.date_range("2024-01-01", periods=3, name="date"),
+    )
+    if empty:
+        returns = returns.iloc[:0]
+    report = pd.read_csv(_build_outliers_report(returns), keep_default_na=False)
+    assert list(report.columns) == ["date", "series", "log_return", "pct_change", "explanation", "source_url"]
+    if empty:
+        assert report.empty
+        return
+    assert report[["date", "series"]].values.tolist() == [["2024-01-03", "AAA"], ["2024-01-03", "BBB"]]
+    assert report["explanation"].tolist() == ["Company announced a dividend, plus a buyback.", "unexplained"]
+    assert report["source_url"].tolist() == ["https://example.org/news", ""]
+    assert report["pct_change"].tolist() == [round(np.expm1(0.16) * 100, 2), round(np.expm1(-0.17) * 100, 2)]
+
+
+def test_outlier_report_rejects_duplicate_annotations(tmp_path, monkeypatch):
+    monkeypatch.setenv("MARKETSIM_DATA", str(tmp_path))
+    paths.mapping_dir().mkdir()
+    pd.DataFrame(
+        [["2024-01-03", "AAA", "First event", "https://example.org/first"]] * 2,
+        columns=["date", "series", "explanation", "source_url"],
+    ).to_csv(paths.mapping_dir() / "outlier_explanations.csv", index=False)
+    returns = pd.DataFrame({"AAA": [0.2]}, index=pd.to_datetime(["2024-01-03"]))
+    with pytest.raises(pd.errors.MergeError):
+        _build_outliers_report(returns)
 
 
 def test_yahoo_futures_match_worldbank_monthly():
@@ -115,9 +168,23 @@ def test_outliers_report_and_manifest_exist():
         pytest.skip("outliers_report.csv or manifest.json not generated yet")
 
     outliers = pd.read_csv(outliers_path)
-    assert {"date", "series", "log_return", "explanation"} <= set(outliers.columns)
+    assert {"date", "series", "log_return", "explanation", "source_url"} <= set(outliers.columns)
     assert len(outliers) > 0
-    assert (outliers["explanation"].astype(str).str.len() > 0).all()
+    returns = api.load_returns_daily().drop(columns="copper")
+    expected = returns.stack()
+    expected = expected[expected.abs() > 0.15]
+    expected.index.names = ["date", "series"]
+    expected = expected.rename("log_return").reset_index()
+    expected["date"] = expected["date"].dt.strftime("%Y-%m-%d")
+    expected = expected.sort_values(["date", "series"]).reset_index(drop=True)
+    pd.testing.assert_frame_equal(outliers[expected.columns], expected.round({"log_return": 6}))
+
+    explanations = pd.read_csv(paths.mapping_dir() / "outlier_explanations.csv")
+    keys = ["date", "series"]
+    assert set(map(tuple, explanations[keys].values)) <= set(map(tuple, outliers[keys].values))
+    joined = outliers.merge(explanations, on=keys, how="left", suffixes=("", "_mapping"), validate="one_to_one")
+    assert joined["explanation"].equals(joined["explanation_mapping"].fillna("unexplained"))
+    assert joined["source_url"].fillna("").equals(joined["source_url_mapping"].fillna(""))
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert len(manifest) >= 10

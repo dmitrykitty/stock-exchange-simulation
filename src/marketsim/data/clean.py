@@ -24,86 +24,10 @@ import pandas as pd
 from marketsim import paths
 from marketsim.data import api
 from marketsim.data import schemas as S
-from marketsim.data.fetch import BEA_XLSX_NAME
 
 PERIOD_START = "2021-01-01"
 PERIOD_END = "2025-12-31"
 IO_YEARS = (2022, 2023)
-
-OUTLIER_EXPLANATIONS: dict[tuple[str, str], str] = {
-    ("henry_hub", "2021-02-16"): "2021 Texas power crisis / Arctic blast (Winter Storm Uri) spot gas spike.",
-    ("henry_hub", "2021-02-17"): "2021 Texas freeze spot natural gas surge at Henry Hub.",
-    ("henry_hub", "2021-02-18"): "Post-freeze spot natural gas normalization as temperatures recovered.",
-    ("henry_hub", "2021-02-19"): "Continued spot gas normalization after Winter Storm Uri.",
-    ("henry_hub", "2022-01-27"): "Short squeeze at February 2022 NYMEX contract expiration + cold snap forecast.",
-    ("henry_hub", "2022-02-02"): "Cold weather forecast surge in spot Henry Hub gas.",
-    ("henry_hub", "2022-02-04"): "Warm forecast revision reversing prior spot gas spike.",
-    ("henry_hub", "2022-06-14"): "Freeport LNG terminal explosion forced US domestic gas supply glut.",
-    ("henry_hub", "2022-07-05"): "Summer cooling demand drop and storage build.",
-    ("henry_hub", "2022-10-25"): "Rebound from brief negative Waha/spot gas bottleneck.",
-    ("henry_hub", "2022-11-01"): "Mild November weather forecast sell-off.",
-    ("henry_hub", "2022-11-04"): "Early winter cold snap revision.",
-    ("henry_hub", "2022-12-27"): "Winter Storm Elliott spot freeze-offs.",
-    ("henry_hub", "2022-12-28"): "Post-Elliott warmer January forecast collapse.",
-    ("henry_hub", "2023-01-03"): "Record warm January temperatures in US and Europe.",
-    ("henry_hub", "2023-12-13"): "Cold shot recovery after multi-month low.",
-    ("henry_hub", "2024-01-12"): "Mid-January Arctic blast spot gas surge (Winter Storm Heather).",
-    ("henry_hub", "2024-01-16"): "Post-holiday spot gas normalization after peak freeze.",
-    ("henry_hub", "2024-01-17"): "Rapid warming trend following January freeze.",
-    ("henry_hub", "2024-03-11"): "Spring shoulder season oversupply.",
-    ("henry_hub", "2024-03-27"): "Storage withdrawal surprise / production curtailments.",
-    ("henry_hub", "2024-04-01"): "Post-Easter spot gas rebound.",
-    ("henry_hub", "2024-04-17"): "Pipeline maintenance and weak spring heating demand.",
-    ("henry_hub", "2024-04-18"): "Bounce from low spot price base ($1.50/MMBtu level).",
-    ("henry_hub", "2024-04-26"): "LNG feedgas drop and seasonal oversupply.",
-    ("henry_hub", "2024-04-29"): "Spot rebound as Freeport LNG train restarted.",
-    ("henry_hub", "2024-06-18"): "Summer heatwave cooling demand surge.",
-    ("henry_hub", "2024-08-29"): "Late-summer storage overhang.",
-    ("henry_hub", "2024-08-30"): "Month-end spot gas rebound.",
-    ("henry_hub", "2024-10-31"): "Warm November weather outlook sell-off.",
-    ("henry_hub", "2024-11-04"): "Spot recovery from sub-$1.50 base.",
-    ("henry_hub", "2024-11-08"): "Gulf hurricane shut-ins and colder revision.",
-    ("henry_hub", "2024-11-11"): "Spot gas jump on early winter heating demand.",
-    ("henry_hub", "2024-11-12"): "Partial pullback after spot spike.",
-    ("henry_hub", "2024-11-20"): "Cold late-November weather system.",
-    ("henry_hub", "2025-01-10"): "January polar vortex forecast surge.",
-    ("henry_hub", "2025-01-17"): "Pre-MLK weekend extreme cold spot premium.",
-    ("henry_hub", "2025-01-21"): "Post-peak freeze spot gas relaxation.",
-    ("henry_hub", "2025-01-28"): "Warm early-February forecast revision.",
-    ("henry_hub", "2025-09-29"): "Autumn shoulder season spot volatility.",
-    ("henry_hub", "2025-10-20"): "Early heating demand rebound from low base.",
-    ("henry_hub", "2025-10-29"): "November contract roll / colder weather forecast.",
-    ("wti", "2022-03-09"): "Sharp oil pullback on UAE output comments after Ukraine invasion spike.",
-    ("brent", "2022-03-09"): "Sharp Brent pullback after initial Ukraine invasion price surge.",
-    ("copper_usd_per_lb", "2025-07-31"): "COMEX copper crash on US tariff announcement revision.",
-    ("copper", "2025-07-31"): "COMEX copper crash on US tariff announcement revision.",
-    ("META", "2022-02-03"): "Q4 2021 earnings miss and weak Q1 revenue guidance (-26.4%).",
-    ("META", "2022-10-27"): "Q3 2022 earnings drop and heavy Reality Labs capex outlook (-24.6%).",
-    ("META", "2023-02-02"): "Q4 2022 earnings beat, $40B buyback and 'Year of Efficiency' (+23.3%).",
-    ("META", "2024-02-02"): "Q4 2023 earnings beat and first-ever dividend announcement (+20.3%).",
-    ("UAL", "2022-01-03"): "Strong post-Omicron travel demand outlook.",
-    ("UAL", "2024-04-17"): "Q1 2024 earnings beat and strong summer travel guidance (+17.5%).",
-    ("UAL", "2025-04-09"): "Broad market and travel rebound following tariff pause announcement.",
-    ("DAL", "2025-04-09"): "Q1 2025 earnings release + broad market rally on tariff pause (+23.4%).",
-    ("NVDA", "2023-05-25"): "Q1 FY24 earnings blowout on generative AI data-center demand (+24.4%).",
-    ("NVDA", "2024-02-22"): "Q4 FY24 earnings beat on accelerating H100 AI chip demand (+16.4%).",
-    ("NVDA", "2025-01-27"): "AI hardware sell-off triggered by DeepSeek R1 release (-17.0%).",
-    ("NVDA", "2025-04-09"): "Semiconductor rebound on 90-day reciprocal tariff pause (+18.7%).",
-    ("AMD", "2023-05-03"): "Q1 2023 weak PC client segment guidance.",
-    ("AMD", "2025-04-09"): "Semiconductor rally on tariff pause announcement (+23.8%).",
-    ("AMD", "2025-10-06"): "AI accelerator partnership / product announcement rally.",
-    ("ODFL", "2022-07-27"): "Strong Q2 2022 operating ratio and LTL yield growth.",
-    ("ODFL", "2024-11-06"): "Post-election domestic freight and industrials rally.",
-    ("AA", "2021-04-16"): "Q1 2021 earnings beat on surging aluminum prices.",
-    ("AA", "2021-10-15"): "Q3 2021 record profit, dividend initiation and share buyback.",
-    ("AA", "2022-03-07"): "Supply shock rally in aluminum during Russia-Ukraine conflict.",
-    ("AA", "2022-04-21"): "Q1 2022 shipments miss and higher energy/raw material costs.",
-    ("AA", "2022-05-09"): "China COVID lockdowns demand sell-off in industrial metals.",
-    ("AA", "2022-07-21"): "Q2 2022 earnings beat and strong cash flow.",
-    ("AA", "2022-10-14"): "Global aluminum demand slowdown and high European energy costs.",
-    ("AA", "2022-11-04"): "China reopening rumors industrial metals surge.",
-    ("AA", "2022-11-10"): "Cooler US CPI report + China reopening metals rally.",
-}
 
 
 def _read_yahoo_csv(path: Path) -> pd.DataFrame:
@@ -320,6 +244,7 @@ def build_stocks() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFra
             "gold": comm["gold"],
             "platinum": comm["platinum"],
             "copper_usd_per_lb": comm["copper_usd_per_lb"],
+            # F2 names the graph node "copper"; keep this alias in the same USD/lb units.
             "copper": comm["copper_usd_per_lb"],
         },
         index=cal_idx,
@@ -342,25 +267,29 @@ def _build_outliers_report(returns: pd.DataFrame) -> Path:
         extreme = s[s.abs() > 0.15]
         for dt, val in extreme.items():
             dt_str = str(dt.date())
-            explanation = OUTLIER_EXPLANATIONS.get(
-                (col, dt_str),
-                "Large daily move (>15% log return): earnings release, contract roll, or macro supply/demand shock.",
-            )
             rows.append(
                 {
                     "date": dt_str,
                     "series": col,
                     "log_return": round(float(val), 6),
                     "pct_change": round(float(np.exp(val) - 1.0) * 100.0, 2),
-                    "explanation": explanation,
                 }
             )
-    out_df = pd.DataFrame(rows, columns=["date", "series", "log_return", "pct_change", "explanation"])
+    out_df = pd.DataFrame(rows, columns=["date", "series", "log_return", "pct_change"])
+    explanations = pd.read_csv(paths.mapping_dir() / "outlier_explanations.csv", dtype=str)
+    out_df = out_df.merge(explanations, on=["date", "series"], how="left", validate="many_to_one")
+    out_df["explanation"] = out_df["explanation"].fillna("unexplained")
+    out_df["source_url"] = out_df["source_url"].fillna("")
     if not out_df.empty:
         out_df = out_df.sort_values(["date", "series"]).reset_index(drop=True)
     out_path = paths.processed_dir() / "outliers_report.csv"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_df.to_csv(out_path, index=False)
+    explained = out_df["explanation"].ne("unexplained")
+    print(f"[clean] outliers: {int(explained.sum())}/{len(out_df)} have sourced explanations")
+    if not explained.all():
+        counts = out_df.loc[~explained, "series"].value_counts().to_dict()
+        print(f"[clean] unexplained outliers by series: {counts}")
     return out_path
 
 
@@ -407,6 +336,8 @@ def build_io(year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     Why: the cost-share matrix decides which supplier -> customer edges exist in the graph.
     """
+    from marketsim.data.fetch import BEA_XLSX_NAME
+
     bea_dir = paths.raw_dir() / "bea"
     xlsx_path = bea_dir / BEA_XLSX_NAME
     if not xlsx_path.exists():

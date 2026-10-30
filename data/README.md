@@ -4,7 +4,7 @@
 |---|---|---|
 | `raw/` | files exactly as downloaded + `manifest.json` (URL, date, size, SHA-256) | no |
 | `processed/` | cleaned tables following `src/marketsim/data/schemas.py` + `outliers_report.csv` | no |
-| `mapping/` | manual work: `companies.csv` (companies → BEA industries), `ff49_to_bea.csv` | yes |
+| `mapping/` | manual work: `companies.csv` (companies → BEA industries), `ff49_to_bea.csv`, `outlier_explanations.csv` | yes |
 | `graph/` | dependency graphs (contract K2) | yes |
 | `fixtures/` | small test data: the `graph_chain` graph and the `external_oil_shock.csv` scenario | yes |
 
@@ -50,7 +50,15 @@ python -m marketsim.data.check --strict
 | `ff49_vw_daily.parquet` | `FF49_DAILY` | 1255 × 49 | Value-weighted daily returns of 49 Fama-French industry portfolios as fractions (divided by 100) |
 | `io_2022_A.parquet`, `io_2023_A.parquet` | `IO_MATRIX` | 71 × 71 | BEA direct input cost shares $A_{j,i} = \text{Use}_{j,i} / \text{Output}_i$ (row $j$ = supplier commodity, col $i$ = customer industry) |
 | `io_2022_industries.parquet`, `io_2023_industries.parquet` | `IO_INDUSTRIES` | 71 × 3 | Index `code`, columns `name`, `output` (million USD, from `Total Industry Output` row), `margin` (`V003 / output`) |
-| `outliers_report.csv` | — | report | All daily observations with $\lvert\text{log return}\rvert > 15\%$ across all series, with manual explanations |
+| `outliers_report.csv` | — | report | All daily observations with $\lvert\text{log return}\rvert > 15\%$; sourced annotations joined by date and series, otherwise `unexplained` |
+
+## Manual mappings and outlier review
+
+`mapping/ff49_to_bea.csv` uses `ff_code,ff_name,bea_code,bea_name,notes`. The mapping is approximate and can contain several BEA industries per FF49 portfolio: `Trans` maps to both `481` (DAL/UAL) and `484` (ODFL). Read BEA codes as strings.
+
+`mapping/outlier_explanations.csv` contains `date,series,explanation,source_url`, with one row per reviewed observation. Dates refer to the trading day in `returns_daily.parquet`; a company release can be dated the preceding evening. The cleaner joins annotations only to actual outliers, omits the duplicate `copper` alias, and includes `source_url` in the report. Unmatched observations retain `explanation=unexplained` and an empty source URL. Missing explanations never cause observations to be dropped.
+
+The 2026-10-30 reproduction contains **80 outliers: 61 with sourced event or market-context annotations, 19 unexplained Henry Hub spot moves**. Sources include EIA weekly reports, company releases and contemporaneous market reports. Weekly weather, demand and supply context is an interpretation of the daily move, not proof of a unique cause. In particular, Henry Hub spot observations are not explained by futures contract expiration. The cleaner prints current coverage and unexplained counts; the overview notebook displays them alongside the report. Data-quality tests check that every committed annotation belongs to the actual report when processed data is available.
 
 ## Data decisions
 
@@ -63,7 +71,7 @@ Everything that affects results goes here: what was filled, what was dropped, wh
 | 2026-10-28 | **Missing values on NYSE trading days** (e.g. Friday after Thanksgiving or bond/commodity holidays in FRED and `PL=F`/`GC=F`/`HG=F` on `2023-11-23`) are forward-filled up to at most 3 consecutive trading days and explicitly flagged in `<series>_filled`. No gaps exceed 3 days in 2021–2025. |
 | 2026-10-28 | **BEA Use table choice:** `IOUse_Before_Redefinitions_PRO_1997-2023_Summary.xlsx` (Before Redefinitions, Producer Prices, 71 Summary industries). Cells marked `...` in the BEA Excel sheet ("Selected data with zero values are not shown") are replaced with `0.0`. Industry total output is taken from the `Total Industry Output` row (not the sum of all rows). Primary reference year is **2023**, with **2022** saved for stability checks. |
 | 2026-10-28 | **Copper sources and units:** Daily copper (`copper_usd_per_lb`) uses COMEX futures (`HG=F`, USD/lb) for daily resolution; monthly official copper (`PCOPPUSDM` from FRED and `Copper` from World Bank, USD/metric ton, 1 mt = 2204.62 lb) is stored separately in `commodities_monthly.parquet` for cross-checking (2025 COMEX tariff divergence noted). |
-| 2026-10-28 | **Outliers (>15% daily log return) are never deleted**: extreme moves in Henry Hub spot gas (weather freezes/contract expirations), COMEX copper (2025 tariff news), and individual earnings days (META, NVDA, AMD, DAL, UAL) are real market events documented in `data/processed/outliers_report.csv`. |
+| 2026-10-30 | **Outliers (>15% daily log return) are never deleted.** Event annotations and source links are reviewed in `mapping/outlier_explanations.csv`; unverified daily causes remain `unexplained` in the generated report. |
 | 2026-10-28 | Company list fixed: 18 companies in `mapping/companies.csv`, all `confirmed`. Each has complete daily prices 2021–2025 (1255 NYSE days, no gaps) and a SIC code from EDGAR; BEA industries assigned by SIC and business profile. |
 | 2026-10-28 | ConocoPhillips is mapped to BEA 211 (oil and gas extraction) although its EDGAR SIC is 2911 (refining): the SIC predates the 2012 Phillips 66 spin-off. |
 | 2026-10-28 | Platinum is collected but has no company in the graph. Natural gas has near-zero daily betas for all companies (t < 1); its edges stay with near-zero weights. |

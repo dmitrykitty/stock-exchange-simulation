@@ -9,6 +9,7 @@ The documents in this folder are written in Russian; the research proposal is in
 2. [plans/overall_plan.md](plans/overall_plan.md): phases, schedule, milestones, the goal for Friday.
 3. Your role plan: [O, engine](plans/roles/engine_owner.md) · [D1, D2, data and graph](plans/roles/data_team.md) · [S, simulation](plans/roles/simulation_owner.md).
 4. [../AGENTS.md](../AGENTS.md): repository rules.
+5. [guides/f4_simulation.md](guides/f4_simulation.md): run the implemented single-asset simulation and reproduce E0–E3.
 
 ## All documents
 
@@ -21,6 +22,7 @@ The documents in this folder are written in Russian; the research proposal is in
 | [plans/overall_plan.md](plans/overall_plan.md) | overall plan | Russian |
 | [plans/roles/](plans/roles/) | per-role plans | Russian |
 | [plans/phases/](plans/phases/) | every phase F0–F10: goal, interfaces, steps, checks | Russian |
+| [guides/f4_simulation.md](guides/f4_simulation.md) | F4 commands, agent parameters, logging conventions and experiment results | Russian |
 
 ## Phases
 

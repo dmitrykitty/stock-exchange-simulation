@@ -1,0 +1,52 @@
+parent,child,w_direct,w_full,t_stat_direct,t_stat_full,source,justification
+wti,COP,0.514614,0.514614,20.2979,20.2979,commodity,Crude oil exploration and production revenue directly tracks WTI price
+henry_hub,COP,0.00558,0.00558,0.7713,0.7713,commodity,"Natural gas co-production revenue of upstream oil and gas producer [weak weight kept: direct t=0.77, full t=0.77, |t| < 2]"
+sp500,COP,0.616778,0.616778,10.8865,10.8865,index,Common US equity market factor (S&P 500)
+wti,EOG,0.552229,0.552229,18.885,18.885,commodity,Crude oil exploration and production revenue directly tracks WTI price
+henry_hub,EOG,0.004285,0.004285,0.5137,0.5137,commodity,"Natural gas co-production revenue of upstream oil and gas producer [weak weight kept: direct t=0.51, full t=0.51, |t| < 2]"
+sp500,EOG,0.620723,0.620723,9.4992,9.4992,index,Common US equity market factor (S&P 500)
+wti,VLO,0.429949,0.053988,14.1257,1.747,commodity,"Crude oil is the primary feedstock of petroleum refiners; refining margins co-move with WTI [weak weight kept: full t=1.75, |t| < 2]"
+sp500,VLO,0.602782,0.15898,8.8595,2.6853,index,Common US equity market factor (S&P 500)
+COP,VLO,,0.538254,,9.2814,bea,BEA 2023: petroleum refining (324) spends 50.8% of output on oil and gas extraction (211)
+EOG,VLO,,0.177971,,3.5387,bea,BEA 2023: petroleum refining (324) spends 50.8% of output on oil and gas extraction (211)
+wti,MPC,0.348977,0.023852,14.0232,0.9764,commodity,"Crude oil is the primary feedstock of petroleum refiners; refining margins co-move with WTI [weak weight kept: full t=0.98, |t| < 2]"
+sp500,MPC,0.693532,0.309142,12.4673,6.6054,index,Common US equity market factor (S&P 500)
+COP,MPC,,0.480978,,10.4915,bea,BEA 2023: petroleum refining (324) spends 50.8% of output on oil and gas extraction (211)
+EOG,MPC,,0.13945,,3.5076,bea,BEA 2023: petroleum refining (324) spends 50.8% of output on oil and gas extraction (211)
+henry_hub,NEE,0.001495,0.001495,0.2317,0.2317,commodity,"Natural gas fuel input for gas-fired electricity generation (regulated fuel pass-through) [weak weight kept: direct t=0.23, full t=0.23, |t| < 2]"
+sp500,NEE,0.736109,0.736109,14.6525,14.6525,index,Common US equity market factor (S&P 500)
+henry_hub,DUK,0.000472,0.000472,0.101,0.101,commodity,"Natural gas fuel input for gas-fired electricity generation (regulated fuel pass-through) [weak weight kept: direct t=0.10, full t=0.10, |t| < 2]"
+sp500,DUK,0.384116,0.384116,10.559,10.559,index,Common US equity market factor (S&P 500)
+wti,DAL,-0.043187,-0.146486,-1.4836,-4.5613,commodity,"Jet fuel cost exposure for scheduled airline; direct weight is weak without refiner pass-through [weak weight kept: direct t=-1.48, |t| < 2]"
+sp500,DAL,1.273951,1.101275,19.5788,15.7866,index,Common US equity market factor (S&P 500)
+VLO,DAL,,0.129587,,2.1244,bea,BEA 2023: air transportation (481) spends 12.9% of output on refined petroleum jet fuel (324)
+MPC,DAL,,0.136349,,1.8276,bea,"BEA 2023: air transportation (481) spends 12.9% of output on refined petroleum jet fuel (324) [weak weight kept: full t=1.83, |t| < 2]"
+wti,UAL,-0.070051,-0.200754,-1.9347,-5.0312,commodity,"Jet fuel cost exposure for scheduled airline; direct weight is borderline without refiner pass-through [weak weight kept: direct t=-1.93, |t| < 2]"
+sp500,UAL,1.416447,1.203658,17.5002,13.8872,index,Common US equity market factor (S&P 500)
+VLO,UAL,,0.186592,,2.462,bea,BEA 2023: air transportation (481) spends 12.9% of output on refined petroleum jet fuel (324)
+MPC,UAL,,0.144644,,1.5604,bea,"BEA 2023: air transportation (481) spends 12.9% of output on refined petroleum jet fuel (324) [weak weight kept: full t=1.56, |t| < 2]"
+wti,ODFL,-0.017689,0.01108,-0.7294,0.4034,commodity,"Diesel fuel input cost for LTL trucking carrier; mitigated by fuel surcharges [weak weight kept: direct t=-0.73, full t=0.40, |t| < 2]"
+sp500,ODFL,1.243302,1.280217,22.9342,21.4582,index,Common US equity market factor (S&P 500)
+VLO,ODFL,,-0.080497,,-1.543,bea,"BEA 2023: truck transportation (484) spends 3.7% of output on refined petroleum diesel fuel (324) [weak weight kept: full t=-1.54, |t| < 2]"
+MPC,ODFL,,0.016736,,0.2623,bea,"BEA 2023: truck transportation (484) spends 3.7% of output on refined petroleum diesel fuel (324) [weak weight kept: full t=0.26, |t| < 2]"
+copper,FCX,1.020769,1.020769,21.9985,21.9985,commodity,Copper mining revenue directly follows COMEX copper price
+sp500,FCX,1.095312,1.095312,16.5709,16.5709,index,Common US equity market factor (S&P 500)
+gold,NEM,1.290106,1.290106,20.1019,20.1019,commodity,Gold mining revenue directly follows spot and futures gold price
+sp500,NEM,0.382549,0.382549,7.1439,7.1439,index,Common US equity market factor (S&P 500)
+copper,NUE,0.364918,0.360699,7.1389,7.0588,commodity,Industrial construction and manufacturing metals cycle shared by steel and copper
+sp500,NUE,1.057796,1.148847,14.5271,13.8611,index,Common US equity market factor (S&P 500)
+NEE,NUE,,-0.181456,,-3.0518,bea,BEA 2023: primary metals (331) spend 2.1% of output on utilities (22); electricity-intensive steel EAF and aluminum smelting
+DUK,NUE,,0.115027,,1.3978,bea,"BEA 2023: primary metals (331) spend 2.1% of output on utilities (22); electricity-intensive steel EAF and aluminum smelting [weak weight kept: full t=1.40, |t| < 2]"
+copper,AA,0.959064,0.949525,13.0394,12.8672,commodity,Global industrial base-metals demand cycle shared by primary aluminum and copper
+sp500,AA,1.234431,1.344663,11.7821,11.2342,index,Common US equity market factor (S&P 500)
+NEE,AA,,-0.144497,,-1.6828,bea,"BEA 2023: primary metals (331) spend 2.1% of output on utilities (22); electricity-intensive steel EAF and aluminum smelting [weak weight kept: full t=-1.68, |t| < 2]"
+DUK,AA,,-0.000562,,-0.0047,bea,"BEA 2023: primary metals (331) spend 2.1% of output on utilities (22); electricity-intensive steel EAF and aluminum smelting [weak weight kept: full t=-0.00, |t| < 2]"
+sp500,NVDA,2.151281,2.151281,28.6178,28.6178,index,Common US equity market factor (S&P 500)
+sp500,AMD,1.981736,1.981736,25.8445,25.8445,index,Common US equity market factor (S&P 500)
+sp500,GOOGL,1.343647,1.103123,30.6029,16.9615,index,Common US equity market factor (S&P 500)
+NVDA,GOOGL,,0.056621,,2.1888,manual,AI accelerator GPUs supplied to cloud and AI data-center services (capital expenditure not in BEA current use)
+AMD,GOOGL,,0.059905,,2.3621,manual,Data-center CPUs and AI accelerators supplied to cloud and internet services (CapEx link)
+sp500,META,1.677342,1.327576,21.3349,11.3351,index,Common US equity market factor (S&P 500)
+NVDA,META,,0.085555,,1.8365,manual,"AI accelerator GPUs supplied for AI training and inference infrastructure (CapEx link) [weak weight kept: full t=1.84, |t| < 2]"
+AMD,META,,0.08362,,1.8309,manual,"Data-center CPUs and AI accelerators supplied for cloud and AI infrastructure (CapEx link) [weak weight kept: full t=1.83, |t| < 2]"
+sp500,JPM,0.870956,0.870956,22.2342,22.2342,index,Common US equity market factor (S&P 500)

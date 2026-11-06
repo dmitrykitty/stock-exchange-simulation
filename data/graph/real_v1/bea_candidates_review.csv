@@ -1,0 +1,55 @@
+parent,child,parent_bea,child_bea,cost_share,decision,included,justification
+EOG,COP,211,211,0.0451218595169066,drop,False,"Intra-industry pair (211 <-> 211, 4.5%): COP and EOG are upstream E&P competitors, not supplier and customer; creates 2-cycle and collinearity"
+NEE,COP,22,211,0.02317085397745787,drop,False,"Borderline BEA link (22 -> 211, 2.3%): field power is a minor operating cost for global E&P producers and would create a cycle with 211"
+DUK,COP,22,211,0.02317085397745787,drop,False,"Borderline BEA link (22 -> 211, 2.3%): field power is a minor operating cost for global E&P producers and would create a cycle with 211"
+NUE,COP,331,211,0.024238221360715868,drop,False,"Borderline BEA link (331 -> 211, 2.4%): drill pipe/casing is oilfield CapEx; steel/aluminum equities do not drive daily upstream E&P valuation"
+AA,COP,331,211,0.024238221360715868,drop,False,"Borderline BEA link (331 -> 211, 2.4%): drill pipe/casing is oilfield CapEx; steel/aluminum equities do not drive daily upstream E&P valuation"
+COP,EOG,211,211,0.0451218595169066,drop,False,"Intra-industry pair (211 <-> 211, 4.5%): COP and EOG are upstream E&P competitors, not supplier and customer; creates 2-cycle and collinearity"
+NEE,EOG,22,211,0.02317085397745787,drop,False,"Borderline BEA link (22 -> 211, 2.3%): field power is a minor operating cost for global E&P producers and would create a cycle with 211"
+DUK,EOG,22,211,0.02317085397745787,drop,False,"Borderline BEA link (22 -> 211, 2.3%): field power is a minor operating cost for global E&P producers and would create a cycle with 211"
+NUE,EOG,331,211,0.024238221360715868,drop,False,"Borderline BEA link (331 -> 211, 2.4%): drill pipe/casing is oilfield CapEx; steel/aluminum equities do not drive daily upstream E&P valuation"
+AA,EOG,331,211,0.024238221360715868,drop,False,"Borderline BEA link (331 -> 211, 2.4%): drill pipe/casing is oilfield CapEx; steel/aluminum equities do not drive daily upstream E&P valuation"
+COP,VLO,211,324,0.5077448124867202,keep,True,BEA 2023: petroleum refining (324) spends 50.8% of output on oil and gas extraction (211)
+EOG,VLO,211,324,0.5077448124867202,keep,True,BEA 2023: petroleum refining (324) spends 50.8% of output on oil and gas extraction (211)
+MPC,VLO,324,324,0.023914756253192088,drop,False,"Intra-industry pair (324 <-> 324, 2.4%): VLO and MPC are competing downstream refiners; creates 2-cycle and masks upstream oil suppliers"
+COP,MPC,211,324,0.5077448124867202,keep,True,BEA 2023: petroleum refining (324) spends 50.8% of output on oil and gas extraction (211)
+EOG,MPC,211,324,0.5077448124867202,keep,True,BEA 2023: petroleum refining (324) spends 50.8% of output on oil and gas extraction (211)
+VLO,MPC,324,324,0.023914756253192088,drop,False,"Intra-industry pair (324 <-> 324, 2.4%): VLO and MPC are competing downstream refiners; creates 2-cycle and masks upstream oil suppliers"
+COP,NEE,211,22,0.026675995976735034,questionable,False,"Borderline BEA link (211 -> 22, 2.7%): utilities burn natural gas, captured directly via henry_hub -> NEE/DUK; COP/EOG equity tracks crude oil (t <= 1.1)"
+EOG,NEE,211,22,0.026675995976735034,questionable,False,"Borderline BEA link (211 -> 22, 2.7%): utilities burn natural gas, captured directly via henry_hub -> NEE/DUK; COP/EOG equity tracks crude oil (t <= 1.1)"
+VLO,NEE,324,22,0.02719296053576895,drop,False,"Borderline BEA link (324 -> 22, 2.7%): petroleum liquids represent <1% of US utility generation for NEE/DUK"
+MPC,NEE,324,22,0.02719296053576895,drop,False,"Borderline BEA link (324 -> 22, 2.7%): petroleum liquids represent <1% of US utility generation for NEE/DUK"
+DUK,NEE,22,22,0.055449524892390155,drop,False,"Intra-industry pair (22 <-> 22, 5.5%): NEE and DUK are regional electric utilities in the same tier; creates 2-cycle"
+COP,DUK,211,22,0.026675995976735034,questionable,False,"Borderline BEA link (211 -> 22, 2.7%): utilities burn natural gas, captured directly via henry_hub -> NEE/DUK; COP/EOG equity tracks crude oil (t <= 1.1)"
+EOG,DUK,211,22,0.026675995976735034,questionable,False,"Borderline BEA link (211 -> 22, 2.7%): utilities burn natural gas, captured directly via henry_hub -> NEE/DUK; COP/EOG equity tracks crude oil (t <= 1.1)"
+VLO,DUK,324,22,0.02719296053576895,drop,False,"Borderline BEA link (324 -> 22, 2.7%): petroleum liquids represent <1% of US utility generation for NEE/DUK"
+MPC,DUK,324,22,0.02719296053576895,drop,False,"Borderline BEA link (324 -> 22, 2.7%): petroleum liquids represent <1% of US utility generation for NEE/DUK"
+NEE,DUK,22,22,0.055449524892390155,drop,False,"Intra-industry pair (22 <-> 22, 5.5%): NEE and DUK are regional electric utilities in the same tier; creates 2-cycle"
+VLO,DAL,324,481,0.12916261126261994,keep,True,BEA 2023: air transportation (481) spends 12.9% of output on refined petroleum jet fuel (324)
+MPC,DAL,324,481,0.12916261126261994,keep,True,BEA 2023: air transportation (481) spends 12.9% of output on refined petroleum jet fuel (324)
+VLO,UAL,324,481,0.12916261126261994,keep,True,BEA 2023: air transportation (481) spends 12.9% of output on refined petroleum jet fuel (324)
+MPC,UAL,324,481,0.12916261126261994,keep,True,BEA 2023: air transportation (481) spends 12.9% of output on refined petroleum jet fuel (324)
+VLO,ODFL,324,484,0.03689630829284498,keep,True,BEA 2023: truck transportation (484) spends 3.7% of output on refined petroleum diesel fuel (324)
+MPC,ODFL,324,484,0.03689630829284498,keep,True,BEA 2023: truck transportation (484) spends 3.7% of output on refined petroleum diesel fuel (324)
+NEE,FCX,22,212,0.027164028661373612,drop,False,"Borderline BEA link (22 -> 212, 2.7%): global copper/gold mines of FCX and NEM do not depend on regional US utility rates of NEE/DUK"
+DUK,FCX,22,212,0.027164028661373612,drop,False,"Borderline BEA link (22 -> 212, 2.7%): global copper/gold mines of FCX and NEM do not depend on regional US utility rates of NEE/DUK"
+NEM,FCX,212,212,0.05976962800108101,drop,False,"Intra-industry pair (212 <-> 212, 6.0%): FCX mines copper and NEM mines gold; unrelated metals aggregated into BEA 212"
+NEE,NEM,22,212,0.027164028661373612,drop,False,"Borderline BEA link (22 -> 212, 2.7%): global copper/gold mines of FCX and NEM do not depend on regional US utility rates of NEE/DUK"
+DUK,NEM,22,212,0.027164028661373612,drop,False,"Borderline BEA link (22 -> 212, 2.7%): global copper/gold mines of FCX and NEM do not depend on regional US utility rates of NEE/DUK"
+FCX,NEM,212,212,0.05976962800108101,drop,False,"Intra-industry pair (212 <-> 212, 6.0%): FCX mines copper and NEM mines gold; unrelated metals aggregated into BEA 212"
+NEE,NUE,22,331,0.020921013842805442,questionable,True,BEA 2023: primary metals (331) spend 2.1% of output on utilities (22); electricity-intensive steel EAF and aluminum smelting
+DUK,NUE,22,331,0.020921013842805442,questionable,True,BEA 2023: primary metals (331) spend 2.1% of output on utilities (22); electricity-intensive steel EAF and aluminum smelting
+ODFL,NUE,484,331,0.0313611360257914,drop,False,"Non-core logistics link (484 -> 331, 3.1%): LTL carrier ODFL is not a primary input price driver for steel or aluminum smelting"
+FCX,NUE,212,331,0.052122208074865305,questionable,False,"Sub-industry mismatch (212 -> 331, 5.2%): BEA 331 includes copper/gold smelting, but NUE (steel) and AA (aluminum) do not smelt copper/gold ore from FCX/NEM"
+NEM,NUE,212,331,0.052122208074865305,questionable,False,"Sub-industry mismatch (212 -> 331, 5.2%): BEA 331 includes copper/gold smelting, but NUE (steel) and AA (aluminum) do not smelt copper/gold ore from FCX/NEM"
+AA,NUE,331,331,0.29322034961394444,drop,False,"Intra-industry pair (331 <-> 331, 29.3%): NUE produces steel and AA produces primary aluminum; separate metal chains aggregated into BEA 331"
+NEE,AA,22,331,0.020921013842805442,questionable,True,BEA 2023: primary metals (331) spend 2.1% of output on utilities (22); electricity-intensive steel EAF and aluminum smelting
+DUK,AA,22,331,0.020921013842805442,questionable,True,BEA 2023: primary metals (331) spend 2.1% of output on utilities (22); electricity-intensive steel EAF and aluminum smelting
+ODFL,AA,484,331,0.0313611360257914,drop,False,"Non-core logistics link (484 -> 331, 3.1%): LTL carrier ODFL is not a primary input price driver for steel or aluminum smelting"
+FCX,AA,212,331,0.052122208074865305,questionable,False,"Sub-industry mismatch (212 -> 331, 5.2%): BEA 331 includes copper/gold smelting, but NUE (steel) and AA (aluminum) do not smelt copper/gold ore from FCX/NEM"
+NEM,AA,212,331,0.052122208074865305,questionable,False,"Sub-industry mismatch (212 -> 331, 5.2%): BEA 331 includes copper/gold smelting, but NUE (steel) and AA (aluminum) do not smelt copper/gold ore from FCX/NEM"
+NUE,AA,331,331,0.29322034961394444,drop,False,"Intra-industry pair (331 <-> 331, 29.3%): NUE produces steel and AA produces primary aluminum; separate metal chains aggregated into BEA 331"
+AMD,NVDA,334,334,0.0933153284601002,drop,False,"Intra-industry pair (334 <-> 334, 9.3%): NVDA and AMD are competing fabless semiconductor designers, not supplier and customer"
+NVDA,AMD,334,334,0.0933153284601002,drop,False,"Intra-industry pair (334 <-> 334, 9.3%): NVDA and AMD are competing fabless semiconductor designers, not supplier and customer"
+META,GOOGL,514,514,0.03561549760592129,drop,False,"Intra-industry pair (514 <-> 514, 3.6%): GOOGL and META are competing internet/AI platforms, not supplier and customer"
+GOOGL,META,514,514,0.03561549760592129,drop,False,"Intra-industry pair (514 <-> 514, 3.6%): GOOGL and META are competing internet/AI platforms, not supplier and customer"

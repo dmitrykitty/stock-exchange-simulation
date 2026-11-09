@@ -19,6 +19,7 @@ The graph format and the function signatures are a contract: the simulation (S) 
 | `DependencyGraph.company_weight_matrix(mode)`, `spectral_radius(mode)` | ready | company-to-company weight matrix | stability check | `validate`, D2 |
 | `structure.candidate_company_edges(io_matrix, companies, threshold)` | **D2 implements** | supplier → customer candidates from BEA cost shares | the graph links only economically meaningful pairs, not everything that correlates | D2 → `estimate_weights` |
 | `weights.estimate_weights(returns, edges, market, start, end)` | **D2 implements** | regressions: `direct` and `full` weights with t-statistics | the weights are the agents' "experience": how much a company moves with its parent | D2 → `save_graph` → S |
-| `reference.reference_path(graph, external, mode)` | **D2 implements** | reference path: instant and exact reaction of everyone | the ruler for metrics: transmission, lag, overshoot, spurious links | D1 (metrics), S (run log), dashboard |
+| `reference.reference_path(graph, external, mode)` | ready | reference path: instant and exact reaction of everyone, including stable company feedback | the ruler for metrics: transmission, lag, overshoot, spurious links | D1 (metrics), S (run log), dashboard |
+| `scenarios.build_real_2024_2025()` | ready | write the real external scenario through the EXTERNAL schema from cleaned daily data | consistent scenario input for simulations | S, D1 |
 
-Tests: `tests/contracts/test_graph_contract.py` (the reference-path test is skipped until the function exists, then it checks the formula on the chain).
+Tests: `tests/contracts/test_graph_contract.py` pins the reference-path formula on the chain; `tests/test_reference.py` covers direct weights and company feedback.

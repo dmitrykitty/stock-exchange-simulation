@@ -10,6 +10,7 @@ Formula and worked example: docs/model/model_description.md, sections 4.5-4.6.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from marketsim.graph.api import DependencyGraph
@@ -28,4 +29,49 @@ def reference_path(graph: DependencyGraph, external: pd.DataFrame, mode: str = "
     Used by: metrics (D1), the valuations table of the run log (S), charts (dashed line).
     Stability rule: keep the signature and output format; tests/contracts/test_graph_contract.py pins it.
     """
-    raise NotImplementedError("reference_path (owner: D2, see docs/plans/phases/F2_dependency_graph.md)")
+    if mode not in ("full", "direct"):
+        raise ValueError(f"mode must be 'direct' or 'full', got {mode!r}")
+    graph.validate()
+    if external.empty:
+        raise ValueError("external signals must contain at least one session")
+    if not external.columns.is_unique:
+        raise ValueError("external signal columns must be unique")
+
+    companies = graph.companies()
+    externals = graph.externals()
+    missing = [name for name in externals if name not in external.columns]
+    if missing:
+        raise ValueError(f"external signals are missing graph nodes: {missing}")
+
+    try:
+        external_values = external.loc[:, externals].to_numpy(dtype=float)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("external signal levels must be numeric") from exc
+    if not np.isfinite(external_values).all() or (external_values <= 0).any():
+        raise ValueError("external signal levels must be finite and > 0")
+
+    names, company_weights = graph.company_weight_matrix(mode)
+    if names != companies:
+        raise ValueError("company order changed while building the reference path")
+
+    external_log_changes = np.log(external_values) - np.log(external_values[0])
+    external_weights = np.zeros((len(companies), len(externals)), dtype=float)
+    external_positions = {name: position for position, name in enumerate(externals)}
+    for company_position, company in enumerate(companies):
+        for parent, weight in graph.parents(company, mode).items():
+            if parent in external_positions:
+                external_weights[company_position, external_positions[parent]] = weight
+
+    if companies:
+        system = np.eye(len(companies)) - company_weights
+        company_log_changes = np.linalg.solve(
+            system,
+            external_weights @ external_log_changes.T,
+        ).T
+        start_prices = np.array([graph.nodes[name].start_price for name in companies], dtype=float)
+        price_levels = np.exp(np.log(start_prices) + company_log_changes)
+    else:
+        price_levels = np.empty((len(external), 0), dtype=float)
+
+    index = external.index.rename("session")
+    return pd.DataFrame(price_levels, index=index, columns=companies)

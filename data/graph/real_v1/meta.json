@@ -1,0 +1,20 @@
+{
+  "name": "real_v1",
+  "description": "Dependency graph of 18 US companies, 4 commodities (wti, henry_hub, copper, gold), and the S&P 500 market index. Structure from BEA 2023 input-output tables (threshold 2%), commodity exposure, and manual CapEx AI hardware links; weights from daily log-return OLS (2021-2023).",
+  "estimation_period": "2021-01-05..2023-12-29",
+  "n_days": 752,
+  "io_year": 2023,
+  "bea_threshold": 0.02,
+  "bea_candidates_total": 54,
+  "bea_candidates_summary": {
+    "keep": 10,
+    "questionable": 12,
+    "drop": 32,
+    "included_in_graph": 14
+  },
+  "weak_weights_policy": "Economically justified edges with |t| < 2 are retained in the graph so valuer agents hold the full structural belief set; their justification explicitly records the insignificant t-statistic. Economically spurious or intra-industry competitor edges are dropped during structure selection.",
+  "start_price_date": "2024-01-02",
+  "start_price_source": "stocks_close_raw (Yahoo Finance close adjusted for splits only, not dividends)",
+  "computed_on": "2026-11-06",
+  "spectral_radius_full": 0.0
+}

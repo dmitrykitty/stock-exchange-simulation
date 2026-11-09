@@ -141,3 +141,17 @@ def test_agents_without_resources_do_not_influence_neighbors(tmp_path):
     assert (log["signals"].own_signal != 0).any()
     assert (log["signals"].herd_signal == 0).all()
     np.testing.assert_allclose(log["signals"].final_signal, 0.4 * log["signals"].own_signal)
+
+
+@pytest.mark.parametrize("concentration,h", [(0.5, 0.0), (0.5, 0.6), (0.8, 0.0), (0.8, 0.6)])
+def test_retail_investors_can_submit_orders_across_concentration_and_herding(tmp_path, concentration, h):
+    log = load_run(run(small_config(
+        valuers=40, trend=20, noise=20, n_funds=8, rho=0.02,
+        concentration=concentration, herding={"h": h},
+    ), 1001, tmp_path))
+    funds = log.meta["population"]["fund_ids"]
+    retail_orders = log["orders"].loc[lambda d: (d.t >= 1) & (d.agent < 80) & ~d.agent.isin(funds)]
+    assert not retail_orders.empty
+    assert (retail_orders.qty >= 1).all()
+    assert log.meta["simulation_version"] == "f4-v3"
+    assert log.meta["initial_resources"] == log.meta["final_resources"]

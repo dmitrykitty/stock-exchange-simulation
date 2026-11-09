@@ -52,6 +52,65 @@ def test_order_quantity_is_capped_by_available_resources_and_limit_price():
     gw.check_invariants()
 
 
+@pytest.mark.parametrize("signal", [0.1, 0.4, -0.1, -0.4])
+@pytest.mark.parametrize("aggressive_prob", [0.0, 1.0])
+def test_fractional_target_has_one_share_minimum_when_resources_allow(signal, aggressive_prob):
+    from marketsim.agents.strategies import make_order
+    from marketsim.sim.settings import AgentSettings
+
+    settings = AgentSettings.from_dict({"aggressive_prob": aggressive_prob})
+    # A C=0.8 retail portfolio: about $4,400, so even 2% of full wealth is under one share.
+    portfolio = PortfolioView(220_000, 0, np.array([22]), np.array([0]))
+    assert settings.rho * abs(signal) * 440_000 / 10_000 < 1
+    order = make_order(signal, 10_000, Top(9995, 10, 10005, 10), portfolio,
+                       settings, np.random.default_rng(1))
+    assert order is not None
+    assert order.qty == 1
+    assert order.side == (1 if signal > 0 else -1)
+
+
+@pytest.mark.parametrize("signal", [0.0, 0.05, -0.05, 0.04, -0.04])
+def test_minimum_lot_does_not_override_the_signal_threshold(signal):
+    from marketsim.agents.strategies import make_order
+    from marketsim.sim.settings import AgentSettings
+
+    portfolio = PortfolioView(220_000, 0, np.array([22]), np.array([0]))
+    assert make_order(signal, 10_000, Top(9995, 10, 10005, 10), portfolio,
+                      AgentSettings(), np.random.default_rng(1)) is None
+
+
+@pytest.mark.parametrize("signal", [1.0, -1.0])
+def test_zero_rho_still_disables_orders(signal):
+    from marketsim.agents.strategies import make_order
+    from marketsim.sim.settings import AgentSettings
+
+    portfolio = PortfolioView(220_000, 0, np.array([22]), np.array([0]))
+    settings = AgentSettings.from_dict({"rho": 0.0})
+    assert make_order(signal, 10_000, Top(9995, 10, 10005, 10), portfolio,
+                      settings, np.random.default_rng(1)) is None
+
+
+@pytest.mark.parametrize("signal,cash,shares", [(0.4, 9994, 0), (-0.4, 0, 0)])
+def test_minimum_lot_cannot_spend_reserved_resources(signal, cash, shares):
+    from marketsim.agents.strategies import make_order
+    from marketsim.sim.settings import AgentSettings
+
+    portfolio = PortfolioView(cash, 220_000, np.array([shares]), np.array([22]))
+    settings = AgentSettings.from_dict({"aggressive_prob": 0.0})
+    assert make_order(signal, 10_000, Top(9995, 10, 10005, 10), portfolio,
+                      settings, np.random.default_rng(1)) is None
+
+
+def test_larger_targets_still_round_down():
+    from marketsim.agents.strategies import make_order
+    from marketsim.sim.settings import AgentSettings
+
+    portfolio = PortfolioView(1_000_000, 0, np.array([100]), np.array([0]))
+    order = make_order(0.9, 10_000, Top(9995, 10, 10005, 10), portfolio,
+                       AgentSettings(), np.random.default_rng(1))
+    assert order.qty == 3  # floor(0.02 * 0.9 * 2,000,000 / 10,000)
+
+
 def test_empty_book_has_integer_fallback_quotes_and_hold_sends_nothing():
     from marketsim.agents.strategies import make_order, market_price
     from marketsim.sim.settings import AgentSettings

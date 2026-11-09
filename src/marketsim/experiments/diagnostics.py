@@ -30,6 +30,17 @@ def diagnose_run(log: RunLog) -> dict:
     prices = (quotes.best_bid.to_numpy() + quotes.best_ask.to_numpy()) / 2
     values = log["valuations"].loc[lambda d: d.t >= warmup, "v_mean"]
     mean_value = float(values.iloc[0]) if len(values) else float("nan")
+    activity = {}
+    # Population is optional metadata beyond K3; generic K3 logs still support the base diagnostics.
+    population = log.meta.get("population")
+    if population is not None:
+        funds = set(population["fund_ids"])
+        investors = {i for i, kind in enumerate(population["kinds"]) if kind != "market_maker"}
+        for group, ids in (("fund", investors & funds), ("retail", investors - funds)):
+            submitted = orders.loc[orders.agent.isin(ids)]
+            activity[f"{group}_agent_count"] = len(ids)
+            activity[f"{group}_order_count"] = len(submitted)
+            activity[f"{group}_active_agents"] = int(submitted.agent.nunique())
     return {
         "run_id": log.meta["run_id"], "seed": log.meta["seed"], "wall_time_s": log.meta["wall_time_s"],
         "trade_count": len(trades), "traded_shares": int(trades.qty.sum()), "order_count": len(orders),
@@ -39,4 +50,5 @@ def diagnose_run(log: RunLog) -> dict:
         "max_drawdown": float(np.max(1 - prices / np.maximum.accumulate(prices))) if len(prices) else float("nan"),
         "relative_valuation_error": float(np.mean(np.abs(prices - mean_value) / mean_value)) if len(prices) else float("nan"),
         "execution_rate": float(orders.filled_qty.sum() / orders.qty.sum()) if orders.qty.sum() else float("nan"),
+        **activity,
     }

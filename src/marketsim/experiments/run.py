@@ -30,20 +30,34 @@ def _run_one(spec: RunSpec, out_dir: Path) -> dict:
 def _run_parallel(specs: list[RunSpec], out_dir: Path, workers: int) -> list[dict]:
     """Run specs in worker processes; summary rows always keep the grid order, whatever finishes first."""
     rows: dict[int, dict] = {}
+    first_error: BaseException | None = None
     # "spawn" behaves the same on Linux, macOS and Windows and does not copy the parent's state.
     with ProcessPoolExecutor(max_workers=workers, mp_context=multiprocessing.get_context("spawn")) as pool:
-        pending = {pool.submit(_run_one, spec, out_dir): index for index, spec in enumerate(specs)}
+        # Keep unstarted specs outside the executor so a failure cannot launch queued simulations.
+        pending = {pool.submit(_run_one, spec, out_dir): index for index, spec in enumerate(specs[:workers])}
+        next_index = len(pending)
         while pending:
             done, _ = wait(pending, return_when=FIRST_COMPLETED)
-            for future in done:
+            for future in sorted(done, key=pending.get):
                 index = pending.pop(future)
+                if future.cancelled():
+                    continue
                 error = future.exception()
                 if error is not None:
-                    pool.shutdown(cancel_futures=True)
-                    raise error
+                    if first_error is None:
+                        first_error = error
+                    for unfinished in pending:
+                        unfinished.cancel()
+                    continue
                 rows[index] = future.result()
                 pd.DataFrame([rows[i] for i in sorted(rows)]).to_csv(out_dir / "summary.csv", index=False)
                 print(f"{len(rows)}/{len(specs)} {rows[index]['run_id']}", flush=True)
+            if first_error is None:
+                while len(pending) < workers and next_index < len(specs):
+                    pending[pool.submit(_run_one, specs[next_index], out_dir)] = next_index
+                    next_index += 1
+    if first_error is not None:
+        raise first_error
     return [rows[i] for i in range(len(specs))]
 
 

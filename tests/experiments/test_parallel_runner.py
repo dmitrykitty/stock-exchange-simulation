@@ -77,6 +77,60 @@ def test_summary_is_saved_before_all_runs_finish(tmp_path, monkeypatch):
             result.result(timeout=10)
 
 
+@pytest.mark.parametrize("check", ["completed_summary", "bounded_submission"])
+def test_failure_keeps_successful_running_results_and_leaves_unstarted_specs(check, tmp_path, monkeypatch):
+    runner = importlib.import_module("marketsim.experiments.run")
+    running = Event()
+    release = Event()
+    draining = Event()
+    submitted = []
+    original_wait = runner.wait
+    wait_count = 0
+
+    class Pool(ThreadPoolExecutor):
+        def submit(self, fn, *args, **kwargs):
+            submitted.append(args[0])
+            return super().submit(fn, *args, **kwargs)
+
+        def shutdown(self, *args, **kwargs):
+            draining.set()
+            return super().shutdown(*args, **kwargs)
+
+    def wait_for_results(*args, **kwargs):
+        nonlocal wait_count
+        wait_count += 1
+        if wait_count > 1:
+            draining.set()
+        return original_wait(*args, **kwargs)
+
+    def run_one(spec, out_dir):
+        if spec.seed == 11 and spec.overrides["agents.herding.h"] == 0.0:
+            assert running.wait(10)
+            raise ValueError("first run failed")
+        running.set()
+        assert release.wait(10), "running tasks were not released"
+        return {"run_id": f"{spec.seed}_{spec.overrides['agents.herding.h']}"}
+
+    monkeypatch.setattr(runner, "ProcessPoolExecutor", lambda **kw: Pool(kw["max_workers"]))
+    monkeypatch.setattr(runner, "_run_one", run_one)
+    monkeypatch.setattr(runner, "wait", wait_for_results)
+    output = tmp_path / "par"
+    with ThreadPoolExecutor(1) as caller:
+        result = caller.submit(run_experiment, _grid(tmp_path), output, workers=2)
+        try:
+            assert draining.wait(3), "the first failure was not handled"
+            submitted_before_release = len(submitted)
+        finally:
+            release.set()
+            with pytest.raises(ValueError, match="first run failed"):
+                result.result(timeout=10)
+    if check == "completed_summary":
+        assert (output / "summary.csv").exists(), "the successful running task must be summarized"
+        assert pd.read_csv(output / "summary.csv").run_id.tolist() == ["12_0.0"]
+    else:
+        assert submitted_before_release == 2, "unstarted grid entries must remain unsubmitted after failure"
+
+
 @pytest.mark.parametrize("workers", [0, -1, 1.5])
 def test_workers_must_be_a_positive_integer(tmp_path, workers):
     with pytest.raises(ValueError, match="workers"):

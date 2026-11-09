@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import multiprocessing
-from concurrent.futures import FIRST_EXCEPTION, ProcessPoolExecutor, wait
+from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from dataclasses import asdict
 from pathlib import Path
 
@@ -34,7 +34,7 @@ def _run_parallel(specs: list[RunSpec], out_dir: Path, workers: int) -> list[dic
     with ProcessPoolExecutor(max_workers=workers, mp_context=multiprocessing.get_context("spawn")) as pool:
         pending = {pool.submit(_run_one, spec, out_dir): index for index, spec in enumerate(specs)}
         while pending:
-            done, _ = wait(pending, return_when=FIRST_EXCEPTION)
+            done, _ = wait(pending, return_when=FIRST_COMPLETED)
             for future in done:
                 index = pending.pop(future)
                 error = future.exception()

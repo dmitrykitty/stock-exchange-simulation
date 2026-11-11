@@ -20,7 +20,7 @@ base:
     rebalance_band: 0.05
     n_funds: 50
     concentration: 0.5
-    total_cash_cents: 500000000   # 10,000 USD of cash per investor on average
+    total_cash_cents: 1000000000  # 20,000 USD of cash per investor on average
     total_shares: 8000            # per company, for a 100 USD stock: 800,000 USD of every company outstanding
     price_scaling: true           # share counts, maker quotes and tick parameters follow each start price
     holdings: followed            # shares of a company go only to the investors that trade it

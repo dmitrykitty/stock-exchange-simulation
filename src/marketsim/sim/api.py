@@ -201,6 +201,7 @@ def _run_graph(config: RunConfig, seed: int, out_dir: Path) -> Path:
         }
     if settings.risk_limit > 0:
         meta["risk_limit_triggers"] = simulation.risk_triggers
+        meta["population"]["risk_limited"] = np.flatnonzero(simulation.risk_limited).tolist()
     return _write(simulation, run_id, meta, out_dir)
 
 

@@ -95,10 +95,12 @@ class AgentSettings:
     # Every rebalancer is a fund, in addition to the ``n_funds`` funds drawn from the other investor groups.
     rebalancers: int = 0
     rebalance_band: float = 0.05
-    # Risk limit (stop-loss) of every investor: when wealth falls more than ``risk_limit`` below its running peak
+    # Risk limit (stop-loss): when the wealth of an investor falls more than ``risk_limit`` below its running peak
     # the agent sells ``risk_sell_fraction`` of each followed position with protected IOC orders and does not buy
     # for ``risk_cooldown`` sessions; then the peak restarts from the current wealth. 0 disables the limit.
+    # ``risk_limit_share`` of the investors (chosen at random once per run) have the limit, the rest have none.
     risk_limit: float = 0.0
+    risk_limit_share: float = 1.0
     risk_sell_fraction: float = 1.0
     risk_cooldown: float = 5.0
     herding: HerdingSettings = field(default_factory=HerdingSettings)
@@ -175,7 +177,7 @@ class AgentSettings:
         if settings.holdings not in ("all", "followed"):
             raise ConfigError("holdings must be all or followed")
         positive += ("risk_cooldown",)
-        unit += ("rebalance_band", "risk_limit", "risk_sell_fraction")
+        unit += ("rebalance_band", "risk_limit", "risk_limit_share", "risk_sell_fraction")
         for name in positive + unit + ("valuation_std", "inventory_skew_ticks", "observation_delay", "weight_error_std"):
             value = getattr(settings, name)
             if type(value) not in (int, float) or not math.isfinite(value):
@@ -234,7 +236,7 @@ def identity_dict(settings: AgentSettings) -> dict:
 
 
 _F6_FIELDS = ("assets", "price_scaling", "holdings", "rebalancers", "rebalance_band", "risk_limit",
-              "risk_sell_fraction", "risk_cooldown")
+              "risk_limit_share", "risk_sell_fraction", "risk_cooldown")
 # Fields that exist only with a graph; at their defaults they are left out of run identities.
 _GRAPH_FIELDS = ("valuers_myopic", "valuers_network", "composition", "attention", "observation_delay",
                  "weight_error_std", *_F6_FIELDS)

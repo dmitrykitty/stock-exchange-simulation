@@ -152,8 +152,9 @@ class NetworkSimulation:
         self.assets = graph.companies()
         n_assets = len(self.assets)
         self.start_ticks = [round(graph.nodes[c].start_price * 100) for c in self.assets]
+        # Children of a SeedSequence depend only on their position, so the ninth leaves the first eight (F5) as is.
         (population_seed, value_seed, network_seed, wake_seed, decision_seed, herd_seed, attention_seed,
-         weight_seed) = np.random.SeedSequence(seed).spawn(8)
+         weight_seed, risk_seed) = np.random.SeedSequence(seed).spawn(9)
         # Per-asset parameters. With price_scaling the settings describe a stock at initial_price_ticks.
         self.asset_settings = [s] * n_assets
         self.asset_total_shares = [s.total_shares] * n_assets
@@ -210,6 +211,12 @@ class NetworkSimulation:
         self._risk_floor: list[dict[int, int]] = [{} for _ in range(self.investors)]
         self._peak = ([self._wealth(self.gateway.portfolio(a)) for a in range(self.investors)]
                       if s.risk_limit > 0 else [])
+        self.risk_limited = np.zeros(self.investors, dtype=bool)
+        if s.risk_limit > 0:
+            limited = round(s.risk_limit_share * self.investors)
+            chosen = (np.arange(self.investors) if limited == self.investors else
+                      np.random.default_rng(risk_seed).choice(self.investors, limited, replace=False))
+            self.risk_limited[chosen] = True
 
     # ----- valuers -------------------------------------------------------------------------------------------
     def _init_valuers(self, value_rng: np.random.Generator, weight_rng: np.random.Generator) -> None:
@@ -366,7 +373,7 @@ class NetworkSimulation:
             for order_id in sorted(self._open[agent]):
                 self._withdraw(agent, order_id, now, "order_cancelled")
             h = 0.0 if s.ablation == "no_herding" else float(self.herd_h[agent])
-            derisking = s.risk_limit > 0 and self._derisking(agent, now)
+            derisking = bool(self.risk_limited[agent]) and self._derisking(agent, now)
             # Followed assets are decided one after another; each decision sees the book and the wallet left by
             # the previous one, keeping the event-by-event semantics of the model.
             for asset in self.followed[agent]:

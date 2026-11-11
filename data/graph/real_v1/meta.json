@@ -10,11 +10,11 @@
     "keep": 10,
     "questionable": 12,
     "drop": 32,
-    "included_in_graph": 14
+    "included_in_graph": 10
   },
-  "weak_weights_policy": "Economically justified edges with |t| < 2 are retained in the graph so valuer agents hold the full structural belief set; their justification explicitly records the insignificant t-statistic. Economically spurious or intra-industry competitor edges are dropped during structure selection.",
+  "weak_weights_policy": "Economically justified edges with |t| < 2 are retained in the graph so valuer agents hold the full structural belief set; their justification explicitly records the insignificant t-statistic. When two parent companies in the same BEA industry correlate strongly (COP/EOG and VLO/MPC return correlations ~0.88), OLS splits their common effect across both parents (e.g. VLO -> DAL 0.130 + MPC -> DAL 0.136 = 0.266; COP -> VLO 0.538 + EOG -> VLO 0.178 = 0.716), so a borderline individual |t| < 2 reflects collinearity rather than a weak economic link. Economically spurious or intra-industry competitor edges (including questionable 22 -> 331 utilities -> primary metals, where interest-rate-driven utility stocks produce negative weights on NUE/AA) are dropped during structure selection.",
   "start_price_date": "2024-01-02",
   "start_price_source": "stocks_close_raw (Yahoo Finance close adjusted for splits only, not dividends)",
-  "computed_on": "2026-11-06",
+  "computed_on": "2026-11-11",
   "spectral_radius_full": 0.0
 }

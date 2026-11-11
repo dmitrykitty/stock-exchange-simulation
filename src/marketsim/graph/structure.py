@@ -151,15 +151,6 @@ BEA_INDUSTRY_DECISIONS: dict[tuple[str, str], tuple[str, bool, str]] = {
         True,
         "BEA 2023: truck transportation (484) spends {share:.1%} of output on refined petroleum diesel fuel (324)",
     ),
-    # --- Borderline ~2% utilities -> primary metals edges: QUESTIONABLE -> KEEP per model spec (4 edges) ---
-    (
-        "22",
-        "331",
-    ): (
-        "questionable",
-        True,
-        "BEA 2023: primary metals (331) spend {share:.1%} of output on utilities (22); electricity-intensive steel EAF and aluminum smelting",
-    ),
     # --- Intra-industry bilateral pairs (parent_bea == child_bea): DROP (14 edges) ---
     (
         "211",
@@ -217,7 +208,15 @@ BEA_INDUSTRY_DECISIONS: dict[tuple[str, str], tuple[str, bool, str]] = {
         False,
         "Intra-industry pair (514 <-> 514, {share:.1%}): GOOGL and META are competing internet/AI platforms, not supplier and customer",
     ),
-    # --- Other inter-industry BEA pairs near threshold or mismatched sub-industries: QUESTIONABLE / DROP (26 edges) ---
+    # --- Other inter-industry BEA pairs near threshold or mismatched sub-industries: QUESTIONABLE / DROP (30 edges) ---
+    (
+        "22",
+        "331",
+    ): (
+        "questionable",
+        False,
+        "Borderline BEA link (22 -> 331, {share:.1%}): primary metals spend ~2.1% on electricity, but utility stock returns (NEE/DUK) move with interest rates rather than power prices, giving a spurious negative weight on NUE (-0.18, t=-3.05)",
+    ),
     (
         "211",
         "22",
@@ -520,7 +519,13 @@ def build_real_v1_graph(
         "weak_weights_policy": (
             "Economically justified edges with |t| < 2 are retained in the graph so valuer agents hold the "
             "full structural belief set; their justification explicitly records the insignificant t-statistic. "
-            "Economically spurious or intra-industry competitor edges are dropped during structure selection."
+            "When two parent companies in the same BEA industry correlate strongly (COP/EOG and VLO/MPC return "
+            "correlations ~0.88), OLS splits their common effect across both parents (e.g. VLO -> DAL 0.130 + "
+            "MPC -> DAL 0.136 = 0.266; COP -> VLO 0.538 + EOG -> VLO 0.178 = 0.716), so a borderline individual "
+            "|t| < 2 reflects collinearity rather than a weak economic link. Economically spurious or "
+            "intra-industry competitor edges (including questionable 22 -> 331 utilities -> primary metals, "
+            "where interest-rate-driven utility stocks produce negative weights on NUE/AA) are dropped during "
+            "structure selection."
         ),
         "start_price_date": start_price_date,
         "start_price_source": "stocks_close_raw (Yahoo Finance close adjusted for splits only, not dividends)",

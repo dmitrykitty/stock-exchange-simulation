@@ -33,14 +33,10 @@ copper,FCX,1.020769,1.020769,21.9985,21.9985,commodity,Copper mining revenue dir
 sp500,FCX,1.095312,1.095312,16.5709,16.5709,index,Common US equity market factor (S&P 500)
 gold,NEM,1.290106,1.290106,20.1019,20.1019,commodity,Gold mining revenue directly follows spot and futures gold price
 sp500,NEM,0.382549,0.382549,7.1439,7.1439,index,Common US equity market factor (S&P 500)
-copper,NUE,0.364918,0.360699,7.1389,7.0588,commodity,Industrial construction and manufacturing metals cycle shared by steel and copper
-sp500,NUE,1.057796,1.148847,14.5271,13.8611,index,Common US equity market factor (S&P 500)
-NEE,NUE,,-0.181456,,-3.0518,bea,BEA 2023: primary metals (331) spend 2.1% of output on utilities (22); electricity-intensive steel EAF and aluminum smelting
-DUK,NUE,,0.115027,,1.3978,bea,"BEA 2023: primary metals (331) spend 2.1% of output on utilities (22); electricity-intensive steel EAF and aluminum smelting [weak weight kept: full t=1.40, |t| < 2]"
-copper,AA,0.959064,0.949525,13.0394,12.8672,commodity,Global industrial base-metals demand cycle shared by primary aluminum and copper
-sp500,AA,1.234431,1.344663,11.7821,11.2342,index,Common US equity market factor (S&P 500)
-NEE,AA,,-0.144497,,-1.6828,bea,"BEA 2023: primary metals (331) spend 2.1% of output on utilities (22); electricity-intensive steel EAF and aluminum smelting [weak weight kept: full t=-1.68, |t| < 2]"
-DUK,AA,,-0.000562,,-0.0047,bea,"BEA 2023: primary metals (331) spend 2.1% of output on utilities (22); electricity-intensive steel EAF and aluminum smelting [weak weight kept: full t=-0.00, |t| < 2]"
+copper,NUE,0.364918,0.364918,7.1389,7.1389,commodity,Industrial construction and manufacturing metals cycle shared by steel and copper
+sp500,NUE,1.057796,1.057796,14.5271,14.5271,index,Common US equity market factor (S&P 500)
+copper,AA,0.959064,0.959064,13.0394,13.0394,commodity,Global industrial base-metals demand cycle shared by primary aluminum and copper
+sp500,AA,1.234431,1.234431,11.7821,11.7821,index,Common US equity market factor (S&P 500)
 sp500,NVDA,2.151281,2.151281,28.6178,28.6178,index,Common US equity market factor (S&P 500)
 sp500,AMD,1.981736,1.981736,25.8445,25.8445,index,Common US equity market factor (S&P 500)
 sp500,GOOGL,1.343647,1.103123,30.6029,16.9615,index,Common US equity market factor (S&P 500)

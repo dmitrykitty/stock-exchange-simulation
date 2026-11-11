@@ -27,7 +27,7 @@ import pandas as pd
 from marketsim import paths
 from marketsim.data.api import load_external
 from marketsim.experiments.config import ConfigError, RunConfig
-from marketsim.graph.api import GraphError, load_graph, resolve_graph_dir
+from marketsim.graph.api import DependencyGraph, GraphError, load_graph, resolve_graph_dir
 from marketsim.graph.reference import reference_path
 from marketsim.market.api import CONTRACT_VERSION
 from marketsim.sim.engine import Simulation
@@ -82,6 +82,8 @@ def _validate_graph(config: RunConfig, seed: int) -> dict:
         raise ConfigError(f"graph {config.graph!r}: {exc}") from exc
     if not graph.companies():
         raise ConfigError("the graph has no company nodes")
+    if settings.assets:
+        graph = _subgraph(graph, settings.assets)
     try:
         external = load_external(config.external)
     except FileNotFoundError as exc:
@@ -108,6 +110,25 @@ def _validate_graph(config: RunConfig, seed: int) -> dict:
     }
     return {"settings": settings, "graph": graph, "external": values, "external_names": names,
             "reference": reference, "hashes": hashes}
+
+
+def _subgraph(graph: DependencyGraph, tickers: tuple[str, ...]) -> DependencyGraph:
+    """The graph restricted to ``tickers`` (file order kept) and all external nodes (F6 pilots).
+
+    A selected company must bring its company parents along: without them its remaining weights would describe
+    a different regression.
+    """
+    companies = graph.companies()
+    unknown = [t for t in tickers if t not in companies]
+    if unknown:
+        raise ConfigError(f"agents.assets: {unknown} are not companies of the graph")
+    chosen = set(tickers)
+    for company in tickers:
+        missing = [p for p in graph.parents(company, "full") if p in companies and p not in chosen]
+        if missing:
+            raise ConfigError(f"agents.assets: {company} needs its parents {missing}")
+    nodes = {name: node for name, node in graph.nodes.items() if node.kind == "external" or name in chosen}
+    return DependencyGraph(nodes, [e for e in graph.edges if e.child in chosen], dict(graph.meta)).validate()
 
 
 def _git_commit() -> str:
@@ -171,6 +192,15 @@ def _run_graph(config: RunConfig, seed: int, out_dir: Path) -> Path:
                                 "reference: path R with full weights, constant within a session"),
         "order_status_semantics": "last K1 execution status; cancellations and GTD expiry are recorded in events",
     }
+    if settings.price_scaling:
+        meta["asset_parameters"] = {
+            "total_shares": simulation.asset_total_shares, "market_maker_shares": simulation.asset_maker_shares,
+            "market_maker_qty": [a.market_maker_qty for a in simulation.asset_settings],
+            "market_maker_spread_ticks": [a.market_maker_spread_ticks for a in simulation.asset_settings],
+            "inventory_skew_ticks": [a.inventory_skew_ticks for a in simulation.asset_settings],
+        }
+    if settings.risk_limit > 0:
+        meta["risk_limit_triggers"] = simulation.risk_triggers
     return _write(simulation, run_id, meta, out_dir)
 
 

@@ -47,9 +47,9 @@ def make_order(
     signal: float, price: int, top: Top, portfolio: PortfolioView,
     settings: AgentSettings, rng: np.random.Generator,
 ) -> OrderIntent | None:
-    """Convert a signal to a resource-capped passive limit or protected IOC order."""
+    """Use a one-share minimum above threshold, capped by free resources; rho=0 disables orders."""
     s = settings
-    if abs(signal) <= s.threshold:
+    if abs(signal) <= s.threshold or s.rho == 0:
         return None
     side = int(Side.BUY if signal > 0 else Side.SELL)
     aggressive = rng.random() < s.aggressive_prob
@@ -70,7 +70,7 @@ def make_order(
     cash = portfolio.cash_available + portfolio.cash_reserved
     shares = int(portfolio.shares_available[0]) + int(portfolio.shares_reserved[0])
     wealth = cash + shares * price
-    qty = math.floor(s.rho * abs(signal) * wealth / price)
+    qty = max(1, math.floor(s.rho * abs(signal) * wealth / price))
     capacity = portfolio.cash_available // limit if side == Side.BUY else int(portfolio.shares_available[0])
     qty = min(qty, capacity)
     return OrderIntent(side, qty, limit, tif) if qty > 0 else None

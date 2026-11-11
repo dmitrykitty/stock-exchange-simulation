@@ -28,7 +28,7 @@ from marketsim.sim.engine import Simulation
 from marketsim.sim.log_schema import LOG_VERSION, load_run
 from marketsim.sim.settings import AgentSettings
 
-_SIMULATION_VERSION = "f4-v2"
+_SIMULATION_VERSION = "f4-v3"
 
 
 def _validate(config: RunConfig, seed: int) -> tuple[AgentSettings, dict]:

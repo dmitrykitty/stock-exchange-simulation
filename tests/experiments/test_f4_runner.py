@@ -58,6 +58,29 @@ def test_small_grid_runs_and_writes_summary_with_overrides(tmp_path):
     assert metadata["config"] == config
 
 
+def test_participation_counts_exclude_warmup_and_market_makers():
+    from marketsim.experiments.diagnostics import diagnose_run
+
+    log = RunLog(paths.PROJECT_ROOT, {
+        "run_id": "participation", "seed": 1, "wall_time_s": 0,
+        "config": {"n_sessions": 2, "warmup_sessions": 1},
+        "population": {"kinds": ["valuer", "noise", "trend", "market_maker"], "fund_ids": [0]},
+    }, {
+        "book": pd.DataFrame({"t": [0, 1, 2], "best_bid": [9995] * 3, "best_ask": [10005] * 3,
+                              "depth5_bid": [10] * 3, "depth5_ask": [10] * 3}),
+        "valuations": pd.DataFrame({"t": [0, 1, 2], "v_mean": [10000.0] * 3}),
+        "trades": pd.DataFrame({"t": [], "qty": []}),
+        "orders": pd.DataFrame({"t": [0.5, 1.1, 1.2, 1.3, 1.4], "agent": [2, 0, 1, 1, 3],
+                                "qty": [1] * 5, "filled_qty": [0] * 5}),
+    })
+    row = diagnose_run(log)
+    assert row["retail_order_count"] == 2
+    assert row["retail_active_agents"] == 1
+    assert row["retail_agent_count"] == 2
+    assert row["fund_order_count"] == 1
+    assert row["fund_active_agents"] == row["fund_agent_count"] == 1
+
+
 def test_empty_time_includes_interval_straddling_warmup():
     from marketsim.experiments.diagnostics import diagnose_run
 

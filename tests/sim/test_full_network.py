@@ -1,4 +1,5 @@
-"""F6 full network: asset subsets, price scaling, follower-only holdings, rebalancers and the risk limit."""
+"""F6 full network: asset subsets, price scaling, follower-only holdings, target positions, rebalancers and the
+risk limit."""
 
 import json
 from dataclasses import replace
@@ -7,13 +8,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from marketsim.agents.strategies import rebalance_order, risk_sale
+from marketsim.agents.strategies import rebalance_order, risk_sale, target_order
 from marketsim.experiments.config import ConfigError, RunConfig, expand, load_config
 from marketsim.graph.api import load_graph
 from marketsim.market.api import PortfolioView, Side, TimeInForce, Top
-from marketsim.sim.api import run
+from marketsim.sim.api import _validate_graph, run
 from marketsim.sim.log_schema import RUN_TABLES, load_run
-from marketsim.sim.network import make_network_population
+from marketsim.sim.network import NetworkSimulation, make_network_population
 from marketsim.sim.settings import AgentSettings, identity_dict
 
 
@@ -26,7 +27,7 @@ def net_config(external="oil_shock", n_sessions=8, **agents):
     )
 
 
-F6 = {"price_scaling": True, "holdings": "followed", "attention": 2, "rebalancers": 4, "risk_limit": 0.02,
+F6 = {"price_scaling": True, "holdings": "followed", "position_sizing": "target", "attention": 2, "rebalancers": 4, "risk_limit": 0.02,
       "risk_cooldown": 1.0, "observation_delay": 0.1, "weight_error_std": 0.2, "herding": {"h": 0.3}}
 
 
@@ -40,14 +41,14 @@ def test_f6_keys_at_defaults_keep_earlier_identities_and_are_rejected_without_a_
     assert not set(identity_dict(plain)) & {"assets", "price_scaling", "holdings", "rebalancers", "risk_limit",
                                             "rebalance_band", "risk_sell_fraction", "risk_cooldown"}
     for key, value in (("rebalancers", 2), ("risk_limit", 0.1), ("price_scaling", True), ("holdings", "followed"),
-                       ("assets", ["COP"])):
+                       ("assets", ["COP"]), ("position_sizing", "target"), ("position_tilt", 0.3)):
         with pytest.raises(ConfigError, match="need a graph"):
             AgentSettings.from_dict({key: value})
 
 
 @pytest.mark.parametrize("agents", [
     {"assets": "COP"}, {"assets": ["COP", "COP"]}, {"assets": ["XXX"]}, {"assets": ["VLO"]},
-    {"holdings": "some"}, {"price_scaling": 1}, {"rebalancers": -1}, {"rebalancers": 2, "rebalance_band": 0.0},
+    {"holdings": "some"}, {"price_scaling": 1}, {"position_sizing": "stock"}, {"position_tilt": 1.5}, {"rebalancers": -1}, {"rebalancers": 2, "rebalance_band": 0.0},
     {"risk_limit": 1.5}, {"risk_limit": 0.1, "risk_sell_fraction": 0.0}, {"risk_cooldown": 0.0},
 ])
 def test_invalid_f6_settings_fail_before_any_output(tmp_path, agents):
@@ -123,6 +124,39 @@ def test_rebalance_order_closes_the_gap_only_outside_the_band():
     assert (sell.side, sell.qty, sell.limit) == (Side.SELL, 100, 9_900)  # capped by the shares held
     sale = risk_sale(10_000, 7, settings)
     assert (sale.side, sale.qty, sale.limit, sale.tif) == (Side.SELL, 7, 9_900, TimeInForce.IOC)
+
+
+def test_target_order_closes_the_gap_up_to_the_cap_in_whole_shares():
+    settings = AgentSettings(aggressive_prob=1.0, protection_fraction=0.01)
+    top = Top(9_995, 10, 10_005, 10)
+    portfolio = PortfolioView(cash_available=10_000_000, cash_reserved=0,
+                              shares_available=np.array([30]), shares_reserved=np.array([0]))
+    rng = np.random.default_rng(1)
+    assert target_order(9_999.0, 1_000_000.0, 10_000, top, portfolio, settings, rng, 0) is None  # under one share
+    buy = target_order(125_000.0, 1_000_000.0, 10_000, top, portfolio, settings, rng, 0)
+    assert (buy.side, buy.qty, buy.limit, buy.tif) == (Side.BUY, 12, 10_100, TimeInForce.IOC)
+    capped = target_order(125_000.0, 50_000.0, 10_000, top, portfolio, settings, rng, 0)
+    assert capped.qty == 5
+    sell = target_order(-900_000.0, 1_000_000.0, 10_000, top, portfolio, settings, rng, 0)
+    assert (sell.side, sell.qty) == (Side.SELL, 30)  # capped by the shares held
+
+
+@pytest.mark.parametrize("external", ["oil_shock", "oil_shock_down"])
+def test_target_positions_stay_within_the_tilt_around_the_initial_shares(external):
+    # With the flow rule a valuer keeps buying an undervalued asset until its cash is gone; with a target it
+    # stops at initial shares * (1 + tilt).
+    config = net_config(external=external, n_sessions=20, position_sizing="target", position_tilt=0.4, rho=0.1,
+                        noise=0, trend=0, valuers_myopic=12, valuers_network=12, inventory_skew_ticks=0.3)
+    checked = _validate_graph(config, 8)
+    simulation = NetworkSimulation(config, checked["settings"], 8, checked["graph"], checked["external"],
+                                   checked["external_names"], checked["reference"])
+    initial = simulation.population.shares[:simulation.investors].copy()
+    simulation.execute()
+    final = np.array([simulation.gateway.portfolio(a).shares_available for a in range(simulation.investors)])
+    assert (final != initial).any()
+    assert (final <= np.floor(initial * 1.4) + 1).all()
+    assert (final >= np.ceil(initial * 0.6) - 1).all()
+    assert simulation.resources()["shares_by_asset"] == [int(x) for x in simulation.population.shares.sum(axis=0)]
 
 
 def test_rebalancers_are_funds_that_sell_what_went_up(tmp_path):

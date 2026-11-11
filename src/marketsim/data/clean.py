@@ -15,6 +15,7 @@ import argparse
 import sys
 import warnings
 import zipfile
+from html.parser import HTMLParser
 from io import StringIO
 from pathlib import Path
 
@@ -28,6 +29,7 @@ from marketsim.data import schemas as S
 PERIOD_START = "2021-01-01"
 PERIOD_END = "2025-12-31"
 IO_YEARS = (2022, 2023)
+LB_PER_TONNE = 2204.62262
 
 
 def _read_yahoo_csv(path: Path) -> pd.DataFrame:
@@ -87,6 +89,59 @@ def build_calendar() -> pd.DataFrame:
     return cal
 
 
+class _TableRows(HTMLParser):
+    """Collect the text of every <td>/<th> cell, row by row."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.rows: list[list[str]] = []
+        self._cell: list[str] | None = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "tr":
+            self.rows.append([])
+        elif tag in ("td", "th"):
+            self._cell = []
+
+    def handle_endtag(self, tag):
+        if tag in ("td", "th") and self._cell is not None and self.rows:
+            self.rows[-1].append("".join(self._cell).strip())
+            self._cell = None
+
+    def handle_data(self, data):
+        if self._cell is not None:
+            self._cell.append(data)
+
+
+def parse_westmetall_table(text: str) -> pd.Series:
+    """Rows "06. November 2026 | 13,955.00 | ..." of a Westmetall price table -> Series of the first price column.
+
+    Rows without a date or without a number (headers, holidays marked "-") are skipped.
+    """
+    parser = _TableRows()
+    parser.feed(text)
+    values = {}
+    for row in parser.rows:
+        if len(row) < 2:
+            continue
+        date = pd.to_datetime(row[0], format="%d. %B %Y", errors="coerce")
+        price = pd.to_numeric(row[1].replace(",", ""), errors="coerce")
+        if pd.notna(date) and pd.notna(price):
+            values[date] = float(price)
+    series = pd.Series(values, dtype=float).sort_index()
+    series.index.name = "date"
+    return series
+
+
+def _read_lme_copper() -> pd.Series:
+    """LME copper cash settlement from data/raw/westmetall/, converted from USD/t to USD/lb."""
+    files = sorted((paths.raw_dir() / "westmetall").glob("LME_Cu_cash_*.html"))
+    if not files:
+        raise FileNotFoundError("data/raw/westmetall/LME_Cu_cash_*.html not found; run: python -m marketsim.data.fetch --only lme")
+    usd_per_t = pd.concat([parse_westmetall_table(f.read_text(encoding="utf-8", errors="ignore")) for f in files])
+    return (usd_per_t[~usd_per_t.index.duplicated()].sort_index() / LB_PER_TONNE).rename("copper_lme_usd_per_lb")
+
+
 def build_commodities() -> tuple[pd.DataFrame, pd.DataFrame]:
     """D1. commodities_daily (on the calendar, forward-fill at most 3 days, with flags) and commodities_monthly.
 
@@ -103,6 +158,7 @@ def build_commodities() -> tuple[pd.DataFrame, pd.DataFrame]:
     gold_s, gold_flag = _ffill_max3(yahoo_adj["GC=F"], cal_idx, "gold")
     plat_s, plat_flag = _ffill_max3(yahoo_adj["PL=F"], cal_idx, "platinum")
     cop_s, cop_flag = _ffill_max3(yahoo_adj["HG=F"], cal_idx, "copper_usd_per_lb")
+    lme_s, lme_flag = _ffill_max3(_read_lme_copper(), cal_idx, "copper_lme_usd_per_lb")
 
     daily = pd.DataFrame(
         {
@@ -112,16 +168,19 @@ def build_commodities() -> tuple[pd.DataFrame, pd.DataFrame]:
             "gold": gold_s,
             "platinum": plat_s,
             "copper_usd_per_lb": cop_s,
+            # World (LME) copper price: COMEX carried a US tariff premium in 2025, see data/README.md.
+            "copper_lme_usd_per_lb": lme_s,
             "wti_filled": wti_flag,
             "brent_filled": brent_flag,
             "henry_hub_filled": hh_flag,
             "gold_filled": gold_flag,
             "platinum_filled": plat_flag,
             "copper_usd_per_lb_filled": cop_flag,
+            "copper_lme_usd_per_lb_filled": lme_flag,
         },
         index=cal_idx,
     )
-    price_cols = ["wti", "brent", "henry_hub", "gold", "platinum", "copper_usd_per_lb"]
+    price_cols = ["wti", "brent", "henry_hub", "gold", "platinum", "copper_usd_per_lb", "copper_lme_usd_per_lb"]
     if not (daily[price_cols] > 0).all().all():
         raise ValueError("All commodity daily prices in the analysis period must be > 0")
     api.write_table(daily, S.COMMODITIES_DAILY)

@@ -25,6 +25,7 @@ python -m marketsim.data.check --strict
 | `fred/DHHNGSP.csv` | FRED (`DHHNGSP`) | Henry Hub natural gas spot price (USD/MMBtu), daily |
 | `fred/SP500.csv` | FRED (`SP500`) | S&P 500 price index level, daily |
 | `fred/PCOPPUSDM.csv` | FRED (`PCOPPUSDM`) | Global price of copper (USD/metric ton), monthly |
+| `westmetall/LME_Cu_cash_<year>.html` | [Westmetall](https://www.westmetall.com/en/markdaten.php?action=table&field=LME_Cu_cash) (LME prices republished by a metal trader) | LME copper cash-settlement price (USD/metric ton), daily, one HTML table per year 2021–2025 |
 | `yahoo/close_adj.csv` | Yahoo Finance (`yfinance==1.7.0`) | Split- and dividend-adjusted close prices for 18 stocks + 5 futures (`CL=F`, `NG=F`, `HG=F`, `GC=F`, `PL=F`), daily |
 | `yahoo/close_raw.csv` | Yahoo Finance (`yfinance==1.7.0`) | Split-adjusted (unadjusted for dividends) close prices for 18 stocks, daily |
 | `yahoo/volume.csv` | Yahoo Finance (`yfinance==1.7.0`) | Traded volume in shares/contracts, daily |
@@ -40,7 +41,7 @@ python -m marketsim.data.check --strict
 | File | Schema | Shape (2021–2025) | Units & Description |
 |---|---|---|---|
 | `calendar.parquet` | `CALENDAR` | 1255 × 1 | Index `date` (NYSE trading days 2021–2025), column `session` (`0..1254`) |
-| `commodities_daily.parquet` | `COMMODITIES_DAILY` | 1255 × 12 | `wti` ($/bbl, FRED), `brent` ($/bbl, FRED), `henry_hub` ($/MMBtu, FRED), `gold` ($/troy oz, Yahoo `GC=F`), `platinum` ($/troy oz, Yahoo `PL=F`), `copper_usd_per_lb` ($/lb, Yahoo `HG=F`), plus boolean `*_filled` flags |
+| `commodities_daily.parquet` | `COMMODITIES_DAILY` | 1255 × 14 | `wti` ($/bbl, FRED), `brent` ($/bbl, FRED), `henry_hub` ($/MMBtu, FRED), `gold` ($/troy oz, Yahoo `GC=F`), `platinum` ($/troy oz, Yahoo `PL=F`), `copper_usd_per_lb` ($/lb, Yahoo `HG=F`, COMEX), `copper_lme_usd_per_lb` ($/lb, LME cash settlement via Westmetall), plus boolean `*_filled` flags |
 | `commodities_monthly.parquet` | `COMMODITIES_MONTHLY` | 60 × 7 | Index `date` (first of month), columns: `fred_copper_usd_per_mt` ($/mt), `wb_wti` ($/bbl), `wb_brent` ($/bbl), `wb_henry_hub` ($/MMBtu), `wb_copper_usd_per_mt` ($/mt), `wb_gold` ($/troy oz), `wb_platinum` ($/troy oz) |
 | `market_daily.parquet` | `MARKET_DAILY` | 1255 × 2 | `sp500` (index level, FRED), `ff_mkt_ret` (`(Mkt-RF + RF) / 100`, daily market return as a fraction) |
 | `stocks_close_adj.parquet` | `STOCKS_CLOSE_ADJ` | 1255 × 18 | Daily close prices (USD/share) adjusted for splits and dividends; used for log returns |
@@ -75,4 +76,5 @@ Everything that affects results goes here: what was filled, what was dropped, wh
 | 2026-10-28 | Company list fixed: 18 companies in `mapping/companies.csv`, all `confirmed`. Each has complete daily prices 2021–2025 (1255 NYSE days, no gaps) and a SIC code from EDGAR; BEA industries assigned by SIC and business profile. |
 | 2026-10-28 | ConocoPhillips is mapped to BEA 211 (oil and gas extraction) although its EDGAR SIC is 2911 (refining): the SIC predates the 2012 Phillips 66 spin-off. |
 | 2026-10-28 | Platinum is collected but has no company in the graph. Natural gas has near-zero daily betas for all companies (t < 1); its edges stay with near-zero weights. |
+| 2026-11-09 | **LME copper for the 2024–2025 scenario:** in 2025 COMEX copper (`HG=F`) carried a US tariff premium over the LME price (mean 7.1%, up to 29.8%) with one-day jumps unrelated to miners: 2025-07-08 COMEX +12.4% vs LME +0.3% (FCX +2.5%), 2025-07-31 COMEX −25.2% vs LME −1.0% (FCX +2.8%). In 2021–2023 the premium is 0.2–0.5% on average, so the graph weights stay estimated on COMEX, which closes together with US stocks (LME settles at London midday, which lowers daily betas: FCX 0.75 vs 1.02; weekly betas agree, 1.19 vs 1.25). `copper_lme_usd_per_lb` (USD/t ÷ 2204.62262) feeds the copper signal of the 2024–2025 scenario; its weekly beta for FCX is stable (1.19 in 2021–2023, 1.29 in 2024–2025) while COMEX drops to 0.67. Westmetall republishes LME data; official LME data are paid. |
 | 2026-10-28 | No copper → semiconductor edge: daily betas of NVDA and AMD on copper are insignificant (t = −0.5, −1.1). |

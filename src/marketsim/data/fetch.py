@@ -42,6 +42,9 @@ WORLDBANK_FALLBACK_URL = (
 )
 BEA_ZIP_URL = "https://apps.bea.gov/industry/iTables%20Static%20Files/AllTablesIO.zip"
 BEA_XLSX_NAME = "IOUse_Before_Redefinitions_PRO_1997-2023_Summary.xlsx"
+# LME copper cash-settlement prices (USD/t), one HTML table per year, published by Westmetall.
+LME_COPPER_URL = "https://www.westmetall.com/en/markdaten.php?action=table&field=LME_Cu_cash&year={year}"
+LME_YEARS = range(2021, 2026)
 
 
 def _sha256(path: Path) -> str:
@@ -215,6 +218,22 @@ def fetch_worldbank(force: bool = False) -> Path:
     return _download_file(xlsx_url, dest, force=force)
 
 
+def fetch_lme_copper(force: bool = False) -> list[Path]:
+    """D1. Daily LME copper cash-settlement tables, one per year -> data/raw/westmetall/LME_Cu_cash_<year>.html
+
+    Why: in 2025 the COMEX copper price (HG=F) carried a US tariff premium of up to ~30% over the world price, with
+    one-day jumps that did not move copper miners. The LME price is the world benchmark for the 2024-2025 scenario.
+    """
+    out = []
+    for year in LME_YEARS:
+        dest = paths.raw_dir() / "westmetall" / f"LME_Cu_cash_{year}.html"
+        fresh = force or not dest.exists()
+        out.append(_download_file(LME_COPPER_URL.format(year=year), dest, force=force))
+        if fresh:
+            time.sleep(1.0)  # one request per second, the pages are small
+    return out
+
+
 def fetch_bea(force: bool = False) -> Path:
     """D2. AllTablesIO.zip -> data/raw/bea/ (needs IOUse_Before_Redefinitions_PRO_1997-2023_Summary.xlsx)
 
@@ -280,7 +299,7 @@ def main(argv: list[str] | None = None) -> int:
         "--only",
         type=str,
         default="",
-        help="comma-separated subset of sources: fred,yahoo,french,worldbank,bea,edgar",
+        help="comma-separated subset of sources: fred,yahoo,french,worldbank,lme,bea,edgar",
     )
     parser.add_argument(
         "--contact",
@@ -290,7 +309,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    all_sources = ("fred", "yahoo", "french", "worldbank", "bea", "edgar")
+    all_sources = ("fred", "yahoo", "french", "worldbank", "lme", "bea", "edgar")
     if args.only:
         selected = [s.strip().lower() for s in args.only.split(",") if s.strip()]
         unknown = [s for s in selected if s not in all_sources]
@@ -316,6 +335,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if "worldbank" in selected:
         fetch_worldbank(force=args.force)
+
+    if "lme" in selected:
+        fetch_lme_copper(force=args.force)
 
     if "bea" in selected:
         fetch_bea(force=args.force)

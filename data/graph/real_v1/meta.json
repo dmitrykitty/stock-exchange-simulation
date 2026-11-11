@@ -10,11 +10,12 @@
     "keep": 10,
     "questionable": 12,
     "drop": 32,
-    "included_in_graph": 14
+    "included_in_graph": 10
   },
   "weak_weights_policy": "Economically justified edges with |t| < 2 are retained in the graph so valuer agents hold the full structural belief set; their justification explicitly records the insignificant t-statistic. Economically spurious or intra-industry competitor edges are dropped during structure selection.",
+  "collinear_parents_note": "Several children have two parents from one industry whose returns correlate at about 0.88 (COP/EOG -> VLO, MPC; VLO/MPC -> DAL, UAL, ODFL). OLS splits their common effect between the two, so a single |t| < 2 there does not mean a weak link: read the two weights together (for example COP -> VLO 0.54 + EOG -> VLO 0.18, against 0.70 in the single-parent chain).",
   "start_price_date": "2024-01-02",
   "start_price_source": "stocks_close_raw (Yahoo Finance close adjusted for splits only, not dividends)",
-  "computed_on": "2026-11-06",
+  "computed_on": "2026-11-11",
   "spectral_radius_full": 0.0
 }

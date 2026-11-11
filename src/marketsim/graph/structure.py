@@ -151,14 +151,17 @@ BEA_INDUSTRY_DECISIONS: dict[tuple[str, str], tuple[str, bool, str]] = {
         True,
         "BEA 2023: truck transportation (484) spends {share:.1%} of output on refined petroleum diesel fuel (324)",
     ),
-    # --- Borderline ~2% utilities -> primary metals edges: QUESTIONABLE -> KEEP per model spec (4 edges) ---
+    # --- Borderline ~2% utilities -> primary metals edges: QUESTIONABLE -> EXCLUDED (4 edges) ---
+    # A utility's share price is not the price of electricity (it moves mostly with interest rates), and the
+    # estimated weights were negative (NEE -> NUE -0.18, t = -3.05): a steel valuer would sell whenever NEE rises.
+    # Consistent with 211 -> 22 (gas -> power plants), which is questionable and excluded too.
     (
         "22",
         "331",
     ): (
         "questionable",
-        True,
-        "BEA 2023: primary metals (331) spend {share:.1%} of output on utilities (22); electricity-intensive steel EAF and aluminum smelting",
+        False,
+        "Borderline BEA link (22 -> 331, {share:.1%}): primary metals buy electricity, but a utility's share price is not the electricity price; the estimated weights were negative and have no economic reading",
     ),
     # --- Intra-industry bilateral pairs (parent_bea == child_bea): DROP (14 edges) ---
     (
@@ -521,6 +524,12 @@ def build_real_v1_graph(
             "Economically justified edges with |t| < 2 are retained in the graph so valuer agents hold the "
             "full structural belief set; their justification explicitly records the insignificant t-statistic. "
             "Economically spurious or intra-industry competitor edges are dropped during structure selection."
+        ),
+        "collinear_parents_note": (
+            "Several children have two parents from one industry whose returns correlate at about 0.88 "
+            "(COP/EOG -> VLO, MPC; VLO/MPC -> DAL, UAL, ODFL). OLS splits their common effect between the two, so "
+            "a single |t| < 2 there does not mean a weak link: read the two weights together (for example "
+            "COP -> VLO 0.54 + EOG -> VLO 0.18, against 0.70 in the single-parent chain)."
         ),
         "start_price_date": start_price_date,
         "start_price_source": "stocks_close_raw (Yahoo Finance close adjusted for splits only, not dividends)",

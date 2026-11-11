@@ -144,8 +144,8 @@ def test_review_54_bea_candidate_edges():
     assert (same_ind["decision"] == "drop").all()
     assert (~same_ind["included"]).all()
 
-    # 14 BEA edges are included in real_v1: 211->324 (4), 324->481 (4), 324->484 (2), 22->331 (4)
-    assert int(review["included"].sum()) == 14
+    # 10 BEA edges are included in real_v1: 211->324 (4), 324->481 (4), 324->484 (2); 22->331 (4) is excluded
+    assert int(review["included"].sum()) == 10
 
 
 def test_real_v1_graph_loads_and_matches_builder():
@@ -154,7 +154,7 @@ def test_real_v1_graph_loads_and_matches_builder():
 
     assert real_v1.externals() == list(EXTERNAL_NODES)
     assert len(real_v1.companies()) == 18
-    assert len(real_v1.edges) == 51
+    assert len(real_v1.edges) == 47
     assert real_v1.spectral_radius("full") < 1.0
     assert real_v1.spectral_radius("direct") < 1.0
     assert real_v1.nodes.keys() == built.nodes.keys()

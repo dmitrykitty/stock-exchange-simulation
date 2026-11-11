@@ -6,7 +6,7 @@ from bisect import bisect_right
 
 import numpy as np
 
-from marketsim.agents.herding import HerdingNetwork
+from marketsim.agents.herding import HerdingNetwork, susceptibility
 from marketsim.agents.strategies import (
     OrderIntent,
     make_order,
@@ -28,7 +28,10 @@ from marketsim.sim.settings import AgentSettings
 class Simulation:
     def __init__(self, config: RunConfig, settings: AgentSettings, seed: int, external_levels: dict) -> None:
         self.config, self.settings = config, settings
-        population_seed, value_seed, network_seed, wake_seed, decision_seed = np.random.SeedSequence(seed).spawn(5)
+        # A sixth child stream for herding susceptibility leaves the first five (and F4 results) unchanged.
+        population_seed, value_seed, network_seed, wake_seed, decision_seed, herd_seed = (
+            np.random.SeedSequence(seed).spawn(6)
+        )
         self.population = make_population(settings, np.random.default_rng(population_seed))
         n = len(self.population.kinds)
         self.investors = settings.valuers + settings.trend + settings.noise
@@ -40,6 +43,8 @@ class Simulation:
             self.investors, settings.herding.neighbors, settings.herding.ttl,
             np.random.default_rng(network_seed),
         )
+        hs = settings.herding
+        self.herd_h = susceptibility(self.investors, hs.h, hs.followers, hs.h_std, np.random.default_rng(herd_seed))
         self.gateway = Gateway(
             make_exchange(config.exchange_backend, 1), self.population.cash, self.population.shares,
         )
@@ -107,7 +112,7 @@ class Simulation:
                 own = trend_signal(price, self._history_prices[index], s.trend_scale)
             else:
                 own = noise_signal(self._decision_rng[agent])
-            h = 0.0 if s.ablation == "no_herding" else s.herding.h
+            h = 0.0 if s.ablation == "no_herding" else float(self.herd_h[agent])
             herd, signal = self.network.mix(agent, own, now, h)
             self.recorder.rows["signals"].append({
                 "t": now, "agent": agent, "asset": 0, "own_signal": own,

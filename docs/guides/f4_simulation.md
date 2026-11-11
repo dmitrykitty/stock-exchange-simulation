@@ -70,7 +70,7 @@ Notebook `notebooks/03_experiments.ipynb` читает эти результат
 | Пробуждения | `decision_rate`, `market_maker_rate` (в среднем решений на сессию) |
 | Заявки | `rho`, `threshold`, `aggressive_prob`, `protection_fraction`, `passive_offset_ticks`, `tif`, `order_lifetime` |
 | Маркет-мейкер | `market_maker_spread_ticks`, `market_maker_qty`, `inventory_skew_ticks` |
-| Стадность | `herding: {h, neighbors, ttl}` |
+| Стадность | `herding: {h, neighbors, ttl, followers, h_std}`; `followers` и `h_std` — разная подверженность стадности (F5, по умолчанию у всех ровно h) |
 | Проверки и эксперименты | `debug`, `ablation` |
 
 Оценщик хранит постоянную индивидуальную оценку `P0 * (1 + e)`, где `e` нормально распределена

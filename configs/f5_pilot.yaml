@@ -1,0 +1,41 @@
+# F5 pilot: the chain market with oil up and down, seeds 1-3 (not reused by E4).
+base:
+  name: f5_pilot
+  exchange_backend: python
+  graph: graph_chain              # wti -> COP -> VLO -> DAL (data/fixtures/graph_chain)
+  external: oil_shock             # oil 100 -> 120 at session 5; later sessions keep the last level
+  use_market_index: true
+  n_sessions: 30
+  warmup_sessions: 5              # the shock arrives exactly when warmup ends
+  sample_dt: 0.02
+  agents:
+    composition: mixed            # network / mixed / trend: shares of the investor counts below
+    valuers_myopic: 36
+    valuers_network: 36
+    trend: 24
+    noise: 24
+    n_funds: 12
+    concentration: 0.5
+    total_cash_cents: 120000000   # 10,000 USD of cash per investor on average
+    total_shares: 12000           # per asset: 100 shares of each company per investor on average
+    rho: 0.02
+    decision_rate: 2.0
+    market_makers_per_asset: 2     # calibrated on the pilot: one maker left a book side empty ~20% of the time
+    market_maker_rate: 20.0
+    market_maker_qty: 50
+    market_maker_spread_ticks: 10
+    inventory_skew_ticks: 0.1     # calibrated on the pilot: with 0.02 one-sided flow moved prices ~1% per session
+    tif: GTD
+    order_lifetime: 0.5
+    observation_delay: 0.05       # mean delay of observed parent prices, in sessions
+    weight_error_std: 0.1         # personal relative error in every graph weight
+    ablation: none
+    herding:
+      h: 0.3
+      neighbors: 5
+      followers: 1.0
+      h_std: 0.0
+seeds: [1, 2, 3]
+grid:
+  agents.composition: [network, mixed, trend]
+  external: [oil_shock, oil_shock_down]

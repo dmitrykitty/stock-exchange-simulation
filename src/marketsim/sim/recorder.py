@@ -24,10 +24,12 @@ class Recorder:
             "t": now, "kind": kind, "payload": json.dumps(payload, sort_keys=True, allow_nan=False),
         })
 
-    def order(self, now: float, agent: int, side: int, qty: int, limit: int, tif: int, report: Report) -> None:
+    def order(
+        self, now: float, agent: int, side: int, qty: int, limit: int, tif: int, report: Report, asset: int = 0,
+    ) -> None:
         """Register before draining fills, so taker and maker rows can both be updated."""
         row = {
-            "t": now, "order_id": report.order_id, "agent": agent, "asset": 0,
+            "t": now, "order_id": report.order_id, "agent": agent, "asset": asset,
             "side": side, "qty": qty, "limit": limit, "tif": tif,
             "status": int(report.status), "filled_qty": 0,
         }
@@ -70,6 +72,23 @@ class Recorder:
             "v_std": float(valuations.std()) if len(valuations) else 0.0,
             "reference": float(initial_price),
         })
+
+    def snapshot_assets(
+        self, now: float, market: MarketDataView, v_mean: np.ndarray, v_std: np.ndarray, reference: np.ndarray,
+    ) -> None:
+        """Book, valuation mean/std (ticks) and reference path (ticks) of every asset at one moment (F5+)."""
+        for asset in range(len(v_mean)):
+            top = market.top(asset)
+            depth = market.depth(asset, 5)
+            self.rows["book"].append({
+                "t": now, "asset": asset, "best_bid": top.bid, "best_ask": top.ask,
+                "bid_qty": top.bid_qty, "ask_qty": top.ask_qty,
+                "depth5_bid": int(depth["bid_qty"].sum()), "depth5_ask": int(depth["ask_qty"].sum()),
+            })
+            self.rows["valuations"].append({
+                "t": now, "asset": asset, "v_mean": float(v_mean[asset]), "v_std": float(v_std[asset]),
+                "reference": float(reference[asset]),
+            })
 
     def write(self, directory: Path, meta: dict) -> None:
         """Write every table with explicit dtypes, including tables with zero rows."""

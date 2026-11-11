@@ -90,6 +90,13 @@ class AgentSettings:
     # ``holdings``: "all" gives every investor shares of every asset (F5); "followed" splits each asset's shares
     # among the investors that trade it, so nobody holds positions it never trades.
     holdings: str = "all"
+    # ``position_sizing``: "flow" is the F4 rule (every decision orders rho * |signal| * wealth, so an agent keeps
+    # buying while its signal is positive until the cash is gone). "target" gives every investor a target
+    # position: its initial number of shares times (1 + position_tilt * signal); an order closes the gap to the
+    # target, at most rho * wealth per decision. A valuer then holds more of what it finds
+    # cheap and stops buying once it holds enough.
+    position_sizing: str = "flow"
+    position_tilt: float = 0.5
     # Rebalancers: funds that keep the initial value weights of their followed assets. They trade an asset when
     # its weight is off target by more than ``rebalance_band`` (relative), back to the target; they ignore herding.
     # Every rebalancer is a fund, in addition to the ``n_funds`` funds drawn from the other investor groups.
@@ -176,8 +183,10 @@ class AgentSettings:
             raise ConfigError("price_scaling must be boolean")
         if settings.holdings not in ("all", "followed"):
             raise ConfigError("holdings must be all or followed")
+        if settings.position_sizing not in ("flow", "target"):
+            raise ConfigError("position_sizing must be flow or target")
         positive += ("risk_cooldown",)
-        unit += ("rebalance_band", "risk_limit", "risk_limit_share", "risk_sell_fraction")
+        unit += ("rebalance_band", "risk_limit", "risk_limit_share", "risk_sell_fraction", "position_tilt")
         for name in positive + unit + ("valuation_std", "inventory_skew_ticks", "observation_delay", "weight_error_std"):
             value = getattr(settings, name)
             if type(value) not in (int, float) or not math.isfinite(value):
@@ -235,7 +244,7 @@ def identity_dict(settings: AgentSettings) -> dict:
     return data
 
 
-_F6_FIELDS = ("assets", "price_scaling", "holdings", "rebalancers", "rebalance_band", "risk_limit",
+_F6_FIELDS = ("assets", "price_scaling", "holdings", "position_sizing", "position_tilt", "rebalancers", "rebalance_band", "risk_limit",
               "risk_limit_share", "risk_sell_fraction", "risk_cooldown")
 # Fields that exist only with a graph; at their defaults they are left out of run identities.
 _GRAPH_FIELDS = ("valuers_myopic", "valuers_network", "composition", "attention", "observation_delay",

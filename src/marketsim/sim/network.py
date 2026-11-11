@@ -41,6 +41,7 @@ from marketsim.agents.strategies import (
     noise_signal,
     rebalance_order,
     risk_sale,
+    target_order,
     trend_signal,
     valuer_signal,
 )
@@ -394,6 +395,18 @@ class NetworkSimulation:
                     herd, signal = self.network.mix(agent, own, now, h, asset)
                     intent = rebalance_order(deviation, target_value, price, market.top(asset), portfolio,
                                              self.asset_settings[asset], self._decision_rng[agent], asset)
+                elif s.position_sizing == "target":
+                    own = self._own_signal(agent, kind, asset, price, now)
+                    herd, signal = self.network.mix(agent, own, now, h, asset)
+                    # The neutral position is the initial number of shares: at a zero signal everybody wants what
+                    # exists, whatever the price has done since the start.
+                    held = int(portfolio.shares_available[asset]) + int(portfolio.shares_reserved[asset])
+                    neutral = int(self.population.shares[agent, asset]) * price
+                    gap = neutral * (1 + s.position_tilt * signal) - held * price
+                    intent = None
+                    if abs(signal) > s.threshold or abs(gap) > s.rebalance_band * neutral:
+                        intent = target_order(gap, s.rho * self._wealth(portfolio), price, market.top(asset),
+                                              portfolio, self.asset_settings[asset], self._decision_rng[agent], asset)
                 else:
                     own = self._own_signal(agent, kind, asset, price, now)
                     herd, signal = self.network.mix(agent, own, now, h, asset)

@@ -109,6 +109,25 @@ def rebalance_order(
     return OrderIntent(side, qty, limit, tif) if qty > 0 else None
 
 
+def target_order(
+    gap_value: float, cap_value: float, price: int, top: Top, portfolio: PortfolioView,
+    settings: AgentSettings, rng: np.random.Generator, asset: int,
+) -> OrderIntent | None:
+    """Order of an investor with a target position (F6): close the gap between the target and the held value.
+
+    ``gap_value`` = target value - held value in cents; at most ``cap_value`` is ordered per decision. Whole
+    shares only: a gap smaller than one share gives no order.
+    """
+    qty = math.floor(min(abs(gap_value), cap_value) / price)
+    if qty < 1:
+        return None
+    side = int(Side.BUY if gap_value > 0 else Side.SELL)
+    limit, tif = _limit_and_tif(side, price, top, settings, rng)
+    capacity = portfolio.cash_available // limit if side == Side.BUY else int(portfolio.shares_available[asset])
+    qty = min(qty, capacity)
+    return OrderIntent(side, qty, limit, tif) if qty > 0 else None
+
+
 def risk_sale(price: int, qty: int, settings: AgentSettings) -> OrderIntent:
     """Protected IOC sale used when an investor's risk limit is hit (F6)."""
     return OrderIntent(int(Side.SELL), qty, max(1, math.ceil(price * (1 - settings.protection_fraction))),

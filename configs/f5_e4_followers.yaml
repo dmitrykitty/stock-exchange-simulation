@@ -21,10 +21,11 @@ base:
     total_shares: 12000           # per asset: 100 shares of each company per investor on average
     rho: 0.02
     decision_rate: 2.0
-    market_makers_per_asset: 2     # calibrated on the pilot: one maker left a book side empty ~21% of the time
+    market_makers_per_asset: 2     # calibrated on the pilot: one maker left a book side empty ~20% of the time
     market_maker_rate: 20.0
     market_maker_qty: 50
     market_maker_spread_ticks: 10
+    inventory_skew_ticks: 0.1     # calibrated on the pilot: with 0.02 one-sided flow moved prices ~1% per session
     tif: GTD
     order_lifetime: 0.5
     observation_delay: 0.05       # mean delay of observed parent prices, in sessions

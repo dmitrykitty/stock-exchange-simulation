@@ -85,8 +85,9 @@ def diagnose_run(log: RunLog) -> dict:
         ref = valuations.loc[valuations.asset == asset].set_index("t")["reference"]
         if len(before) and len(two_sided):
             first, last = before.iloc[-1], two_sided.iloc[-1]
-            mid = lambda r: (r.best_bid + r.best_ask) / 2  # noqa: E731
-            row[f"price_log_change__{ticker}"] = float(math.log(mid(last) / mid(first)))
+            mid_first = (first.best_bid + first.best_ask) / 2
+            mid_last = (last.best_bid + last.best_ask) / 2
+            row[f"price_log_change__{ticker}"] = float(math.log(mid_last / mid_first))
             row[f"reference_log_change__{ticker}"] = float(math.log(ref.loc[last.t] / ref.loc[first.t]))
         else:
             row[f"price_log_change__{ticker}"] = row[f"reference_log_change__{ticker}"] = float("nan")

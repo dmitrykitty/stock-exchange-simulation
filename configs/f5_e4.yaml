@@ -1,4 +1,5 @@
 # E4 (F5): oil shock +-20% on the chain; investor mix x herding x shock direction x 30 fresh seeds = 540 runs.
+# Market makers and the herding grid were calibrated on the pilot (seeds 1-6), see docs/guides/f5_graph_valuers.md.
 base:
   name: f5_e4
   exchange_backend: python
@@ -20,10 +21,11 @@ base:
     total_shares: 12000           # per asset: 100 shares of each company per investor on average
     rho: 0.02
     decision_rate: 2.0
-    market_makers_per_asset: 2     # calibrated on the pilot: one maker left a book side empty ~21% of the time
+    market_makers_per_asset: 2     # calibrated on the pilot: one maker left a book side empty ~20% of the time
     market_maker_rate: 20.0
     market_maker_qty: 50
     market_maker_spread_ticks: 10
+    inventory_skew_ticks: 0.1     # calibrated on the pilot: with 0.02 one-sided flow moved prices ~1% per session
     tif: GTD
     order_lifetime: 0.5
     observation_delay: 0.05       # mean delay of observed parent prices, in sessions
@@ -37,5 +39,5 @@ base:
 seeds: [2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030]
 grid:
   agents.composition: [network, mixed, trend]
-  agents.herding.h: [0.0, 0.3, 0.6]
+  agents.herding.h: [0.0, 0.2, 0.4]   # h >= 0.5 crashed the chain market in most pilot runs
   external: [oil_shock, oil_shock_down]

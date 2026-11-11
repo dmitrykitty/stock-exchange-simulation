@@ -123,7 +123,7 @@ class NetworkSimulation:
         s = settings
         self.assets = graph.companies()
         n_assets = len(self.assets)
-        self.start_ticks = [int(round(graph.nodes[c].start_price * 100)) for c in self.assets]
+        self.start_ticks = [round(graph.nodes[c].start_price * 100) for c in self.assets]
         (population_seed, value_seed, network_seed, wake_seed, decision_seed, herd_seed, attention_seed,
          weight_seed) = np.random.SeedSequence(seed).spawn(8)
         self.population = make_network_population(
@@ -194,7 +194,7 @@ class NetworkSimulation:
                 self._ln_v_last[agent, i] = self._ln_v0[(agent, i)]
 
     def _session_of(self, t: float) -> int:
-        return min(max(int(math.floor(t)), 0), len(self._external) - 1)
+        return min(max(math.floor(t), 0), len(self._external) - 1)
 
     def _observed_company(self, j: int, t: float, now: float) -> int:
         if t >= now:

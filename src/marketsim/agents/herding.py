@@ -48,7 +48,7 @@ def susceptibility(n_agents: int, h: float, followers: float, h_std: float, rng:
     if followers == 1 and h_std == 0:
         return np.full(n_agents, float(h))
     out = np.zeros(n_agents)
-    n_followers = int(round(followers * n_agents))
+    n_followers = round(followers * n_agents)
     chosen = np.sort(rng.choice(n_agents, n_followers, replace=False))
     draws = rng.normal(h, h_std, n_followers) if h_std > 0 else np.full(n_followers, float(h))
     out[chosen] = np.clip(draws, 0.0, 1.0)

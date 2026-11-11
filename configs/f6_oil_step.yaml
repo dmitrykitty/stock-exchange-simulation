@@ -1,0 +1,54 @@
+# F6 clean wave: the full real_v1 market of E5 with every external signal frozen at its 2 January 2024 level,
+# except oil, which steps +20% or -20% at session 10. Shows the oil wave on the real graph without other news.
+# The two scenarios are synthetic and are written by notebooks/06_full_network_wave.ipynb (first code cell).
+base:
+  name: f6_oil_step
+  exchange_backend: cpp
+  graph: real_v1                  # 18 companies, 4 commodities, S&P 500 (data/graph/real_v1)
+  external: f6_oil_up             # written by notebooks/06_full_network_wave.ipynb to data/processed
+  use_market_index: true
+  n_sessions: 40
+  warmup_sessions: 10             # the oil step arrives exactly when warmup ends
+  sample_dt: 0.05
+  agents:
+    assets: []                    # empty = all 18 companies
+    composition: mixed            # the investor counts below are redistributed by the named mix
+    valuers_myopic: 500
+    valuers_network: 0
+    trend: 0
+    noise: 0
+    rebalancers: 25               # funds with target weights, on top of the 500 investors
+    rebalance_band: 0.05
+    n_funds: 50
+    concentration: 0.5
+    total_cash_cents: 1000000000  # 20,000 USD of cash per investor on average
+    total_shares: 8000            # per company, for a 100 USD stock: 800,000 USD of every company outstanding
+    price_scaling: true           # share counts, maker quotes and tick parameters follow each start price
+    holdings: followed            # shares of a company go only to the investors that trade it
+    attention: 4
+    rho: 0.02
+    decision_rate: 2.0
+    market_makers_per_asset: 2
+    market_maker_rate: 20.0
+    market_maker_qty: 50
+    market_maker_spread_ticks: 10
+    inventory_skew_ticks: 0.3
+    trend_lookback: 5.0           # trend followers watch a week, not a day
+    trend_scale: 0.1
+    tif: GTD
+    order_lifetime: 0.5
+    observation_delay: 0.05
+    weight_error_std: 0.1
+    risk_limit: 0.2               # stop-loss of one investor in ten: sell half of every position
+    risk_limit_share: 0.1
+    risk_sell_fraction: 0.5
+    risk_cooldown: 5.0
+    ablation: none
+    herding:
+      h: 0.2
+      neighbors: 5
+      followers: 1.0
+      h_std: 0.0
+seeds: [101, 102, 103, 104, 105, 106, 107, 108, 109, 110]
+grid:
+  external: [f6_oil_up, f6_oil_down]

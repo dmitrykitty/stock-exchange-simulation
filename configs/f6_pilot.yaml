@@ -26,12 +26,14 @@ base:
     total_shares: 8000            # per company, for a 100 USD stock: 800,000 USD of every company outstanding
     price_scaling: true           # share counts, maker quotes and tick parameters follow each start price
     holdings: followed            # shares of a company go only to the investors that trade it
+    position_sizing: target       # investors hold initial shares * (1 + position_tilt * signal)
+    position_tilt: 0.5
     attention: 4
-    rho: 0.02
+    rho: 0.05                     # largest order of one decision, as a share of the portfolio
     decision_rate: 2.0
     market_makers_per_asset: 2
     market_maker_rate: 20.0
-    market_maker_qty: 50
+    market_maker_qty: 100
     market_maker_spread_ticks: 10
     inventory_skew_ticks: 0.3
     trend_lookback: 5.0           # trend followers watch a week, not a day
@@ -40,8 +42,8 @@ base:
     order_lifetime: 0.5
     observation_delay: 0.05
     weight_error_std: 0.1
-    risk_limit: 0.2               # stop-loss of one investor in ten: sell half of every position
-    risk_limit_share: 0.1
+    risk_limit: 0.2               # stop-loss of one investor in four: sell half of every position
+    risk_limit_share: 0.25
     risk_sell_fraction: 0.5
     risk_cooldown: 5.0
     ablation: none

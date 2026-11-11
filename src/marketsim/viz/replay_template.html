@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<!--PLOTLY-->
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --up: #2a78d6; --down: #e34948; --neutral: #f0efec;
+  --node-up: #6da7ec; --node-down: #ee8a89; --node-mid: #e6e5df;
+  --warm: rgba(137,135,129,0.12);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --up: #3987e5; --down: #e66767; --neutral: #383835;
+    --node-up: #1c5cab; --node-down: #a83a3a; --node-mid: #383835;
+    --warm: rgba(137,135,129,0.16);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --up: #3987e5; --down: #e66767; --neutral: #383835;
+  --node-up: #1c5cab; --node-down: #a83a3a; --node-mid: #383835;
+  --warm: rgba(137,135,129,0.16);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { padding: 18px 24px 8px; }
+h1 { font-size: 20px; margin: 0 0 4px; font-weight: 600; }
+.meta { color: var(--ink-2); font-size: 13px; }
+.note { color: var(--ink-2); font-size: 12px; margin-top: 6px; }
+.controls { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
+  padding: 10px 24px; background: var(--page); border-bottom: 1px solid var(--grid); }
+.controls button, .controls select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis);
+  border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+.controls button:hover { background: var(--grid); }
+.controls button.primary { width: 92px; font-weight: 600; }
+.controls label { color: var(--ink-2); display: inline-flex; gap: 6px; align-items: center; }
+#slider { flex: 1 1 260px; accent-color: var(--s1); }
+#readout { font-variant-numeric: tabular-nums; width: 290px; font-weight: 600; white-space: nowrap; }
+.seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--page); }
+main { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 16px; padding: 16px 24px 32px; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.card h2 { font-size: 15px; margin: 0 0 2px; font-weight: 600; }
+.card .sub { color: var(--ink-2); font-size: 12px; margin-bottom: 6px; }
+.wide { grid-column: 1 / -1; }
+.chart { position: relative; width: 100%; }
+.dot { position: absolute; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: var(--s1); border: 2px solid var(--surface); pointer-events: none; display: none; }
+.cursor { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1.5px solid var(--ink); opacity: .55; pointer-events: none; display: none; }
+#graph { position: relative; }
+#graph svg { width: 100%; height: auto; display: block; }
+#graph .edge { fill: none; stroke-linecap: round; }
+#graph .flow { fill: none; stroke-linecap: round; stroke-dasharray: 2 14; animation: flow 0.9s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -16; } }
+#graph .node { cursor: pointer; }
+#graph .node text { pointer-events: none; }
+#graph .pulse { fill: none; }
+#graph .frame { fill: none; stroke: var(--axis); stroke-dasharray: 5 5; }
+#tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--axis); border-radius: 8px;
+  padding: 6px 9px; font-size: 12px; color: var(--ink); box-shadow: 0 4px 14px rgba(0,0,0,.18); display: none; max-width: 300px; z-index: 3; }
+#tip b { font-weight: 600; }
+#price { height: 300px; } #candles { height: 250px; } #book { height: 230px; } #ext { height: 280px; }
+.legend-row { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-2); margin-top: 4px; }
+.key { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 18px; height: 0; border-top: 2px solid; display: inline-block; }
+.swatch.dash { border-top-style: dashed; }
+.chip { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.ramp { width: 120px; height: 10px; border-radius: 5px; display: inline-block; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 6px 0 4px; }
+.stat { background: var(--page); border-radius: 8px; padding: 6px 8px; }
+.stat .k { color: var(--muted); font-size: 11px; }
+.stat .v { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+#minis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.mini { border: 1px solid var(--ring); border-radius: 10px; padding: 6px 6px 2px; cursor: pointer; background: var(--surface); }
+.mini.sel { outline: 2px solid var(--ink); }
+.mini .t { font-size: 12px; display: flex; justify-content: space-between; gap: 4px; }
+.mini .t b { font-weight: 600; } .mini .t span { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.mini .chart { height: 86px; }
+footer { color: var(--muted); font-size: 12px; padding: 0 24px 24px; }
+@media (max-width: 1000px) {
+  main { grid-template-columns: 1fr; padding: 12px 16px; }
+  .controls { padding: 8px 16px; } header { padding: 14px 16px 6px; }
+  #minis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) { #minis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stats { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Market replay</h1>
+  <div class="meta" id="meta"></div>
+  <div class="note" id="note"></div>
+</header>
+<div class="controls" role="toolbar" aria-label="Playback">
+  <button class="primary" id="play" title="Space">▶ Play</button>
+  <button id="back1" title="One session back (Shift+←)">⏮</button>
+  <button id="back" title="One sample back (←)">◀</button>
+  <button id="fwd" title="One sample forward (→)">▶</button>
+  <button id="fwd1" title="One session forward (Shift+→)">⏭</button>
+  <label>Speed <select id="speed"></select></label>
+  <input type="range" id="slider" min="0" value="0" aria-label="Time">
+  <span id="readout"></span>
+  <span class="seg" role="group" aria-label="Node colour">
+    <button id="mode-start" aria-pressed="true" title="Price change since the start of the run">Change since start</button>
+    <button id="mode-ref" aria-pressed="false" title="Gap between the market price and the reference path R">Gap to reference R</button>
+  </span>
+  <label id="real-wrap" hidden><input type="checkbox" id="real"> real price</label>
+</div>
+<main>
+  <section class="card">
+    <h2>Dependency graph</h2>
+    <div class="sub" id="graph-sub"></div>
+    <div id="graph"><div id="tip"></div></div>
+    <div class="legend-row" id="graph-legend"></div>
+  </section>
+  <section class="card">
+    <h2 id="sel-title"></h2>
+    <div class="sub" id="sel-sub"></div>
+    <div class="stats" id="stats"></div>
+    <div class="chart" id="price"><div class="cursor"></div><div class="dot"></div></div>
+    <div class="legend-row" id="price-legend"></div>
+    <div class="sub" style="margin-top:10px">Daily candles from every trade of the session, volume below</div>
+    <div class="chart" id="candles"><div class="cursor"></div></div>
+    <div class="sub" style="margin-top:10px">Liquidity during the last three sessions: spread between the best quotes (gap = one side empty) and shares on the five best levels, bids up and asks down</div>
+    <div class="chart" id="book"></div>
+  </section>
+  <section class="card wide">
+    <h2>External signals</h2>
+    <div class="sub">The only outside inputs of the simulation, indexed to 100 at the start (log scale); a new value arrives at every session open</div>
+    <div class="chart" id="ext"><div class="cursor"></div></div>
+  </section>
+  <section class="card wide">
+    <h2>Every company</h2>
+    <div class="sub" id="minis-sub">Market price (blue) and reference path R (dashed), one point per session; click to select</div>
+    <div id="minis"></div>
+  </section>
+</main>
+<footer id="foot"></footer>
+<script>
+"use strict";
+const P = /*PAYLOAD*/null;
+const T = P.t, N = T.length, A = P.assets, NS = P.n_sessions;
+const $ = id => document.getElementById(id);
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const fmtUSD = ticks => ticks == null ? "–" : "$" + (ticks / 100).toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const fmtPct = v => v == null || !isFinite(v) ? "–" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1) + "%";
+const lnPct = (a, b) => a == null || b == null || a <= 0 || b <= 0 ? null : 100 * Math.log(a / b);
+const tickerIndex = Object.fromEntries(A.map((a, i) => [a.ticker, i]));
+let idx = 0, sel = 0, playing = false, mode = "start", showReal = false, tNow = T[0], lastFrame = null;
+
+// ----- helpers --------------------------------------------------------------------------------------------
+function search(t) { let lo = 0, hi = N - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (T[m] <= t) lo = m; else hi = m - 1; } return lo; }
+const session = i => Math.min(NS - 1, Math.floor(T[i] + 1e-9));
+const sessionEnd = []; // last sample index of every session
+for (let i = 0; i < N; i++) sessionEnd[session(i)] = i;
+for (let s = 0; s < NS; s++) if (sessionEnd[s] == null) sessionEnd[s] = s ? sessionEnd[s - 1] : 0;
+const dateOf = s => P.dates ? P.dates[Math.max(0, Math.min(NS - 1, s))] : null;
+function quantile(values, q) { const v = values.filter(x => x != null && isFinite(x)).sort((a, b) => a - b); return v.length ? v[Math.floor(q * (v.length - 1))] : 0; }
+function niceMax(v) { const steps = [1, 2, 3, 5, 8, 10, 15, 20, 30, 50, 80, 100, 150, 200]; return steps.find(s => s >= v) || Math.ceil(v); }
+const extChange = (name, s) => { const vals = P.externals.values[name]; return vals ? lnPct(vals[Math.min(s, vals.length - 1)], vals[0]) : null; };
+function change(i, k) { const a = A[k]; return mode === "start" ? lnPct(a.price[i], a.start) : lnPct(a.price[i], a.ref[i]); }
+const scale = { start: 0, ref: 0 };
+{
+  const s = [], r = [];
+  for (const a of A) for (let i = 0; i < N; i += Math.max(1, Math.floor(N / 2000))) { s.push(Math.abs(lnPct(a.price[i], a.start) ?? 0)); r.push(Math.abs(lnPct(a.price[i], a.ref[i]) ?? 0)); }
+  scale.start = niceMax(Math.max(2, quantile(s, 0.95))); scale.ref = niceMax(Math.max(1, quantile(r, 0.95)));
+}
+function dateTicks() {
+  if (!P.dates) return {};
+  const vals = [], text = [];
+  for (let s = 0; s < NS; s++) { const d = P.dates[s]; if (!d) continue; const m = +d.slice(5, 7);
+    if (s === 0 || (P.dates[s - 1] && P.dates[s - 1].slice(5, 7) !== d.slice(5, 7) && (m - 1) % 3 === 0)) {
+      vals.push(s); text.push(new Date(d + "T00:00:00").toLocaleString("en-US", {month: "short", year: "numeric"})); } }
+  return {tickvals: vals, ticktext: text};
+}
+function lerpColor(c0, c1, f) {
+  const p = c => [1, 3, 5].map(j => parseInt(c.slice(j, j + 2), 16)); const a = p(c0), b = p(c1);
+  return "#" + a.map((x, j) => Math.round(x + (b[j] - x) * f).toString(16).padStart(2, "0")).join("");
+}
+function divColor(v, max) {
+  if (v == null) return css("--grid");
+  const f = Math.max(-1, Math.min(1, v / max));
+  return f >= 0 ? lerpColor(css("--node-mid"), css("--node-up"), f) : lerpColor(css("--node-mid"), css("--node-down"), -f);
+}
+function baseLayout(extra) {
+  return Object.assign({
+    paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: {family: "system-ui, -apple-system, Segoe UI, sans-serif", color: css("--ink-2"), size: 11},
+    margin: {l: 52, r: 12, t: 8, b: 28}, showlegend: false, hovermode: "x unified",
+    hoverlabel: {bgcolor: css("--surface"), bordercolor: css("--axis"), font: {color: css("--ink")}},
+    xaxis: Object.assign({gridcolor: css("--grid"), linecolor: css("--axis"), zeroline: false, tickfont: {color: css("--muted")}}, dateTicks()),
+    yaxis: {gridcolor: css("--grid"), linecolor: css("--axis"), zeroline: false, tickfont: {color: css("--muted")}},
+  }, extra || {});
+}
+const CONFIG = {displaylogo: false, responsive: true, modeBarButtonsToRemove: ["lasso2d", "select2d", "autoScale2d", "toggleSpikelines"]};
+const usd = arr => arr.map(v => v == null ? null : v / 100);
+function warmShape() { return P.warmup ? [{type: "rect", xref: "x", yref: "paper", x0: 0, x1: P.warmup, y0: 0, y1: 1, fillcolor: css("--warm"), line: {width: 0}, layer: "below"}] : []; }
+
+// ----- header -----------------------------------------------------------------------------------------------
+{
+  const parts = [`graph <b>${P.graph}</b>`, `signals <b>${P.scenario}</b>`, `${NS} sessions`];
+  if (P.composition) parts.push(`investors: <b>${P.composition}</b> mix` + (P.investors ? ` (${P.investors})` : ""));
+  if (P.herding_h != null) parts.push(`herding h = <b>${P.herding_h}</b>`);
+  parts.push(`seed ${P.seed}`);
+  $("meta").innerHTML = parts.join(" · ");
+  const notes = ["A session is one trading day. Prices form only from trades between agents; R is the price the graph implies for the external signals."];
+  if (P.warmup) notes.push(`Grey band: ${P.warmup} warm-up sessions.`);
+  if (P.graph_changed) notes.push("The graph files changed slightly since this run; edges are drawn from the current files.");
+  $("note").textContent = notes.join(" ");
+  $("foot").textContent = `run ${P.run_id} · drawn from the run log only (book, trades, valuations, events)` + (Object.keys(P.real).length ? "; real close prices from the data tables, never shown to the agents" : "");
+  if (Object.keys(P.real).length) $("real-wrap").hidden = false;
+}
+
+// ----- graph (SVG) -------------------------------------------------------------------------------------------
+const nodes = P.nodes, nodeIndex = Object.fromEntries(nodes.map((n, i) => [n.id, i]));
+const SRC = {commodity: "--s2", bea: "--s1", manual: "--s7"};
+const NS_SVG = "http://www.w3.org/2000/svg";
+const COLW = 250, ROWH = 78, PADX = 76, PADY = 50, R = 23;
+const MINY = Math.min(...P.nodes.map(n => n.y));
+const GX = n => PADX + n.x * COLW, GY = n => PADY + (n.y - MINY) * ROWH;
+const graphEdges = P.edges.filter(e => e.source !== "index" && nodeIndex[e.parent] != null && nodeIndex[e.child] != null);
+const indexChildren = new Set(P.edges.filter(e => e.source === "index").map(e => e.child));
+const recent = new Float64Array(nodes.length); // activity of every node, 0..1
+let svgNodes = [], svgEdges = [];
+function el(tag, attrs, parent) { const e = document.createElementNS(NS_SVG, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function edgeColor(e) { return e.w != null && e.w < 0 ? css("--s8") : css(SRC[e.source] || "--muted"); }
+function buildGraph() {
+  const box = $("graph"); box.querySelectorAll("svg").forEach(s => s.remove());
+  const xs = nodes.map(GX), ys = nodes.map(GY);
+  const W = Math.max(...xs) + PADX + 40, H = Math.max(...ys) + PADY + 10;
+  const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Dependency graph with price changes"});
+  box.insertBefore(svg, $("tip"));
+  const defs = el("defs", {}, svg);
+  const colors = [...new Set(graphEdges.map(edgeColor))];
+  colors.forEach((c, j) => { const m = el("marker", {id: "ah" + j, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto-start-reverse"}, defs); el("path", {d: "M0,1 L10,5 L0,9 z", fill: c}, m); });
+  // Frame around the companies that have the market index as a parent, as in the static figure.
+  const sp = nodeIndex["sp500"];
+  if (sp != null && indexChildren.size) {
+    const kids = nodes.filter(n => indexChildren.has(n.id));
+    const x0 = Math.min(...kids.map(GX)) - R - 18, x1 = Math.max(...kids.map(GX)) + R + 18;
+    const y0 = Math.min(...kids.map(GY)) - R - 16, y1 = Math.max(...kids.map(GY)) + R + 22;
+    el("rect", {class: "frame", x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 16}, svg);
+    const s = nodes[sp];
+    el("path", {d: `M${GX(s) + R + 4},${GY(s)} L${x0 - 2},${GY(s)}`, stroke: css("--muted"), "stroke-width": 1.5, "stroke-dasharray": "5 4", fill: "none", "marker-end": "url(#ahm)"}, svg);
+    const m = el("marker", {id: "ahm", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto"}, defs); el("path", {d: "M0,1 L10,5 L0,9 z", fill: css("--muted")}, m);
+    el("text", {x: (GX(s) + x0) / 2 + 6, y: GY(s) - 10, "text-anchor": "middle", "font-size": 11, fill: css("--muted")}, svg).textContent = "parent of every";
+    el("text", {x: (GX(s) + x0) / 2 + 6, y: GY(s) + 18, "text-anchor": "middle", "font-size": 11, fill: css("--muted")}, svg).textContent = "company in the frame";
+  }
+  const eg = el("g", {}, svg);
+  svgEdges = graphEdges.map(e => {
+    const a = nodes[nodeIndex[e.parent]], b = nodes[nodeIndex[e.child]];
+    const x0 = GX(a) + R + 2, y0 = GY(a), x1 = GX(b) - R - 4, y1 = GY(b), dx = Math.max(40, (x1 - x0) / 2.2);
+    const d = `M${x0},${y0} C${x0 + dx},${y0} ${x1 - dx},${y1} ${x1},${y1}`;
+    const color = edgeColor(e), width = 0.9 + 2.4 * Math.min(Math.abs(e.w || 0), 1);
+    const base = el("path", {class: "edge", d, stroke: color, "stroke-width": width, opacity: e.weak ? 0.22 : 0.45, "marker-end": `url(#ah${colors.indexOf(color)})`}, eg);
+    if (e.weak) base.setAttribute("stroke-dasharray", "4 4");
+    const flow = el("path", {class: "flow", d, stroke: color, "stroke-width": width + 2.2, opacity: 0}, eg);
+    return {e, base, flow, parent: nodeIndex[e.parent]};
+  });
+  const ng = el("g", {}, svg);
+  svgNodes = nodes.map((n, j) => {
+    const g = el("g", {class: "node", transform: `translate(${GX(n)},${GY(n)})`, tabindex: 0}, ng);
+    const pulse = el("circle", {class: "pulse", r: R + 4, "stroke-width": 3, opacity: 0}, g);
+    const shape = n.kind === "external" ? el("rect", {x: -R - 4, y: -R + 2, width: 2 * R + 8, height: 2 * R - 4, rx: 7}, g) : el("circle", {r: R}, g);
+    const label = n.kind === "external" ? ({wti: "Oil", henry_hub: "Gas", sp500: "S&P 500"}[n.id] || n.label) : n.id;
+    el("text", {y: 4, "text-anchor": "middle", "font-size": n.kind === "external" && label.length > 5 ? 11 : 12.5, "font-weight": 600, fill: css("--ink")}, g).textContent = label;
+    const pct = el("text", {y: R + 15, "text-anchor": "middle", "font-size": 11, fill: css("--ink-2"), "font-variant-numeric": "tabular-nums"}, g);
+    if (n.kind === "company") {
+      const k = tickerIndex[n.id];
+      el("text", {y: -R - 7, "text-anchor": "middle", "font-size": 9.5, fill: css("--muted")}, g).textContent = A[k] ? A[k].sector : "";
+      g.addEventListener("click", () => selectAsset(k));
+      g.addEventListener("keydown", ev => { if (ev.key === "Enter") selectAsset(k); });
+    }
+    g.addEventListener("mousemove", ev => showTip(j, ev)); g.addEventListener("mouseleave", () => { $("tip").style.display = "none"; });
+    return {g, shape, pulse, pct};
+  });
+}
+function nodeValue(j, i) {
+  const n = nodes[j], s = session(i);
+  if (n.kind === "external") return extChange(n.id, s);
+  return change(i, tickerIndex[n.id]);
+}
+function activity(j, i) {
+  // How fast the node is moving now: log change over the last half session, 3% = full intensity.
+  const n = nodes[j];
+  if (n.kind === "external") {
+    const s = session(i), v = P.externals.values[n.id]; if (!v || s === 0) return 0;
+    const jump = Math.abs(lnPct(v[Math.min(s, v.length - 1)], v[Math.min(s - 1, v.length - 1)]) || 0);
+    return Math.min(1, jump / 3) * Math.max(0, 1 - 2 * (T[i] - s));
+  }
+  const a = A[tickerIndex[n.id]], j0 = search(T[i] - 0.5);
+  return Math.min(1, Math.abs(lnPct(a.price[i], a.price[j0]) || 0) / 3);
+}
+function updateGraph(i) {
+  const max = mode === "start" ? scale.start : scale.ref;
+  nodes.forEach((n, j) => {
+    const v = nodeValue(j, i), sv = svgNodes[j];
+    sv.shape.setAttribute("fill", divColor(v, n.kind === "external" ? scale.start : max));
+    const selected = n.kind === "company" && tickerIndex[n.id] === sel;
+    sv.shape.setAttribute("stroke", selected ? css("--ink") : "none"); sv.shape.setAttribute("stroke-width", selected ? 2.5 : 0);
+    sv.pct.textContent = n.kind === "external" && mode === "ref" ? fmtPct(extChange(n.id, session(i))) : fmtPct(v);
+    const act = activity(j, i); recent[j] = act;
+    const dir = n.kind === "external" ? extChange(n.id, session(i)) - extChange(n.id, Math.max(0, session(i) - 1)) : (A[tickerIndex[n.id]].price[i] - A[tickerIndex[n.id]].price[search(T[i] - 0.5)]);
+    sv.pulse.setAttribute("stroke", dir >= 0 ? css("--up") : css("--down"));
+    sv.pulse.setAttribute("opacity", (0.85 * act).toFixed(2));
+    sv.pulse.setAttribute("r", (R + 4 + 7 * act).toFixed(1));
+  });
+  for (const se of svgEdges) se.flow.setAttribute("opacity", (0.9 * recent[se.parent]).toFixed(2));
+}
+function showTip(j, ev) {
+  const n = nodes[j], i = idx, tip = $("tip");
+  let h;
+  if (n.kind === "external") {
+    const s = session(i), v = P.externals.values[n.id];
+    h = `<b>${n.label}</b><br>${v ? v[Math.min(s, v.length - 1)].toLocaleString("en-US", {maximumFractionDigits: 2}) : "–"} · ${fmtPct(extChange(n.id, s))} since start`;
+  } else {
+    const a = A[tickerIndex[n.id]];
+    const parents = P.edges.filter(e => e.child === n.id).map(e => `${e.parent} ${e.w != null ? e.w.toFixed(2) : "?"}${e.weak ? "*" : ""}`);
+    h = `<b>${n.id}</b> · ${a.name}${a.sector ? " · " + a.sector : ""}<br>price ${fmtUSD(a.price[i])} · R ${fmtUSD(a.ref[i])}<br>since start ${fmtPct(lnPct(a.price[i], a.start))} · gap to R ${fmtPct(lnPct(a.price[i], a.ref[i]))}<br><span style="color:var(--ink-2)">parents (weight): ${parents.join(", ") || "–"}</span>`;
+  }
+  tip.innerHTML = h; tip.style.display = "block";
+  const box = $("graph").getBoundingClientRect();
+  let x = ev.clientX - box.left + 14, y = ev.clientY - box.top + 14;
+  if (x + 300 > box.width) x = ev.clientX - box.left - 300;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function drawGraphLegend() {
+  const max = mode === "start" ? scale.start : scale.ref;
+  const ramp = `linear-gradient(90deg, ${css("--node-down")}, ${css("--node-mid")}, ${css("--node-up")})`;
+  $("graph-sub").textContent = mode === "start"
+    ? "Colour: price change since the start of the run (log, %). A glowing ring and moving dots on the arrows: that price is moving right now"
+    : "Colour: gap between the market price and the reference R (log, %): red = cheaper than R, blue = dearer. Squares: external signals (change since start)";
+  $("graph-legend").innerHTML =
+    `<span class="key">−${max}% <span class="ramp" style="background:${ramp}"></span> +${max}%</span>` +
+    `<span class="key"><span class="swatch" style="border-color:${css("--s2")}"></span>raw material → company</span>` +
+    `<span class="key"><span class="swatch" style="border-color:${css("--s1")}"></span>supplier → customer (BEA tables)</span>` +
+    `<span class="key"><span class="swatch" style="border-color:${css("--s7")}"></span>other economic link</span>` +
+    `<span class="key"><span class="swatch" style="border-color:${css("--s8")}"></span>negative weight</span>` +
+    `<span class="key"><span class="swatch dash" style="border-color:${css("--muted")}"></span>|t| &lt; 2 · thickness = weight</span>`;
+}
+
+// ----- selected company ------------------------------------------------------------------------------------
+function priceFigure() {
+  const a = A[sel], x = T;
+  const data = [
+    {type: "scatter", mode: "lines", name: "reference R", x, y: usd(a.ref), line: {color: css("--ink-2"), width: 1.5, dash: "dash"}, hovertemplate: "%{y:$,.2f}"},
+    {type: "scatter", mode: "lines", name: "mean valuation", x, y: usd(a.vmean), line: {color: css("--s2"), width: 1.5}, opacity: 0.8, hovertemplate: "%{y:$,.2f}"},
+    {type: "scatter", mode: "lines", name: "market price", x, y: usd(a.price), line: {color: css("--s1"), width: 2}, hovertemplate: "%{y:$,.2f}"},
+  ];
+  const real = P.real[a.ticker];
+  if (showReal && real) data.splice(2, 0, {type: "scatter", mode: "lines", name: "real price (not seen by agents)", x: real.map((_, s) => s + 0.999), y: real, line: {color: css("--s3"), width: 1.5}, hovertemplate: "%{y:$,.2f}"});
+  const layout = baseLayout({shapes: warmShape(), yaxis: Object.assign(baseLayout().yaxis, {tickprefix: "$"})});
+  return {data, layout};
+}
+function priceLegend() {
+  const a = A[sel], keys = [["--s1", "", "market price"], ["--ink-2", "dash", "reference R"], ["--s2", "", "agents' mean valuation"]];
+  if (showReal && P.real[a.ticker]) keys.push(["--s3", "", "real price (agents never see it)"]);
+  $("price-legend").innerHTML = keys.map(([c, d, t]) => `<span class="key"><span class="swatch ${d}" style="border-color:${css(c)}"></span>${t}</span>`).join("");
+}
+function candleFigure() {
+  const c = A[sel].candles, xs = [...Array(NS).keys()];
+  const data = [
+    {type: "candlestick", x: xs, open: usd(c.o), high: usd(c.h), low: usd(c.l), close: usd(c.c), yaxis: "y",
+      increasing: {line: {color: css("--up"), width: 1}, fillcolor: css("--up")}, decreasing: {line: {color: css("--down"), width: 1}, fillcolor: css("--down")},
+      hoverinfo: "x+y"},
+    {type: "bar", x: xs, y: c.v, yaxis: "y2", marker: {color: css("--axis")}, hovertemplate: "%{y:,} shares<extra>volume</extra>"},
+  ];
+  const layout = baseLayout({hovermode: "closest",
+    xaxis: Object.assign(baseLayout().xaxis, {rangeslider: {visible: false}, range: candleRange()}),
+    yaxis: Object.assign(baseLayout().yaxis, {domain: [0.32, 1], tickprefix: "$"}),
+    yaxis2: {domain: [0, 0.24], gridcolor: css("--grid"), tickfont: {color: css("--muted")}, zeroline: false}});
+  return {data, layout};
+}
+function candleRange() { const s = session(idx); return [Math.max(-0.5, s - 40.5), Math.max(s + 1.5, 41.5)]; }
+function bookFigure() {
+  // Liquidity of the book over the last three sessions: spread (top) and shares on the best five levels (bottom).
+  const a = A[sel], lo = search(Math.max(T[0], T[idx] - 3)), hi = idx + 1, xs = T.slice(lo, hi);
+  const spread = xs.map((_, j) => a.bid[lo + j] != null && a.ask[lo + j] != null ? (a.ask[lo + j] - a.bid[lo + j]) / 100 : null);
+  const data = [
+    {type: "scatter", mode: "lines", name: "spread", x: xs, y: spread, yaxis: "y", line: {color: css("--ink-2"), width: 1.5, shape: "hv"}, connectgaps: false, hovertemplate: "spread %{y:$,.2f}<extra></extra>"},
+    {type: "scatter", mode: "lines", name: "bid depth", x: xs, y: a.depth_bid.slice(lo, hi), yaxis: "y2", fill: "tozeroy", line: {color: css("--up"), width: 1.2, shape: "hv"}, hovertemplate: "bid %{y:,} sh<extra></extra>"},
+    {type: "scatter", mode: "lines", name: "ask depth", x: xs, y: a.depth_ask.slice(lo, hi).map(v => -v), yaxis: "y2", fill: "tozeroy", line: {color: css("--down"), width: 1.2, shape: "hv"}, hovertemplate: "ask %{customdata:,} sh<extra></extra>", customdata: a.depth_ask.slice(lo, hi)},
+  ];
+  const y = baseLayout().yaxis;
+  const layout = baseLayout({hovermode: "x unified",
+    xaxis: Object.assign(baseLayout().xaxis, {range: [Math.max(T[0], T[idx] - 3), T[idx]], tickvals: null, ticktext: null, dtick: 1}),
+    yaxis: Object.assign({}, y, {domain: [0.62, 1], tickprefix: "$", rangemode: "tozero", title: {text: "spread", font: {size: 10, color: css("--muted")}}}),
+    yaxis2: Object.assign({}, y, {domain: [0, 0.5], tickformat: "~s", title: {text: "bid ↑ · ask ↓", font: {size: 10, color: css("--muted")}},
+      tickvals: null, zeroline: true, zerolinecolor: css("--axis")}),
+    margin: {l: 58, r: 12, t: 6, b: 24}});
+  return {data, layout};
+}
+function selectAsset(k) {
+  sel = k; const a = A[k];
+  $("sel-title").textContent = `${a.ticker} · ${a.name}`;
+  $("sel-sub").textContent = (a.sector ? a.sector + " · " : "") + "parents: " + (P.edges.filter(e => e.child === a.ticker).map(e => `${e.parent} (${e.w != null ? e.w.toFixed(2) : "?"})`).join(", ") || "–");
+  const f = priceFigure(); Plotly.react("price", f.data, f.layout, CONFIG);
+  const c = candleFigure(); Plotly.react("candles", c.data, c.layout, CONFIG);
+  const b = bookFigure(); Plotly.react("book", b.data, b.layout, CONFIG);
+  priceLegend();
+  document.querySelectorAll(".mini").forEach((m, j) => m.classList.toggle("sel", j === k));
+  update(true);
+}
+
+// ----- externals and minis ---------------------------------------------------------------------------------
+function extFigure() {
+  const names = P.externals.names, xs = [...Array(NS).keys()];
+  const order = ["wti", "henry_hub", "copper", "gold", "sp500"];
+  const colorOf = n => css(["--s2", "--s7", "--s3", "--s4", "--s1"][Math.max(0, order.indexOf(n)) % 5]);
+  const data = names.map((n, j) => { const v = P.externals.values[n]; return {type: "scatter", mode: "lines", name: P.externals.labels[j], x: xs.slice(0, v.length), y: v.map(x => 100 * x / v[0]),
+    line: {color: colorOf(n), width: 2, shape: "hv"}, hovertemplate: "%{y:.1f}"}; });
+  const y = baseLayout().yaxis;
+  const layout = baseLayout({shapes: warmShape(), margin: {l: 56, r: 12, t: 28, b: 28}, showlegend: true,
+    legend: {orientation: "h", x: 0, y: 1.12, font: {size: 12, color: css("--ink-2")}},
+    yaxis: Object.assign({}, y, {type: "log", tickvals: [25, 50, 75, 100, 150, 200, 300, 400, 600], title: {text: "index, start = 100 (log scale)", font: {size: 10, color: css("--muted")}}})});
+  return {data, layout};
+}
+const miniDivs = [];
+function buildMinis() {
+  const box = $("minis"); box.innerHTML = ""; miniDivs.length = 0;
+  $("minis-sub").textContent = "Market price (blue) and reference path R (dashed)" + (showReal ? ", real price (green, never seen by the agents)" : "") + "; one point per session; click to select";
+  const xs = [...Array(NS).keys()];
+  A.forEach((a, k) => {
+    const m = document.createElement("div"); m.className = "mini" + (k === sel ? " sel" : ""); m.tabIndex = 0;
+    m.innerHTML = `<div class="t"><b>${a.ticker}</b><span>${a.sector}</span></div><div class="t"><span class="chg"></span><span class="gap"></span></div><div class="chart"><div class="cursor"></div></div>`;
+    m.onclick = () => selectAsset(k); m.onkeydown = e => { if (e.key === "Enter") selectAsset(k); };
+    box.appendChild(m); miniDivs.push(m);
+    const price = xs.map(s => a.price[sessionEnd[s]]), ref = xs.map(s => a.ref[sessionEnd[s]]);
+    const data = [{type: "scatter", mode: "lines", x: xs, y: usd(ref), line: {color: css("--ink-2"), width: 1, dash: "dash"}, hoverinfo: "skip"},
+                  {type: "scatter", mode: "lines", x: xs, y: usd(price), line: {color: css("--s1"), width: 1.5}, hoverinfo: "skip"}];
+    if (showReal && P.real[a.ticker]) data.splice(1, 0, {type: "scatter", mode: "lines", x: xs, y: P.real[a.ticker], line: {color: css("--s3"), width: 1}, hoverinfo: "skip"});
+    const layout = baseLayout({margin: {l: 4, r: 4, t: 2, b: 2}, hovermode: false, xaxis: {visible: false, fixedrange: true, range: [0, NS - 1]}, yaxis: {visible: false, fixedrange: true}});
+    Plotly.newPlot(m.querySelector(".chart"), data, layout, {staticPlot: true, responsive: true});
+  });
+}
+
+// ----- cursor and frame update -----------------------------------------------------------------------------
+function placeCursor(div, x) {
+  const fl = div._fullLayout, cur = div.querySelector(".cursor"); if (!fl || !cur || !fl.xaxis) return;
+  const px = fl.xaxis.l2p(x) + fl._size.l, inside = px >= fl._size.l && px <= fl._size.l + fl._size.w;
+  cur.style.display = inside ? "block" : "none"; cur.style.left = px + "px";
+  cur.style.top = fl._size.t + "px"; cur.style.bottom = "auto"; cur.style.height = fl._size.h + "px";
+}
+let lastSession = -1, lastBook = 0;
+function placeDot(div, x, y) {
+  const fl = div._fullLayout, dot = div.querySelector(".dot"); if (!fl || !dot || !fl.xaxis) return;
+  if (y == null) { dot.style.display = "none"; return; }
+  dot.style.display = "block"; dot.style.left = (fl.xaxis.l2p(x) + fl._size.l) + "px"; dot.style.top = (fl.yaxis.l2p(y) + fl._size.t) + "px";
+}
+function update(force) {
+  const i = idx, s = session(i), a = A[sel];
+  $("slider").value = i;
+  $("readout").textContent = `session ${s}${dateOf(s) ? " · " + dateOf(s) : ""} · t = ${T[i].toFixed(2)}`;
+  updateGraph(i);
+  placeDot($("price"), T[i], a.price[i] == null ? null : a.price[i] / 100);
+  placeCursor($("price"), T[i]); placeCursor($("ext"), T[i]);
+  if (s !== lastSession || force) { Plotly.relayout("candles", {"xaxis.range": candleRange()}); lastSession = s; }
+  placeCursor($("candles"), s);
+  const now = performance.now();
+  if (force || !playing || now - lastBook > 125) { const b = bookFigure(); Plotly.react("book", b.data, b.layout, CONFIG); lastBook = now; }
+  const stat = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+  const spread = a.bid[i] != null && a.ask[i] != null ? fmtUSD(a.ask[i] - a.bid[i]) : `– <span class="k">one side empty</span>`;
+  $("stats").innerHTML = stat("market price", fmtUSD(a.price[i])) + stat("reference R", fmtUSD(a.ref[i])) +
+    stat("gap to R", fmtPct(lnPct(a.price[i], a.ref[i]))) + stat("spread · depth (bid/ask)", `${spread}<div class="k">${a.depth_bid[i].toLocaleString()} / ${a.depth_ask[i].toLocaleString()} sh</div>`);
+  miniDivs.forEach((m, k) => {
+    const b = A[k]; m.querySelector(".chg").textContent = fmtPct(lnPct(b.price[i], b.start));
+    m.querySelector(".gap").textContent = "vs R " + fmtPct(lnPct(b.price[i], b.ref[i]));
+    placeCursor(m.querySelector(".chart"), s);
+  });
+}
+function setIdx(i) { idx = Math.max(0, Math.min(N - 1, i)); tNow = T[idx]; update(); }
+
+// ----- playback --------------------------------------------------------------------------------------------
+const SPEEDS = [0.25, 0.5, 1, 2, 5, 10, 20, 50];
+SPEEDS.forEach(v => { const o = document.createElement("option"); o.value = v; o.textContent = `${v} session${v === 1 ? "" : "s"}/s`; $("speed").appendChild(o); });
+$("speed").value = NS <= 60 ? 1 : 10;
+function tick(ts) {
+  if (!playing) return;
+  if (lastFrame != null) {
+    tNow += (ts - lastFrame) / 1000 * +$("speed").value;
+    if (tNow >= T[N - 1]) { tNow = T[N - 1]; setPlaying(false); }
+    const j = search(tNow); if (j !== idx) { idx = j; update(); }
+  }
+  lastFrame = ts; requestAnimationFrame(tick);
+}
+function setPlaying(on) {
+  playing = on; lastFrame = null; $("play").textContent = on ? "❚❚ Pause" : "▶ Play";
+  if (on) { if (idx >= N - 1) { idx = 0; tNow = T[0]; } requestAnimationFrame(tick); }
+}
+$("play").onclick = () => setPlaying(!playing);
+$("back").onclick = () => setIdx(idx - 1); $("fwd").onclick = () => setIdx(idx + 1);
+$("back1").onclick = () => setIdx(search(T[idx] - 1)); $("fwd1").onclick = () => setIdx(search(T[idx] + 1));
+$("slider").max = N - 1; $("slider").oninput = e => { setPlaying(false); setIdx(+e.target.value); };
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "SELECT" || e.target.tagName === "INPUT" && e.target.type !== "range") return;
+  if (e.key === " ") { e.preventDefault(); setPlaying(!playing); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); e.shiftKey ? $("fwd1").onclick() : setIdx(idx + 1); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); e.shiftKey ? $("back1").onclick() : setIdx(idx - 1); }
+});
+function setMode(m) { mode = m; $("mode-start").setAttribute("aria-pressed", m === "start"); $("mode-ref").setAttribute("aria-pressed", m === "ref"); drawGraphLegend(); update(); }
+$("mode-start").onclick = () => setMode("start"); $("mode-ref").onclick = () => setMode("ref");
+$("real").onchange = e => { showReal = e.target.checked; renderAll(); };
+
+// ----- initial render --------------------------------------------------------------------------------------
+function renderAll() {
+  buildGraph();
+  const e = extFigure(); Plotly.react("ext", e.data, e.layout, CONFIG);
+  drawGraphLegend(); buildMinis(); selectAsset(sel);
+}
+renderAll();
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+window.addEventListener("resize", () => setTimeout(() => update(true), 120));
+// Start where something happens: the first session after warm-up.
+setIdx(P.warmup ? search(P.warmup) : 0);
+</script>
+</body>
+</html>

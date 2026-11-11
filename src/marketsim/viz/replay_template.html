@@ -96,7 +96,7 @@ footer { color: var(--muted); font-size: 12px; padding: 0 24px 24px; }
   .controls { padding: 8px 16px; } header { padding: 14px 16px 6px; }
   #minis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-@media (max-width: 560px) { #minis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .controls { position: static; } #readout { width: auto; } #minis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stats { grid-template-columns: repeat(2, 1fr); } }
 </style>
 </head>
 <body>

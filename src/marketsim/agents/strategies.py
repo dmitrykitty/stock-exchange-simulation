@@ -19,12 +19,12 @@ class OrderIntent:
     tif: int
 
 
-def market_price(market: MarketDataView, fallback: int) -> int:
+def market_price(market: MarketDataView, fallback: int, asset: int = 0) -> int:
     """Use an integer midpoint, then last trade, then the configured initial price."""
-    top = market.top(0)
+    top = market.top(asset)
     if top.bid != NO_PRICE and top.ask != NO_PRICE:
         return max(1, (top.bid + top.ask) // 2)
-    _, last = market.last_trade(0)
+    _, last = market.last_trade(asset)
     return last if last != NO_PRICE else fallback
 
 
@@ -45,9 +45,13 @@ def noise_signal(rng: np.random.Generator) -> float:
 
 def make_order(
     signal: float, price: int, top: Top, portfolio: PortfolioView,
-    settings: AgentSettings, rng: np.random.Generator,
+    settings: AgentSettings, rng: np.random.Generator, asset: int = 0, wealth: int | None = None,
 ) -> OrderIntent | None:
-    """Use a one-share minimum above threshold, capped by free resources; rho=0 disables orders."""
+    """Use a one-share minimum above threshold, capped by free resources; rho=0 disables orders.
+
+    ``wealth`` is the whole portfolio value in cents (cash plus all holdings at market prices); by default it is
+    computed for a one-asset portfolio, as in F4.
+    """
     s = settings
     if abs(signal) <= s.threshold or s.rho == 0:
         return None
@@ -67,28 +71,29 @@ def make_order(
             limit = base + s.passive_offset_ticks
         tif = int(TimeInForce[s.tif])
     limit = max(1, int(limit))
-    cash = portfolio.cash_available + portfolio.cash_reserved
-    shares = int(portfolio.shares_available[0]) + int(portfolio.shares_reserved[0])
-    wealth = cash + shares * price
+    if wealth is None:
+        cash = portfolio.cash_available + portfolio.cash_reserved
+        shares = int(portfolio.shares_available[asset]) + int(portfolio.shares_reserved[asset])
+        wealth = cash + shares * price
     qty = max(1, math.floor(s.rho * abs(signal) * wealth / price))
-    capacity = portfolio.cash_available // limit if side == Side.BUY else int(portfolio.shares_available[0])
+    capacity = portfolio.cash_available // limit if side == Side.BUY else int(portfolio.shares_available[asset])
     qty = min(qty, capacity)
     return OrderIntent(side, qty, limit, tif) if qty > 0 else None
 
 
 def maker_orders(
-    price: int, portfolio: PortfolioView, initial_shares: int, settings: AgentSettings,
+    price: int, portfolio: PortfolioView, initial_shares: int, settings: AgentSettings, asset: int = 0,
 ) -> list[OrderIntent]:
     """Quote both sides; excess inventory lowers the center and scarce resources cap size."""
     s = settings
-    inventory = int(portfolio.shares_available[0]) + int(portfolio.shares_reserved[0])
+    inventory = int(portfolio.shares_available[asset]) + int(portfolio.shares_reserved[asset])
     center = price - round(s.inventory_skew_ticks * (inventory - initial_shares))
     bid = max(1, center - s.market_maker_spread_ticks // 2)
     ask = max(bid + 1, center + (s.market_maker_spread_ticks + 1) // 2)
     tif = int(TimeInForce.GTD if s.tif == "GTD" else TimeInForce.GTC)
     out = []
     buy_qty = min(s.market_maker_qty, portfolio.cash_available // bid)
-    sell_qty = min(s.market_maker_qty, int(portfolio.shares_available[0]))
+    sell_qty = min(s.market_maker_qty, int(portfolio.shares_available[asset]))
     if buy_qty:
         out.append(OrderIntent(int(Side.BUY), buy_qty, bid, tif))
     if sell_qty:

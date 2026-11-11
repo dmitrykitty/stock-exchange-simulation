@@ -144,8 +144,13 @@ def test_review_54_bea_candidate_edges():
     assert (same_ind["decision"] == "drop").all()
     assert (~same_ind["included"]).all()
 
-    # 10 BEA edges are included in real_v1: 211->324 (4), 324->481 (4), 324->484 (2); 22->331 (4) is excluded
+    # 10 BEA edges are included in real_v1: 211->324 (4), 324->481 (4), 324->484 (2);
+    # questionable 22->331 (4) is excluded because utility equities give spurious negative weights on metals.
     assert int(review["included"].sum()) == 10
+    utilities_to_metals = review[(review["parent_bea"] == "22") & (review["child_bea"] == "331")]
+    assert len(utilities_to_metals) == 4
+    assert (utilities_to_metals["decision"] == "questionable").all()
+    assert (~utilities_to_metals["included"]).all()
 
 
 def test_real_v1_graph_loads_and_matches_builder():

@@ -26,10 +26,12 @@ class HerdingSettings:
 
 
 # Investor mixes for experiment E4 (F5): shares of myopic valuers, network valuers, trend followers, noise.
+# Calibrated on the F5 pilot: with 45% trend followers every chain run crashed (an asset lost > 25% from its peak),
+# so the trend-heavy mix uses 30% (docs/guides/f5_graph_valuers.md).
 COMPOSITIONS = {
     "network": (0.15, 0.45, 0.20, 0.20),
     "mixed": (0.30, 0.30, 0.20, 0.20),
-    "trend": (0.25, 0.10, 0.45, 0.20),
+    "trend": (0.35, 0.15, 0.30, 0.20),
 }
 
 

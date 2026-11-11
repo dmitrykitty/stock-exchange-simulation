@@ -1,0 +1,41 @@
+# E4 (F5): oil shock +-20% on the chain; investor mix x herding x shock direction x 30 fresh seeds = 540 runs.
+base:
+  name: f5_e4
+  exchange_backend: python
+  graph: graph_chain              # wti -> COP -> VLO -> DAL (data/fixtures/graph_chain)
+  external: oil_shock             # oil 100 -> 120 at session 5; later sessions keep the last level
+  use_market_index: true
+  n_sessions: 30
+  warmup_sessions: 5              # the shock arrives exactly when warmup ends
+  sample_dt: 0.02
+  agents:
+    composition: mixed            # network / mixed / trend: shares of the investor counts below
+    valuers_myopic: 36
+    valuers_network: 36
+    trend: 24
+    noise: 24
+    n_funds: 12
+    concentration: 0.5
+    total_cash_cents: 120000000   # 10,000 USD of cash per investor on average
+    total_shares: 12000           # per asset: 100 shares of each company per investor on average
+    rho: 0.02
+    decision_rate: 2.0
+    market_makers_per_asset: 2     # calibrated on the pilot: one maker left a book side empty ~21% of the time
+    market_maker_rate: 20.0
+    market_maker_qty: 50
+    market_maker_spread_ticks: 10
+    tif: GTD
+    order_lifetime: 0.5
+    observation_delay: 0.05       # mean delay of observed parent prices, in sessions
+    weight_error_std: 0.1         # personal relative error in every graph weight
+    ablation: none
+    herding:
+      h: 0.3
+      neighbors: 5
+      followers: 1.0
+      h_std: 0.0
+seeds: [2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030]
+grid:
+  agents.composition: [network, mixed, trend]
+  agents.herding.h: [0.0, 0.3, 0.6]
+  external: [oil_shock, oil_shock_down]

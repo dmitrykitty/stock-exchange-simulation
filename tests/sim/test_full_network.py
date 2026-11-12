@@ -206,6 +206,61 @@ def test_partial_risk_sale_keeps_part_of_every_position(tmp_path):
     assert len(sold) and (sold <= 70).all()
 
 
+def _simulation(config, seed):
+    checked = _validate_graph(config, seed)
+    return NetworkSimulation(config, checked["settings"], seed, checked["graph"], checked["external"],
+                             checked["external_names"], checked["reference"])
+
+
+def test_empty_portfolios_neither_divide_by_zero_nor_trade(tmp_path):
+    # concentration 0: funds, rebalancers included, start with no cash and no shares.
+    config = net_config(n_sessions=6, concentration=0, rebalancers=1, risk_limit=0.2, risk_cooldown=0.5)
+    simulation = _simulation(config, 3)
+    rebalancer = simulation.population.kinds.index("rebalancer")
+    assert simulation._wealth(simulation.gateway.portfolio(rebalancer)) == 0
+    assert set(simulation._targets[rebalancer].values()) == {0.0}
+    empty = [a for a in range(simulation.investors) if simulation._peak[a] == 0]
+    assert empty
+    # A zero peak, at the start or after a cooldown, means no drawdown.
+    for agent in empty:
+        simulation._derisk_until[agent] = 0.25
+        assert not simulation._derisking(agent, 1.0)
+    log = load_run(run(config, 3, tmp_path))
+    assert not (log["orders"].agent == rebalancer).any()
+    assert log.meta["initial_resources"] == log.meta["final_resources"]
+
+
+def test_risk_limit_cuts_every_held_position_with_exact_rounding():
+    config = net_config(holdings="all", attention=1, risk_limit=0.01, risk_sell_fraction=0.8)
+    simulation = _simulation(config, 4)
+    agent = next(a for a in range(simulation.investors) if simulation.population.kinds[a] == "noise")
+    portfolio = simulation.gateway.portfolio(agent)
+    held = {j: int(portfolio.shares_available[j]) for j in range(len(simulation.assets))}
+    assert len(simulation.followed[agent]) == 1 and all(held.values())
+    simulation.risk_limited[agent] = True
+    simulation._peak[agent] = 2 * simulation._wealth(portfolio)  # a 50% drawdown
+    assert simulation._derisking(agent, 1.0)
+    floor = simulation._risk_floor[agent]
+    assert sorted(floor) == sorted(held)  # unfollowed positions are cut too
+    assert floor == {j: (2 * q) // 10 for j, q in held.items()}  # exact: 10 shares at 0.8 keep 2, not 1
+
+
+def test_risk_sale_of_unfollowed_assets_happens_without_herding(tmp_path):
+    config = net_config(external="oil_shock_down", n_sessions=10, holdings="all", attention=1, risk_limit=0.01,
+                        risk_cooldown=50.0, trend=0, noise=8)
+    log = load_run(run(config, 6, tmp_path))
+    followed = log.meta["population"]["followed_assets"]
+    events = log["events"].loc[lambda d: d.kind == "risk_limit"]
+    assert len(events)
+    first = events.iloc[0]
+    agent = json.loads(first.payload)["agent"]
+    sold = log["orders"].loc[(log["orders"].agent == agent) & (log["orders"].t >= first.t)]
+    assert (sold.side == Side.SELL).all() and set(sold.asset) - set(followed[agent])
+    unfollowed = log["signals"].loc[(log["signals"].agent == agent) & ~log["signals"].asset.isin(followed[agent])]
+    assert len(unfollowed) and (unfollowed.herd_signal == 0).all()
+    assert log.meta["initial_resources"] == log.meta["final_resources"]
+
+
 def test_f6_runs_are_deterministic_and_identical_on_both_exchanges(tmp_path):
     from marketsim.market.cpp_exchange import is_available
 

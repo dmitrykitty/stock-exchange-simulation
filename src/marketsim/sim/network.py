@@ -29,6 +29,7 @@ import math
 from bisect import bisect_right
 from dataclasses import dataclass, replace
 from decimal import Decimal
+from fractions import Fraction
 
 import numpy as np
 
@@ -204,11 +205,13 @@ class NetworkSimulation:
         self.invariant_checks = 0
         self._init_valuers(np.random.default_rng(value_seed), np.random.default_rng(weight_seed))
         # Rebalancers keep the initial value weights of the assets they follow (the rest of the wealth is cash).
+        # A rebalancer that starts with nothing (e.g. concentration 0) gets zero targets and never trades.
         self._targets: dict[int, dict[int, float]] = {}
         for agent in rebalancers:
             wealth = self._wealth(self.gateway.portfolio(agent))
             self._targets[agent] = {
-                i: int(self.population.shares[agent, i]) * self.start_ticks[i] / wealth for i in self.followed[agent]
+                i: int(self.population.shares[agent, i]) * self.start_ticks[i] / wealth if wealth > 0 else 0.0
+                for i in self.followed[agent]
             }
         # Risk limit state per investor: running wealth peak, end of the cooldown, shares to keep per asset.
         self.risk_triggers = 0
@@ -357,13 +360,19 @@ class NetworkSimulation:
             self._derisk_until[agent] = -math.inf
             self._peak[agent] = wealth
         self._peak[agent] = max(self._peak[agent], wealth)
-        drawdown = 1 - wealth / self._peak[agent]
+        # An empty portfolio (zero peak, also right after a cooldown) has nothing to lose: no drawdown.
+        drawdown = 1 - wealth / self._peak[agent] if self._peak[agent] > 0 else 0.0
         if drawdown <= s.risk_limit:
             return False
         self._derisk_until[agent] = now + s.risk_cooldown
+        # Every position actually held is cut, followed or not: with ``holdings: all`` and limited attention an
+        # investor also owns assets it does not trade. Shares kept = floor(held x (1 - fraction)) in exact
+        # rational arithmetic, so 10 shares and a fraction of 0.8 keep 2.
+        keep = 1 - Fraction(str(s.risk_sell_fraction))
+        held = portfolio.shares_available
         self._risk_floor[agent] = {
-            asset: math.floor((1 - s.risk_sell_fraction) * int(portfolio.shares_available[asset]))
-            for asset in self.followed[agent]
+            asset: math.floor(keep * int(held[asset]))
+            for asset in sorted(set(self.followed[agent]) | set(np.flatnonzero(held).tolist()))
         }
         self.risk_triggers += 1
         self.recorder.event(now, "risk_limit", {"agent": agent, "drawdown": round(drawdown, 6)})
@@ -396,16 +405,19 @@ class NetworkSimulation:
                 self._withdraw(agent, order_id, now, "order_cancelled")
             h = 0.0 if s.ablation == "no_herding" else float(self.herd_h[agent])
             derisking = bool(self.risk_limited[agent]) and self._derisking(agent, now)
-            # Followed assets are decided one after another; each decision sees the book and the wallet left by
-            # the previous one, keeping the event-by-event semantics of the model.
-            for asset in self.followed[agent]:
+            # Assets are decided one after another; each decision sees the book and the wallet left by the
+            # previous one, keeping the event-by-event semantics of the model. While derisking the agent goes over
+            # every asset it held when the limit was hit, in asset order, including assets it does not follow.
+            assets = sorted(self._risk_floor[agent]) if derisking else self.followed[agent]
+            for asset in assets:
                 price = self._price(asset)
                 portfolio = self.gateway.portfolio(agent)
+                tracked = bool(self.population.follows[agent, asset])  # herding only on followed assets
                 if derisking:
                     # Sell down to the floor fixed when the limit was hit; no purchases during the cooldown.
                     excess = int(portfolio.shares_available[asset]) - self._risk_floor[agent].get(asset, 0)
                     own = -1.0 if excess > 0 else 0.0
-                    herd, _ = self.network.mix(agent, own, now, h, asset)
+                    herd = self.network.mix(agent, own, now, h, asset)[0] if tracked else 0.0
                     signal = own
                     intent = risk_sale(price, excess, s) if excess > 0 else None
                 elif kind == "rebalancer":
@@ -439,7 +451,8 @@ class NetworkSimulation:
                     report = self._place(agent, asset, intent, now)
                     if report.status not in _REJECTED:
                         direction = intent.side
-                self.network.publish(agent, direction, now, asset)
+                if tracked:
+                    self.network.publish(agent, direction, now, asset)
         if s.debug:
             self._check()
         self._next_wake(agent, now)

@@ -71,6 +71,71 @@ def test_reads_only_logs_and_contracts():
     source = Path(replay.__file__).read_text(encoding="utf-8")
     allowed = ("marketsim.sim.log_schema", "marketsim.market.api", "marketsim.data", "marketsim.graph.api",
                "marketsim.metrics")
+    for module in _imported_modules(source):
+        if module.startswith("marketsim"):
+            assert module == "marketsim.viz" or module.startswith(allowed), module
+
+
+def _imported_modules(source):
+    """Every module named by ``import a.b`` and ``from a.b import c``; a relative import is reported as such."""
     for node in ast.walk(ast.parse(source)):
-        if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("marketsim"):
-            assert node.module.startswith(allowed), node.module
+        if isinstance(node, ast.Import):
+            yield from (alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            yield f"marketsim.<relative level {node.level}>" if node.level else node.module
+
+
+def test_import_boundary_check_sees_every_import_form():
+    found = list(_imported_modules("import marketsim.sim.api\nfrom . import live\nfrom ..sim import network\n"
+                                   "from marketsim.metrics import series\n"))
+    assert found == ["marketsim.sim.api", "marketsim.<relative level 1>", "marketsim.<relative level 2>",
+                     "marketsim.metrics"]
+
+
+def test_page_shows_only_the_traded_companies(run_dir, tmp_path):
+    # A run on a subset of the graph (F6 ``agents.assets``): meta.assets lists the traded companies and the asset
+    # indices of the tables follow it. Made here from the full chain run by keeping its first two companies.
+    import shutil
+
+    import pandas as pd
+
+    subset = tmp_path / "subset"
+    shutil.copytree(run_dir, subset)
+    meta = json.loads((subset / "meta.json").read_text())
+    meta["assets"] = meta["assets"][:2]
+    (subset / "meta.json").write_text(json.dumps(meta))
+    for name in ("book", "trades", "valuations", "orders", "signals"):
+        path = subset / f"{name}.parquet"
+        table = pd.read_parquet(path)
+        table.loc[table["asset"] < 2].reset_index(drop=True).to_parquet(path)
+    payload = replay.build_payload(subset)
+    companies = {n["id"] for n in payload["nodes"] if n["kind"] == "company"}
+    assert companies == {a["ticker"] for a in payload["assets"]} == set(meta["assets"])
+    assert len(companies) == 2
+    assert {n["id"] for n in payload["nodes"] if n["kind"] == "external"}, "external nodes stay"
+    ids = {n["id"] for n in payload["nodes"]}
+    assert payload["edges"] and all(e["parent"] in ids and e["child"] in ids for e in payload["edges"])
+
+
+def test_markup_in_the_run_id_stays_text(run_dir):
+    payload = replay.build_payload(run_dir)
+    payload["run_id"] = "</title><script>alert(1)</script>{{TITLE}}<!--PLOTLY-->"
+    page = replay.render(payload, cdn=True)
+    assert "<script>alert(1)" not in page
+    assert page.count("<!--PLOTLY-->") == 0 and page.count("plotly.min.js") == 1
+    title = page[page.index("<title>") + 7:page.index("</title>")]
+    assert title.startswith("Market replay &lt;/title&gt;&lt;script&gt;")
+    start = page.index("const P = ") + len("const P = ")
+    assert json.loads(page[start:page.index(";\n", start)])["run_id"] == payload["run_id"]
+
+
+@pytest.mark.parametrize("real_prices", [True, False])
+def test_sessions_without_dates_stay_empty(run_dir, monkeypatch, real_prices):
+    import pandas as pd
+
+    dates = pd.Series(pd.to_datetime(["2024-01-02", "2024-01-03"] + [None] * 6), name="date")
+    monkeypatch.setattr(replay.data_api, "load_external", lambda scenario: pd.DataFrame({"date": dates}))
+    payload = replay.build_payload(run_dir, real_prices=real_prices)
+    assert payload["dates"][:2] == ["2024-01-02", "2024-01-03"] and payload["dates"][2:] == [None] * 6
+    for series in payload["real"].values():
+        assert all(v is None for v in series[2:])

@@ -35,4 +35,5 @@ Plotly (зависимость `viz` в `pyproject.toml`); веб-интерфе
 - [ ] replay одного актива: свечи, стакан, сигналы, лог;
 - [x] сетевой режим: видна волна по графу на прогоне F6 (`python -m marketsim.viz.replay`, PR #18);
 - [x] живой режим с кнопками шоков и ползунком $h$, события в логе (`python -m marketsim.viz.live`, [guides/f9_visualization.md](../../guides/f9_visualization.md));
+- [x] сравнение экспериментов: тепловые карты, box plots с точками прогонов, парные контрасты и обвалы по E5 и E7 (`python -m marketsim.viz.compare`);
 - [x] заранее записанные прогоны для защиты, выбранные по правилу F7 (медиана / перцентиль): полный E5 и E7, список и команды — [guides/f9_visualization.md](../../guides/f9_visualization.md).

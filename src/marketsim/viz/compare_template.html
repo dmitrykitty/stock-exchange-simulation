@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<!--PLOTLY-->
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #1baf7a; --s3: #eb6834; --s4: #6250d6; --bad: #e34948;
+  --seq-0: #f4f3ef; --seq-1: #9ec5f4; --seq-2: #2a78d6; --seq-3: #0d366b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #199e70; --s3: #d95926; --s4: #9085e9; --bad: #e66767;
+    --seq-0: #1f1f1e; --seq-1: #1c4f8f; --seq-2: #3987e5; --seq-3: #b9d6f7;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #199e70; --s3: #d95926; --s4: #9085e9; --bad: #e66767;
+  --seq-0: #1f1f1e; --seq-1: #1c4f8f; --seq-2: #3987e5; --seq-3: #b9d6f7;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { padding: 18px 24px 8px; }
+h1 { font-size: 20px; margin: 0 0 4px; font-weight: 600; }
+.meta { color: var(--ink-2); font-size: 13px; max-width: 1100px; }
+.controls { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
+  padding: 10px 24px; background: var(--page); border-bottom: 1px solid var(--grid); }
+.controls select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis);
+  border-radius: 8px; padding: 4px 10px; }
+.controls label { color: var(--ink-2); display: inline-flex; gap: 6px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; color: var(--ink); background: var(--surface); border: 0; padding: 4px 12px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--page); }
+#metric-help { color: var(--ink-2); font-size: 12px; flex: 1 1 320px; }
+main { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px; padding: 16px 24px 32px; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.card h2 { font-size: 15px; margin: 0 0 2px; font-weight: 600; }
+.card .sub { color: var(--ink-2); font-size: 12px; margin-bottom: 6px; }
+.wide { grid-column: 1 / -1; }
+.plot { width: 100%; height: 340px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--grid); }
+th { color: var(--ink-2); font-weight: 600; }
+td.num { text-align: right; }
+.bad { color: var(--bad); font-weight: 600; }
+.notes { color: var(--ink-2); font-size: 12px; margin: 6px 0 0; padding-left: 18px; }
+footer { color: var(--muted); font-size: 12px; padding: 0 24px 24px; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 12px 16px 24px; } header, .controls { padding-left: 16px; padding-right: 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Experiments</h1>
+  <div class="meta" id="description"></div>
+  <ul class="notes" id="notes"></ul>
+</header>
+<div class="controls">
+  <div class="seg" id="tabs" role="tablist"></div>
+  <label>Metric <select id="metric"></select></label>
+  <div id="metric-help"></div>
+</div>
+<main>
+  <section class="card">
+    <h2>Cell means</h2>
+    <div class="sub">Mean over the runs of a cell without collapses; the same colour scale for every cell of the metric</div>
+    <div id="heatmap" class="plot"></div>
+  </section>
+  <section class="card">
+    <h2>Every run</h2>
+    <div class="sub">Box: quartiles of the runs without collapses; points: single runs (× = collapsed run, left out of the means)</div>
+    <div id="boxes" class="plot"></div>
+  </section>
+  <section class="card wide">
+    <h2>Paired contrasts</h2>
+    <div class="sub">Difference between two cells on the same seeds, mean and 95% bootstrap interval over seeds; filled: the interval also excludes 0 at the Bonferroni level</div>
+    <div id="forest" class="plot"></div>
+  </section>
+  <section class="card wide">
+    <h2>Collapses</h2>
+    <div class="sub">A run collapses when the close of some company falls below half of its reference R (or rises above twice it) at least once</div>
+    <div id="collapses"></div>
+  </section>
+</main>
+<footer id="footer">Drawn from the F7 summary tables only (summary.csv, per-run metrics and contrasts of the analysis notebooks); no run log is read.</footer>
+<script>
+"use strict";
+const P = /*PAYLOAD*/null;
+const $ = id => document.getElementById(id);
+function h(tag, attrs, ...children) {
+  const e = document.createElement(tag);
+  for (const k in attrs || {}) k === "className" ? (e.className = attrs[k]) : e.setAttribute(k, attrs[k]);
+  for (const c of children) if (c != null) e.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  return e;
+}
+function fill(target, ...children) { target.replaceChildren(...children.map(c => c instanceof Node ? c : document.createTextNode(String(c)))); }
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+// Digits follow the size of ``ref`` (by default the value itself), so a mean and its interval read alike.
+const fmt = (v, ref = v) => v == null || !isFinite(v) ? "–" : v.toFixed(Math.abs(ref) >= 100 ? 0 : Math.abs(ref) >= 10 ? 1 : 3);
+const signed = v => v == null ? "–" : (v > 0 ? "+" : v < 0 ? "−" : "") + fmt(Math.abs(v));
+let ex = 0, metric = null;
+
+function layout(extra) {
+  return Object.assign({
+    paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: {family: "system-ui, sans-serif", size: 12, color: css("--ink-2")},
+    margin: {l: 70, r: 20, t: 10, b: 50}, xaxis: {gridcolor: css("--grid"), zerolinecolor: css("--axis")},
+    yaxis: {gridcolor: css("--grid"), zerolinecolor: css("--axis")}, showlegend: false,
+  }, extra || {});
+}
+const config = {displaylogo: false, responsive: true, modeBarButtonsToRemove: ["lasso2d", "select2d"]};
+
+function cells(E, m) {
+  // [row][col] -> {values (no collapse), all, collapsed}
+  const out = E.rows.map(() => E.cols.map(() => ({values: [], collapsed: 0, n: 0})));
+  const R = E.runs;
+  for (let i = 0; i < R.run_id.length; i++) {
+    const c = out[R.row[i]][R.col[i]]; c.n++;
+    if (R.collapse[i]) { c.collapsed++; continue; }
+    if (R[m][i] != null) c.values.push(R[m][i]);
+  }
+  return out;
+}
+const mean = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : null;
+const sem = a => { if (a.length < 2) return null; const m = mean(a); return Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1) / a.length); };
+
+function drawHeatmap(E, m) {
+  const c = cells(E, m);
+  const z = c.map(row => row.map(x => mean(x.values)));
+  const text = c.map(row => row.map(x => { const mu = mean(x.values), se = sem(x.values); return mu == null ? "–" : `${fmt(mu)}<br>± ${fmt(1.96 * (se ?? 0), mu)}`; }));
+  const scale = [[0, css("--seq-0")], [0.35, css("--seq-1")], [0.7, css("--seq-2")], [1, css("--seq-3")]];
+  Plotly.react($("heatmap"), [{
+    type: "heatmap", z, x: E.colLabels, y: E.rows, text, texttemplate: "%{text}", textfont: {size: 13},
+    colorscale: scale, showscale: true, hovertemplate: "%{y} · %{x}<br>mean %{z:.4f}<extra></extra>", xgap: 3, ygap: 3,
+    colorbar: {thickness: 10, outlinewidth: 0, tickfont: {size: 10}},
+  }], layout({xaxis: {title: {text: E.colName}, type: "category", tickangle: 0, automargin: true},
+              yaxis: {title: {text: E.rowName}, type: "category", autorange: "reversed", automargin: true},
+              margin: {l: 20, r: 10, t: 10, b: 50}}), config);
+}
+
+function drawBoxes(E, m) {
+  const colors = [css("--s1"), css("--s2"), css("--s3"), css("--s4")];
+  // Numeric x: column k at k, the rows of a column side by side, so a collapsed run sits over its own box.
+  const R = E.runs, traces = [], width = 0.8 / E.rows.length;
+  const pos = (r, k) => k + (r - (E.rows.length - 1) / 2) * width;
+  E.rows.forEach((rowName, r) => {
+    const keep = [], x = [], gone = [], gx = [], txt = [], gtxt = [];
+    for (let i = 0; i < R.run_id.length; i++) {
+      if (R.row[i] !== r || R[m][i] == null) continue;
+      const label = `${E.colLabels[R.col[i]]} · ${R.run_id[i]} · seed ${R.seed[i]}`;
+      if (R.collapse[i]) { gone.push(R[m][i]); gx.push(pos(r, R.col[i])); gtxt.push(label + " · collapsed"); }
+      else { keep.push(R[m][i]); x.push(pos(r, R.col[i])); txt.push(label); }
+    }
+    traces.push({type: "box", name: rowName, x, y: keep, text: txt, boxpoints: "all", jitter: 0.6, pointpos: 0, width: 0.8 * width,
+                 marker: {color: colors[r % 4], size: 5, opacity: 0.75}, line: {color: colors[r % 4], width: 1.5},
+                 fillcolor: "rgba(0,0,0,0)", hovertemplate: "%{text}<br>%{y:.4f}<extra></extra>"});
+    if (gone.length) traces.push({type: "scatter", mode: "markers", name: rowName + " (collapsed)", x: gx, y: gone, text: gtxt,
+                 marker: {symbol: "x", size: 9, color: css("--bad")}, hovertemplate: "%{text}<br>%{y:.4f}<extra></extra>"});
+  });
+  const target = E.metrics.find(x => x.key === m).target;
+  const shapes = typeof target === "number" ? [{type: "line", xref: "paper", x0: 0, x1: 1, y0: target, y1: target, line: {color: css("--axis"), dash: "dot", width: 1.5}}] : [];
+  Plotly.react($("boxes"), traces, layout({boxmode: "overlay", showlegend: E.rows.length > 1, legend: {orientation: "h", y: 1.12},
+              xaxis: {title: {text: E.colName}, tickvals: E.colLabels.map((_, k) => k), ticktext: E.colLabels,
+                      range: [-0.6, E.colLabels.length - 0.4], zeroline: false, gridcolor: "rgba(0,0,0,0)"},
+              yaxis: {gridcolor: css("--grid"), zerolinecolor: css("--axis")}, shapes, margin: {l: 60, r: 10, t: 30, b: 60}}), config);
+}
+
+function drawForest(E, m) {
+  const rows = E.contrasts.filter(c => c.metric === m);
+  const el = $("forest");
+  if (!rows.length) { Plotly.purge(el); fill(el, h("div", {className: "sub"}, "No contrasts for this metric.")); el.style.height = "auto"; return; }
+  const height = Math.max(160, 26 * rows.length + 70);
+  el.style.height = height + "px";
+  const labels = rows.map(c => `${c.contrast}${c.at ? " · " + c.at : ""}`);
+  const color = rows.map(c => c.factor === "herding" ? css("--s3") : css("--s1"));
+  Plotly.react(el, [{
+    type: "scatter", mode: "markers", x: rows.map(c => c.mean), y: labels,
+    error_x: {type: "data", symmetric: false, array: rows.map(c => c.hi - c.mean), arrayminus: rows.map(c => c.mean - c.lo), color: css("--muted"), thickness: 1.5, width: 4},
+    marker: {size: 9, color: rows.map((c, i) => c.bonferroni ? color[i] : css("--surface")), line: {color, width: 2}},
+    text: rows.map(c => `${signed(c.mean)} [${fmt(c.lo, c.mean)}; ${fmt(c.hi, c.mean)}] · ${c.pairs} pairs${c.bonferroni ? " · clear (Bonferroni)" : c.clear ? " · clear at 95%" : ""}`),
+    hovertemplate: "%{y}<br>%{text}<extra></extra>",
+  }], layout({height, xaxis: {zeroline: true, zerolinecolor: css("--ink-2"), gridcolor: css("--grid"), title: {text: "difference"}},
+              yaxis: {type: "category", autorange: "reversed", automargin: true, gridcolor: css("--grid")}, margin: {l: 10, r: 20, t: 10, b: 45}}), config);
+}
+
+function wilson(k, n) {
+  if (!n) return [null, null];
+  const z = 1.96, p = k / n, c = (p + z * z / (2 * n)) / (1 + z * z / n);
+  const w = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n);
+  return [Math.max(0, c - w), Math.min(1, c + w)];
+}
+function drawCollapses(E) {
+  const c = cells(E, E.metrics[0].key);
+  const head = h("tr", {}, h("th", {}, E.rowName || ""), ...E.colLabels.map(l => h("th", {}, l)));
+  const body = E.rows.map((r, i) => h("tr", {}, h("td", {}, r), ...c[i].map(x => {
+    const [lo, hi] = wilson(x.collapsed, x.n);
+    return h("td", {className: x.collapsed ? "bad" : ""}, `${x.collapsed} of ${x.n}`,
+             h("span", {className: "sub"}, lo == null ? "" : `  (95%: ${(100 * lo).toFixed(0)}–${(100 * hi).toFixed(0)}%)`));
+  })));
+  fill($("collapses"), h("table", {}, h("thead", {}, head), h("tbody", {}, ...body)));
+}
+
+function selectExperiment(k) {
+  ex = k; const E = P.experiments[k];
+  [...$("tabs").children].forEach((b, i) => b.setAttribute("aria-pressed", String(i === k)));
+  fill($("title"), E.title);
+  fill($("description"), E.description);
+  fill($("notes"), ...E.notes.map(n => h("li", {}, n)));
+  const keep = E.metrics.some(x => x.key === metric) ? metric : E.metrics[0].key;
+  fill($("metric"), ...E.metrics.map(x => { const o = h("option", {value: x.key}, x.label); if (x.key === keep) o.selected = true; return o; }));
+  selectMetric(keep);
+  drawCollapses(E);
+}
+function selectMetric(m) {
+  metric = m; const E = P.experiments[ex], info = E.metrics.find(x => x.key === m);
+  const target = info.target == null ? "" : typeof info.target === "number" ? ` · R-like value: ${info.target}` : ` · closer to R: ${info.target}er`;
+  fill($("metric-help"), info.help + target);
+  drawHeatmap(E, m); drawBoxes(E, m); drawForest(E, m);
+}
+
+fill($("tabs"), ...P.experiments.map((E, k) => { const b = h("button", {type: "button", role: "tab"}, E.title.split(" — ")[0]); b.addEventListener("click", () => selectExperiment(k)); return b; }));
+$("metric").addEventListener("change", e => selectMetric(e.target.value));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => selectExperiment(ex));
+selectExperiment(0);
+</script>
+</body>
+</html>

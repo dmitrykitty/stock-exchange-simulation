@@ -204,7 +204,7 @@ Projekt jest podzielony na fazy F0–F10. Każda ma właściciela, opis w [`docs
 | F6 | Pełna sieć 18 spółek na rzeczywistych sygnałach 2024–2025 (kamień milowy M3) | ✅ gotowe (PR #15); kamień milowy M3 spełniony na pełnym E5 |
 | F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | 🟡 E5 (270 przebiegów) i E7 (90) policzone, odpowiedzi na P5 i P7; E6 przed nami |
 | F8 | Walidacja na danych 2024–2025 | 🟡 pierwsze testy w notatniku, moduł przed nami |
-| F9 | Wizualizacja: odtwarzanie przebiegu, tryb na żywo | ✅ odtwarzanie (PR #18) i tryb na żywo (PR #21) gotowe; porównanie eksperymentów przed nami |
+| F9 | Wizualizacja: odtwarzanie przebiegu, tryb na żywo | ✅ odtwarzanie (PR #18), tryb na żywo (PR #21) i strona porównania eksperymentów E5 i E7 gotowe |
 | F10 | Raport końcowy i obrona | ⬜ |
 
 Kod jest w repozytorium [`github.com/dmitrykitty/stock-exchange-simulation`](https://github.com/dmitrykitty/stock-exchange-simulation). Każda zmiana przechodzi przez *pull request* z automatycznymi testami (ponad 240 testów, w tym testy kontraktów i porównanie implementacji Python i C++).
@@ -1080,6 +1080,8 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 
 **Jak czytać.** Dzień, w którym ogłoszono zawieszenie ceł i S&P 500 wzrósł o 9,5%: **świeci cały graf**, bo indeks jest rodzicem każdej spółki. Wybrana NVDA: cena symulowana (niebieska) jest tego dnia 18% poniżej swojej $R$ i dogania ją następnego dnia. To najgorszy pojedynczy dzień całego przebiegu: przy tak dużym ruchu limit wielkości zlecenia (5% majątku) i dwie decyzje na sesję nie wystarczają, by dojść do celu w jeden dzień. Zielona linia to prawdziwa cena NVDA. Pokazujemy ją tylko do porównania; agenci jej nie widzą.
 
+**Porównanie eksperymentów.** Druga strona (`python -m marketsim.viz.compare`) zbiera wyniki E5 i E7 z tabel podsumowań: mapę cieplną średnich komórek, wykres pudełkowy z każdym przebiegiem jako punktem (załamania zaznaczone osobno), porównania parami z przedziałami 95% i częstość załamań. Każdą miarę wybiera się z listy, a numer przebiegu w podpowiedzi pozwala otworzyć jego stronę odtwarzania. Opis: [przewodnik F9](guides/f9_visualization.md).
+
 **Strony na obronę.** Z pełnego E5 i z E7 przygotowaliśmy strony odtwarzania wybrane regułą F7 (mediana i 90. percentyl komórki, a nie „najładniejszy” przebieg): główna komórka `mixed`, $h = 0{,}2$; komórka trendowa z naśladowaniem, w której 90. percentyl to właśnie załamanie NVDA w kwietniu 2025 r.; oraz para z E7 (0% i 50% wyceniających sieciowych), na której widać opóźnienie rafinerii. Lista i polecenia: [przewodnik F9](guides/f9_visualization.md).
 
 ---
@@ -1116,7 +1118,7 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 |---|---|---|---|
 | 1 | F7 | zamrożenie protokołu (metryki, ziarna, reguła wyboru przebiegów); E6: czy szok ropy „przeskakuje” na JPM i spółki spoza łańcucha i którym kanałem (wspólny portfel, rebalansowanie, limity ryzyka, naśladowanie); ablacje | odpowiedź na P6 z przedziałami ufności (P5 i P7 już są) |
 | 2 | F8 | przeniesienie testów z notatnika do modułu `validation/`; fakty stylizowane **bez sygnałów zewnętrznych**; odtworzenie grafu z cen symulowanych; pasma 90% z wielu przebiegów | rozdział „Walidacja” raportu |
-| 3 | F9 | porównanie eksperymentów (mapy cieplne, wykresy pudełkowe); tryb **na żywo** (przyciski „ropa ±30%”, „wiadomość o spółce”, suwak $h$) jest już gotowy (PR #21) | demonstracja na obronie |
+| 3 | F9 | dodać E6 do strony porównania eksperymentów; odtwarzanie, tryb **na żywo** i porównanie E5 i E7 są gotowe | demonstracja na obronie |
 | 4 | F10 | raport końcowy po polsku, prezentacja | — |
 
 **Kierunek, który chcemy zbadać w F7 (pytanie o ograniczoną uwagę).** W literaturze finansowej (Cohen i Frazzini, 2008) opisano, że cena odbiorcy reaguje na wiadomości o dostawcy z opóźnieniem, a wyjaśnia się to ograniczoną uwagą inwestorów. Na prawdziwym rynku nie da się sprawdzić tego mechanizmu, bo nie można „włączyć” inwestorom uwagi. W naszym modelu można: uwaga, opóźnienie, krótkowzroczność i błąd wiedzy to parametry. Zmierzymy, jak każdy z nich zmienia kompletność, opóźnienie i przestrzelenie fali. Ograniczenie, które już wiemy: w dziennych danych 2024–2025 opóźnienia między dostawcą a odbiorcą nie widać (wykres 17), więc model nie może być wolniejszy od rynku.

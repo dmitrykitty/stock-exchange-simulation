@@ -32,12 +32,13 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
 
 ## 0. Najważniejsze w skrócie
 
-1. **Działa cały łańcuch:** dane → graf zależności → giełda z arkuszami zleceń (C++) → ok. 500 agentów → log przebiegu → analiza i wizualizacja. Każdy przebieg jest powtarzalny (ta sama konfiguracja i ziarno dają identyczny log), a suma pieniędzy i akcji jest stała we wszystkich ponad 1 300 przebiegach.
+1. **Działa cały łańcuch:** dane → graf zależności → giełda z arkuszami zleceń (C++) → ok. 500 agentów → log przebiegu → analiza i wizualizacja. Każdy przebieg jest powtarzalny (ta sama konfiguracja i ziarno dają identyczny log), a suma pieniędzy i akcji jest stała we wszystkich ponad 1 600 przebiegach.
 2. **Graf zależności `real_v1` jest gotowy:** 18 spółek, 4 surowce i S&P 500, 47 krawędzi. Strukturę wzięliśmy z tabel przepływów międzygałęziowych BEA, a wagi z regresji na latach 2021–2023 (rozdz. 4.2).
 3. **Fala szoku przechodzi przez graf dzięki transakcjom, a nie formule.** Po skoku ropy o ±20% producenci ropy dochodzą do swojej ceny referencyjnej w 0,85 sesji, rafinerie w 0,95 sesji (średnio dla obu kierunków szoku), linie lotnicze tanieją, a spółki niepowiązane z ropą stoją w miejscu (rozdz. 4.6, wykres 12).
 4. **W sprawdzonych konfiguracjach zachowania stadne destabilizowały rynek dopiero wtedy, gdy były silne i dotyczyły większości.**
    - Na rynku jednego aktywa silne naśladowanie ($h = 0{,}6$) zwiększa maksymalne obsunięcie z 0,37% do 9,4% przy starej regule zleceń i z 0,39% do 3,6% z pozycją docelową; efekt jest w obu przypadkach wyraźny (przedziały powyżej zera), ale z pozycją docelową 3–5 razy mniejszy (rozdz. 4.4, wykres 8b).
    - Na łańcuchu ze wstrząsem ropy błąd wyceny rośnie razem z $h$. W składach `mixed` i `trend` (tylko te liczyliśmy przy $h \ge 0{,}6$) rynek załamuje się w 20–30% przebiegów dopiero przy $h = 0{,}8$.
+   - Na pełnej sieci (E5, 270 przebiegów na sygnałach 2024–2025) składy z wyceniającymi nie załamały się ani razu przy $h \le 0{,}4$; skład trendowy z naśladowaniem ($h \ge 0{,}2$) w 6 z 60 przebiegów spycha jedną spółkę poniżej połowy jej wartości referencyjnej w kwietniu 2025 r. (rozdz. 4.6, wykres 13).
    - Na łańcuchu (skład `mixed`, stara reguła zleceń) rynek, w którym silnie naśladowała połowa inwestorów, zachował się jak przy tej samej średniej sile naśladowania (rozdz. 4.4–4.5).
 5. **Znaleźliśmy i naprawiliśmy dwa błędy modelu, które zmieniały wyniki.** Pierwszy: zaokrąglanie wielkości zlecenia w dół wyłączało drobnych inwestorów z handlu (F4). Drugi: reguła „kupuj przy każdej decyzji, dopóki sygnał dodatni” dawała ceny z inercją, której nie ma na prawdziwym rynku (autokorelacja +0,59 zamiast −0,05). Teraz inwestor ma pozycję docelową. Po tej zmianie powtórzyliśmy eksperyment E4. Okazało się, że większość załamań na łańcuchu była skutkiem starej reguły, a nie samego naśladowania (rozdz. 4.4–4.6).
 6. **Porównanie z rzeczywistością (2024–2025) robimy uczciwie:** w trakcie przebiegu symulacja nie widzi żadnej prawdziwej ceny akcji, codziennie dostaje tylko pięć szeregów zewnętrznych (cztery surowce i S&P 500). Prawdziwe ceny akcji wchodzą raz, jako stan początkowy z 2 stycznia 2024 r. Każdą miarę zgodności dla $R$ sprawdzamy na 200 losowych grafach, a symulacje porównujemy z kontrolami na tych samych ziarnach: dwoma losowymi grafami i płaskimi wejściami. Miara, którą kontrola przechodzi równie dobrze, niczego nie dowodzi. Parametry symulacji dobieraliśmy na tych samych 502 sesjach, więc miary rynkowe to wyniki kalibracji, a nie niezależna walidacja (rozdz. 4.7).
@@ -47,7 +48,7 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
    - grube ogony rozkładu i brak autokorelacji stóp zwrotu to cele kalibracji; grube ogony pochodzą z prawdziwych sygnałów wejściowych, a nie od agentów.
 8. **Czego nie odtwarza:** prawdziwy rynek uwzględnia ruch tego samego dnia, a u nas ok. 1/5 ruchu dochodzi dopiero następnego dnia. Zapisujemy to jako ograniczenie, a nie ukrywamy.
 9. **Jest wizualizacja:** strona HTML, która odtwarza przebieg. Widać na niej, jak fala płynie po grafie, jak zmieniają się ceny, świece i płynność arkusza (rozdz. 4.8).
-10. **Zostało:** pełne eksperymenty F7 (E5–E7), moduł walidacji F8 i raport końcowy. Tryb „na żywo” do prezentacji jest gotowy (PR #21, [przewodnik F9](guides/f9_visualization.md), po rosyjsku).
+10. **Zostało:** eksperymenty F7 E6 i E7 (pełny E5 jest policzony: 270 przebiegów), moduł walidacji F8 i raport końcowy. Tryb „na żywo” do prezentacji jest gotowy (PR #21, [przewodnik F9](guides/f9_visualization.md), po rosyjsku).
 
 ---
 ## 1. Idea projektu w pięciu minutach
@@ -103,7 +104,7 @@ Dla porównania liczymy **trajektorię referencyjną** $R$: ceny, jakie byłyby,
 |---|---|---|---|
 | P1 | Jak zachowania stadne wpływają na obsunięcia cen i płynność? | 1 aktywo (F4) | **wyniki są** (rozdz. 4.4) |
 | P2 | Jak koncentracja kapitału w funduszach wpływa na stabilność? | 1 aktywo (F4) | **wyniki są** (rozdz. 4.4) |
-| **P5** | **Jak strategie i zachowania stadne zmieniają propagację szoku w grafie?** | łańcuch (F5), pełna sieć (F6–F7) | **pierwsze wyniki:** E4 na łańcuchu, skrócony E5 na pełnej sieci |
+| **P5** | **Jak strategie i zachowania stadne zmieniają propagację szoku w grafie?** | łańcuch (F5), pełna sieć (F6–F7) | **wyniki:** E4 na łańcuchu, pełny E5 na pełnej sieci (270 przebiegów) |
 | **P6** | **Czy powstaje współruch spółek niepowiązanych w grafie i dlaczego?** | pełna sieć (F7, eksperyment E6) | mechanizmy gotowe (wspólny portfel, rebalansowanie, limity ryzyka), eksperyment przed nami |
 | P7 | Ilu agentów „znających graf” potrzeba, by fala przechodziła? | eksploracyjnie (F7) | wstępnie: bez wyceniających sieciowych fala nie przechodzi dalej niż o jedno ogniwo |
 
@@ -198,8 +199,8 @@ Projekt jest podzielony na fazy F0–F10. Każda ma właściciela, opis w [`docs
 | F3 | Giełda (Python + C++), bramka, test skali na 18 spółkach | ✅ gotowe |
 | F4 | Rynek jednego aktywa, eksperymenty E1–E3 (P1, P2) | ✅ gotowe; E1–E3 policzone też z pozycją docelową, podsumowania liczone metrykami D1 (PR #23) |
 | F5 | Wyceniający według grafu na łańcuchu ropa → COP → VLO → DAL, eksperyment E4 | ✅ gotowe; E4 powtórzony z pozycją docelową (PR #20) |
-| F6 | Pełna sieć 18 spółek na rzeczywistych sygnałach 2024–2025 (kamień milowy M3) | ✅ gotowe (PR #15); pełny E5 przed nami |
-| F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | 🟡 skrócony E5 policzony (90 przebiegów), pełne przed nami |
+| F6 | Pełna sieć 18 spółek na rzeczywistych sygnałach 2024–2025 (kamień milowy M3) | ✅ gotowe (PR #15); kamień milowy M3 spełniony na pełnym E5 |
+| F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | 🟡 pełny E5 policzony (270 przebiegów), E6 i E7 przed nami |
 | F8 | Walidacja na danych 2024–2025 | 🟡 pierwsze testy w notatniku, moduł przed nami |
 | F9 | Wizualizacja: odtwarzanie przebiegu, tryb na żywo | ✅ odtwarzanie (PR #18) i tryb na żywo (PR #21) gotowe; porównanie eksperymentów przed nami |
 | F10 | Raport końcowy i obrona | ⬜ |
@@ -863,25 +864,26 @@ Sprawdziliśmy też wariant, w którym cel jest udziałem wartości portfela, a 
 
 Miary fali policzone funkcjami Marty (`marketsim.metrics.wave_metrics`, mediana z 20 przebiegów): kompletność 0,94–0,98, opóźnienie 0,75–1,0 sesji, połowa błędu wyceny znika po 0,6 sesji.
 
-#### Wykres 13. Skrócony E5: skład inwestorów × zachowania stadne
+#### Wykres 13. E5: skład inwestorów × zachowania stadne
 
-![Skrócony E5](figures/f6_e5_cells.png)
+![E5](figures/f6_e5_cells.png)
 
-**Co przedstawia.** 9 kombinacji (skład `mixed` / `network` / `trend` × $h$ = 0 / 0,2 / 0,4), w każdej 10 przebiegów po 502 sesje na prawdziwych sygnałach 2024–2025, razem 90 przebiegów. Wartości to średnie z 10 przebiegów.
+**Co przedstawia.** 9 kombinacji (skład `mixed` / `network` / `trend` × $h$ = 0 / 0,2 / 0,4), w każdej 30 przebiegów (ziarna 3001–3030) po 502 sesje na prawdziwych sygnałach 2024–2025, razem 270 przebiegów. Wartości to średnie z przebiegów komórki bez załamań (definicja niżej).
 - **Lewy panel:** jak dobrze dzienne zmiany ceny zgadzają się z $R$ (1 = idealnie).
 - **Środkowy:** w ilu dniach × spółkach cena odstawała od $R$ o ponad 10% (na ok. 8 900 w przebiegu).
 - **Prawy:** autokorelacja dziennych zmian (na prawdziwym rynku −0,05).
 
 **Co widać.**
-- **Skład z wyceniającymi** (`mixed`, `network`) trzyma się blisko $R$ (korelacja 0,80–0,83 przy $h \le 0{,}2$), autokorelacja jest bliska zera, jak na prawdziwym rynku.
-- **Naśladowanie** obniża zgodność z $R$ (0,82 → 0,71) i 2–4 razy zwiększa liczbę dni z dużym odchyleniem, ale rynku nie załamuje.
+- **Skład z wyceniającymi** (`mixed`, `network`) trzyma się blisko $R$ (korelacja 0,79–0,82 przy $h \le 0{,}2$), autokorelacja jest bliska zera, jak na prawdziwym rynku. Przy 30 ziarnach oba składy są praktycznie takie same (w skróconym E5 z 10 ziarnami `network` wyglądał gorzej, ale to był szum).
+- **Naśladowanie** obniża zgodność z $R$ (0,82 → 0,70–0,71), zwiększa część ruchu dochodzącą następnego dnia (0,19 → 0,24–0,26) i 3–4 razy liczbę dni z dużym odchyleniem, ale w tych składach rynku nie załamuje.
 - **Skład trendowy** wyraźnie odstaje:
-  - inercja cen (+0,14…+0,18);
-  - 143–268 dni z odchyleniem powyżej 10%;
-  - jedna strona arkusza najgorszej spółki pusta przez 4–6% czasu.
+  - inercja cen (+0,15…+0,18);
+  - 134–251 dni z odchyleniem powyżej 10%;
+  - jedna strona arkusza najgorszej spółki pusta przez 6–7% czasu.
 
   To oczekiwany wynik dla hipotezy H3, a nie błąd modelu.
-- We wszystkich 90 przebiegach pieniądze i akcje są zachowane i żaden przebieg nie zakończył się krachem do zera.
+- **Załamania tylko w składzie trendowym z naśladowaniem.** Załamaniem nazywamy przebieg, w którym cena zamknięcia jakiejś spółki choć raz spadła poniżej połowy swojej ścieżki $R$ (albo wzrosła ponad dwukrotność). Takich przebiegów jest 6 z 60 przy $h \ge 0{,}2$ (4 przy $h = 0{,}2$, 2 przy $h = 0{,}4$), w pozostałych 210 przebiegach żadnego. Wszystkie przypadają na kwiecień 2025 r. (wyprzedaż po ogłoszeniu ceł): sprzedaż trendowych i naśladujących spycha jedną spółkę (NVDA, NEM lub META) 51–84% poniżej $R$. W pięciu przebiegach cena 3–7 sesji po dnie wraca bliżej niż 10% do $R$. W jednym META spada do 1–2 ticków i już nie wraca: animatorzy kwotują w tickach ustalonych od ceny początkowej, a pozycja docelowa wyceniających ma ograniczone nachylenie. To ograniczenie modelu, a nie błąd księgowy: pieniądze i akcje są zachowane.
+- We wszystkich 270 przebiegach pieniądze i akcje są zachowane, a `check_invariants` przechodzi. Pełny E5 trwał 2 h 45 min na 10 procesach (30 GB logów).
 
 #### Wykres 14. Cały przebieg 2024–2025 obok rzeczywistości
 
@@ -946,14 +948,14 @@ Notatnik: [`06_real_checks.ipynb`](../notebooks/06_real_checks.ipynb).
 **Co przedstawia.**
 - Bierzemy 24 dni z lat 2024–2025 z największymi ruchami ropy (okna nie nakładają się) i liczymy średnią reakcję każdej spółki ponad to, co wynika z ruchu całego rynku, ze znakiem ruchu ropy (dodatnia = spółka idzie razem z ropą).
 - Czarne kropki z wąsami: prawdziwe akcje z przedziałem 95% (bootstrap blokami po 10 dni sesyjnych, bo bliskie zdarzenia dzielą nastroje rynku).
-- Niebieskie romby: symulacja na naszym grafie.
+- Niebieskie romby: symulacja na naszym grafie (30 przebiegów pełnego E5, skład `mixed`, $h = 0{,}2$). Kontrole liczyliśmy na ziarnach 3001–3010; na tych samych 10 ziarnach nasza symulacja daje praktycznie to samo (wzorzec 0,84, wielkość 0,98).
 - Pomarańczowe krzyżyki: symulacja na losowym grafie; szare kropki: symulacja z płaskimi wejściami (te same ziarna).
 
 **Jak to czytać.** Odjęcie bety usuwa ruch całego rynku, ale nie usuwa innych wspólnych ruchów tych dni (wiadomości sektorowe, stopy procentowe). Średnia prawdziwa to więc reakcja na cały dzień z dużym ruchem ropy, a nie wyizolowany efekt ropy. Porównanie pokazuje **podobieństwo wzorca reakcji**, a nie dowód konkretnych dróg przenoszenia.
 
 **Co widać.**
 - **Wzorzec jest podobny:** producenci ropy i rafinerie reagują najmocniej, metale umiarkowanie, technologia i bank prawie wcale. Korelacja wzorca symulacji z rzeczywistym to **0,83**. Na losowych grafach z tymi samymi ziarnami 0,68 i 0,53, przy płaskich wejściach 0,14.
-- **Wielkość:** średnio 0,99 prawdziwej reakcji (losowe grafy: 0,47–0,50).
+- **Wielkość:** średnio 0,97 prawdziwej reakcji (losowe grafy: 0,47–0,50).
 - **Czego nie ma:**
   - w rzeczywistości DUK, ODFL i NEE lekko tanieją, gdy drożeje ropa (droższe paliwo i energia), a w symulacji prawie się nie ruszają;
   - symulacja przesadza z EOG.
@@ -970,7 +972,7 @@ Notatnik: [`06_real_checks.ipynb`](../notebooks/06_real_checks.ipynb).
 
 **Co widać.**
 - **Prawdziwy rynek:** żadna z 29 krawędzi nie jest istotna. Miara łączna wynosi −0,068 [−0,133; −0,003], czyli następnego dnia jest raczej lekki powrót niż dociąganie.
-- **Nasza symulacja:** ok. połowa krawędzi wykazuje opóźnienie, a następnego dnia dochodzi 0,18 [0,14; 0,22] ruchu. Jest lepiej niż przed poprawką (0,55), ale **agenci wciąż są wolniejsi od prawdziwego rynku**. Opóźnienie rośnie ze stadnością (0,24) i przy trendowych (0,40).
+- **Nasza symulacja:** ok. połowa krawędzi wykazuje opóźnienie, a następnego dnia dochodzi 0,18 [0,14; 0,22] ruchu. Jest lepiej niż przed poprawką (0,55), ale **agenci wciąż są wolniejsi od prawdziwego rynku**. Opóźnienie rośnie ze stadnością (0,24–0,26) i przy trendowych (0,38–0,43).
 - **Losowy graf daje to samo opóźnienie** (0,19–0,22), więc test mierzy szybkość agentów, a nie jakość grafu. Przy płaskich wejściach nie ma czego opóźniać (0,00).
 - **Skąd opóźnienie:** inwestor decyduje średnio dwa razy na sesję, więc informacja z końca dnia trafia do ceny następnego dnia. Próbowaliśmy to usunąć (więcej decyzji, większe pozycje), ale wtedy cena przestrzela i wraca, a autokorelacja robi się ujemna (−0,14…−0,18). Zostawiliśmy wariant z autokorelacją jak w rzeczywistości i **zapisujemy tę różnicę jako ograniczenie modelu**.
 
@@ -984,7 +986,7 @@ Notatnik: [`06_real_checks.ipynb`](../notebooks/06_real_checks.ipynb).
 |---|---|---|---|---|
 | autokorelacja stóp zwrotu (1 dzień) | −0,035 | −0,046 | −0,063…−0,067 | −0,55 |
 | autokorelacja wartości bezwzględnych (1 dzień) | 0,10 | 0,16 | 0,17 | 0,33 |
-| kurtoza nadwyżkowa | 6,9 | 5,2 | 5,4–5,5 | 0,9 |
+| kurtoza nadwyżkowa | 6,9 | 5,4 | 5,4–5,5 | 0,9 |
 
 - **Grube ogony** pochodzą z prawdziwych sygnałów wejściowych (ropa, S&P 500), a nie od agentów: przy płaskich wejściach kurtoza spada do 0,9.
 - **Brak przewidywalności i skupiska zmienności** są takie same na losowych grafach, więc nie mówią nic o grafie.
@@ -995,11 +997,11 @@ Notatnik: [`06_real_checks.ipynb`](../notebooks/06_real_checks.ipynb).
 | Test | Wynik | Czy kontrola przechodzi? | Wniosek |
 |---|---|---|---|
 | graf poza próbą (wykres 15) | 0,595 wobec 0,526 dla bety | nie dla mediany 18 spółek (0 z 200); w grupie naftowej 4,5% | ✅ graf niesie wiedzę w łańcuchu naftowym i metalach |
-| reakcja na ropę (wykres 16) | wzorzec 0,83, wielkość 0,99 | losowe grafy 0,53–0,68, płaskie wejścia 0,14 | ✅ podobny wzorzec reakcji (wynik po kalibracji) |
+| reakcja na ropę (wykres 16) | wzorzec 0,83, wielkość 0,97 | losowe grafy 0,53–0,68, płaskie wejścia 0,14 | ✅ podobny wzorzec reakcji (wynik po kalibracji) |
 | reakcja na miedź (dzień i dwa dni), tygodnie z dużym ruchem ropy | zgodne | 0–3% losowych grafów dorównuje | ✅ |
 | szybkość (wykres 17) | 0,18 ruchu następnego dnia; w rzeczywistości −0,07 i 0 istotnych krawędzi | tak (to test agentów) | ❌ agenci wolniejsi niż rynek |
 | fakty stylizowane (wykres 18) | grube ogony, brak autokorelacji, skupiska zmienności | losowe grafy tak samo; grube ogony znikają przy płaskich wejściach | cele kalibracji, nie argument za grafem |
-| zgodność dzień po dniu | 0,45 | prawie tak (0,42) | nie używamy jako argumentu |
+| zgodność dzień po dniu | 0,46 | prawie tak (0,42) | nie używamy jako argumentu |
 
 **Co jeszcze policzyć przed F8:** fakty stylizowane i *event study* dla większej liczby losowych grafów oraz *event study* z dniami placebo.
 
@@ -1071,7 +1073,7 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 
 | Kolejność | Faza | Co konkretnie | Efekt |
 |---|---|---|---|
-| 1 | F7 | zamrożenie protokołu (metryki, ziarna, reguła wyboru przebiegów); pełny E5 (270 przebiegów, ok. 4,5 h na 10 procesach); E6: czy szok ropy „przeskakuje” na JPM i spółki spoza łańcucha i którym kanałem (wspólny portfel, rebalansowanie, limity ryzyka, naśladowanie); E7: udział wyceniających sieciowych {0; 25%; 50%}; ablacje | odpowiedzi na P5, P6, P7 z przedziałami ufności |
+| 1 | F7 | zamrożenie protokołu (metryki, ziarna, reguła wyboru przebiegów); E6: czy szok ropy „przeskakuje” na JPM i spółki spoza łańcucha i którym kanałem (wspólny portfel, rebalansowanie, limity ryzyka, naśladowanie); E7: udział wyceniających sieciowych {0; 25%; 50%}; ablacje | odpowiedzi na P5, P6, P7 z przedziałami ufności |
 | 2 | F8 | przeniesienie testów z notatnika do modułu `validation/`; fakty stylizowane **bez sygnałów zewnętrznych**; odtworzenie grafu z cen symulowanych; pasma 90% z wielu przebiegów | rozdział „Walidacja” raportu |
 | 3 | F9 | porównanie eksperymentów (mapy cieplne, wykresy pudełkowe); tryb **na żywo** (przyciski „ropa ±30%”, „wiadomość o spółce”, suwak $h$) jest już gotowy (PR #21) | demonstracja na obronie |
 | 4 | F10 | raport końcowy po polsku, prezentacja | — |

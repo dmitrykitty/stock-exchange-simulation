@@ -1,4 +1,8 @@
-"""Run diagnostics for experiment summaries; they read only K3. Formal research metrics remain owned by D1."""
+"""Run summaries for experiments; they read only K3.
+
+One asset (F4): the formal stability metrics of D1 (``marketsim.metrics.stability``), computed for asset 0, plus
+run activity. Several assets (F5+): S's quick diagnostics per asset; the formal wave metrics are D1's.
+"""
 
 from __future__ import annotations
 
@@ -7,6 +11,7 @@ import math
 import numpy as np
 
 from marketsim.market.api import NO_PRICE
+from marketsim.metrics import stability
 from marketsim.sim.log_schema import RunLog
 
 
@@ -35,7 +40,9 @@ def diagnose_run(log: RunLog) -> dict:
     Drawdown and valuation error use only two-sided midpoint observations. Execution rate refers
     to the cohort of orders submitted after warmup and their eventual filled quantities.
 
-    One asset (F4): the original single-asset fields. Several assets (F5+): run-wide activity fields plus, per
+    One asset (F4): every metric of ``marketsim.metrics.stability.METRICS`` (D1) under its own name, the
+    per-session volatility ``volatility_session`` and the activity fields. Several assets (F5+): run-wide activity
+    fields plus, per
     asset, ``<field>__<TICKER>`` for the quote fields and two raw wave diagnostics: ``price_log_change`` (last
     two-sided midpoint vs the last two-sided midpoint before warmup ends) and ``reference_log_change`` (reference
     path at the same two snapshots). A shock that starts when warmup ends is therefore inside the change. Their
@@ -63,15 +70,9 @@ def diagnose_run(log: RunLog) -> dict:
     execution = float(orders.filled_qty.sum() / orders.qty.sum()) if orders.qty.sum() else float("nan")
     assets = log.meta.get("assets") or []
     if len(assets) <= 1:
-        quote = _quote_fields(log["book"], warmup, end)
-        prices = quote.pop("_prices")
-        values = log["valuations"].loc[lambda d: d.t >= warmup, "v_mean"]
-        mean_value = float(values.iloc[0]) if len(values) else float("nan")
-        return {
-            **row, **quote,
-            "relative_valuation_error": float(np.mean(np.abs(prices - mean_value) / mean_value)) if len(prices) else float("nan"),
-            "execution_rate": execution, **activity,
-        }
+        metrics = {name: fn(log, 0) for name, fn in stability.METRICS.items()}
+        metrics["volatility_session"] = stability.volatility(log, 0, horizon=1.0)
+        return {**row, **metrics, **activity}
     row["execution_rate"] = execution
     book, valuations = log["book"], log["valuations"]
     for asset, ticker in enumerate(assets):

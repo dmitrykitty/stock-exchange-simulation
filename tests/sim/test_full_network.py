@@ -41,7 +41,7 @@ def test_f6_keys_at_defaults_keep_earlier_identities_and_are_rejected_without_a_
     assert not set(identity_dict(plain)) & {"assets", "price_scaling", "holdings", "rebalancers", "risk_limit",
                                             "rebalance_band", "risk_sell_fraction", "risk_cooldown"}
     for key, value in (("rebalancers", 2), ("risk_limit", 0.1), ("price_scaling", True), ("holdings", "followed"),
-                       ("assets", ["COP"]), ("position_sizing", "target"), ("position_tilt", 0.3)):
+                       ("assets", ["COP"])):
         with pytest.raises(ConfigError, match="need a graph"):
             AgentSettings.from_dict({key: value})
 

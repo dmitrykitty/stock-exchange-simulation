@@ -1,7 +1,8 @@
 """Validated, simulation-owned parameters inside the free-form K4 agents section.
 
 Two modes share these settings. With ``graph: single_asset`` (F4) the market has one synthetic asset and the
-valuers hold constant valuations. With a K2 graph (F5+) every company of the graph is an asset, valuers are
+valuers hold constant valuations; of the later fields only the position sizing rule (``position_sizing``,
+``position_tilt``, ``rebalance_band``) applies there. With a K2 graph (F5+) every company of the graph is an asset, valuers are
 myopic or network valuers that update their valuations from the graph, and ``valuers`` must be zero. Fields
 added for F5 and F6 default to values that leave F4 and F5 runs bit-identical.
 """
@@ -162,7 +163,8 @@ class AgentSettings:
             if settings.composition != "custom":
                 settings = settings.with_composition()
         else:
-            changed = [f.name for f in fields(cls) if f.name in _GRAPH_FIELDS and getattr(settings, f.name) != f.default]
+            changed = [f.name for f in fields(cls) if f.name in _GRAPH_FIELDS and f.name not in _SINGLE_ASSET_FIELDS
+                       and getattr(settings, f.name) != f.default]
             if changed:
                 raise ConfigError(f"agents {changed} need a graph (F5); graph='single_asset' supports F4 only")
         count = settings.investors - settings.rebalancers
@@ -249,3 +251,6 @@ _F6_FIELDS = ("assets", "price_scaling", "holdings", "position_sizing", "positio
 # Fields that exist only with a graph; at their defaults they are left out of run identities.
 _GRAPH_FIELDS = ("valuers_myopic", "valuers_network", "composition", "attention", "observation_delay",
                  "weight_error_std", *_F6_FIELDS)
+# Graph fields that the single-asset market (F4) also accepts. At their defaults they stay out of run identities,
+# so F4 runs with the flow rule keep their run_ids.
+_SINGLE_ASSET_FIELDS = ("position_sizing", "position_tilt", "rebalance_band")

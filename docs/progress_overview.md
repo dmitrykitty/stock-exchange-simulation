@@ -791,6 +791,16 @@ Wszystkie 738 przebiegów F5 zachowują pieniądze i akcje. Notatnik: [`05_chain
 
 **Wniosek.** Większość załamań z wykresu 10 była skutkiem starej reguły zleceń, a nie samego naśladowania: agent kupował lub sprzedawał przy każdym przebudzeniu, aż skończyły mu się pieniądze lub akcje. W sprawdzonych komórkach (łańcuch, składy `mixed` i `trend` do $h = 0{,}8$, sieciowy do $h = 0{,}4$) model załamywał się dopiero przy $h = 0{,}8$. Nie jest to ogólny próg rynku ani reguła dla dowolnej stadnej większości. Wcześniejszy wniosek „przy $h \ge 0{,}5$ łańcuch prawie zawsze się załamuje” **wycofujemy**. Szczegóły: [przewodnik F5](guides/f5_graph_valuers.md), rozdział o E4 z pozycją docelową (PR #20).
 
+#### Formalne metryki fali (D1): czym różnią się składy inwestorów
+
+Na wszystkich 1080 przebiegach E4 (stara reguła i pozycja docelowa) policzyliśmy metryki fali D1 (`marketsim.metrics.wave_summary`): kompletność (jaka część ruchu $R$ doszła do końca), przestrzelenie, opóźnienie i czas półtrwania błędu $|P - R| / R$. Każdy przebieg składu `network` lub `trend` porównujemy z przebiegiem składu `mixed` z tym samym ziarnem i kierunkiem szoku; przedział 95% to bootstrap po ziarnach.
+
+- **Fala dochodzi w całości przy każdym składzie:** kompletność COP i VLO na końcu wynosi ok. 1. Składy różnią się **szybkością i przestrzeleniem**, a nie tym, ile ruchu dochodzi.
+- **Wyceniający sieciowi spowalniają drugie ogniwo:** czas półtrwania błędu VLO jest dłuższy o 0,13–0,24 sesji we wszystkich sześciu komórkach (obie reguły, $h$ = 0 / 0,2 / 0,4). Na COP, pierwszym ogniwie, różnica jest pomijalna: wyceniający sieciowi reagują na cenę COP na giełdzie, a krótkowzroczni bezpośrednio na ropę.
+- **Trendowi dodają przestrzelenie na obu ogniwach:** +2,5…4,8 p.p. w każdej komórce, w której da się je zmierzyć.
+
+Szczegóły: [przewodnik F5](guides/f5_graph_valuers.md), notatnik [`05_chain_wave.ipynb`](../notebooks/05_chain_wave.ipynb), rozdział 6.
+
 ---
 
 ### 4.6 F6 — pełna sieć na danych rzeczywistych

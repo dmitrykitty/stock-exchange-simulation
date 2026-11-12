@@ -166,7 +166,13 @@ function h(tag, attrs, ...children) {
 function fill(target, ...children) { target.replaceChildren(...children.map(c => c instanceof Node ? c : document.createTextNode(String(c)))); }
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const fmtUSD = ticks => ticks == null ? "–" : "$" + (ticks / 100).toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
-const fmtPct = v => v == null || !isFinite(v) ? "–" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1) + "%";
+// Values are log changes in percent (100 · ln ratio; colours use them as is); labels show the plain change, so a
+// fall of a stock to a tenth reads −90.0%, not −230%.
+const fmtPct = v => {
+  if (v == null || !isFinite(v)) return "–";
+  const p = 100 * Math.expm1(v / 100);
+  return (p > 0 ? "+" : p < 0 ? "−" : "") + Math.abs(p).toFixed(1) + "%";
+};
 const lnPct = (a, b) => a == null || b == null || a <= 0 || b <= 0 ? null : 100 * Math.log(a / b);
 const tickerIndex = Object.fromEntries(A.map((a, i) => [a.ticker, i]));
 let idx = 0, sel = 0, playing = false, mode = "start", showReal = false, tNow = T[0], lastFrame = null;

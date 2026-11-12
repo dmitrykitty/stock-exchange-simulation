@@ -22,7 +22,7 @@ def test_diagnostics_exclude_warmup_and_weight_empty_time():
         "best_ask": [2, 10100, 10100, 9100], "depth5_bid": [1, 20, 0, 10],
         "depth5_ask": [1, 30, 30, 10],
     })
-    trades = pd.DataFrame({"t": [0.5, 1.5], "qty": [1000, 3]})
+    trades = pd.DataFrame({"t": [0.5, 1.5], "qty": [1000, 3], "taker_side": [1, -1]})
     orders = pd.DataFrame({"t": [0.5, 1.5], "qty": [1000, 10], "filled_qty": [1000, 3]})
     valuations = pd.DataFrame({"t": [0, 1, 2, 3], "v_mean": [10000.0] * 4})
     log = RunLog(paths.PROJECT_ROOT, {
@@ -34,7 +34,8 @@ def test_diagnostics_exclude_warmup_and_weight_empty_time():
     assert row["max_drawdown"] == pytest.approx(0.1)
     assert row["execution_rate"] == pytest.approx(0.3)
     assert row["trade_count"] == 1 and row["traded_shares"] == 3
-    assert row["relative_valuation_error"] == pytest.approx(0.05)
+    assert row["valuation_error"] == pytest.approx(0.05)  # D1 metric names (marketsim.metrics.stability)
+    assert {"quote_impact", "volatility", "volatility_session"} <= set(row)
 
 
 def test_small_grid_runs_and_writes_summary_with_overrides(tmp_path):
@@ -69,7 +70,7 @@ def test_participation_counts_exclude_warmup_and_market_makers():
         "book": pd.DataFrame({"t": [0, 1, 2], "best_bid": [9995] * 3, "best_ask": [10005] * 3,
                               "depth5_bid": [10] * 3, "depth5_ask": [10] * 3}),
         "valuations": pd.DataFrame({"t": [0, 1, 2], "v_mean": [10000.0] * 3}),
-        "trades": pd.DataFrame({"t": [], "qty": []}),
+        "trades": pd.DataFrame({"t": [], "qty": [], "taker_side": []}),
         "orders": pd.DataFrame({"t": [0.5, 1.1, 1.2, 1.3, 1.4], "agent": [2, 0, 1, 1, 3],
                                 "qty": [1] * 5, "filled_qty": [0] * 5}),
     })
@@ -93,7 +94,7 @@ def test_empty_time_includes_interval_straddling_warmup():
         "run_id": "off_grid", "seed": 1, "wall_time_s": 0,
         "config": {"warmup_sessions": 1, "n_sessions": 2},
     }, {"book": book, "valuations": pd.DataFrame({"t": [0, 1.2], "v_mean": [10000.0, 10000.0]}),
-        "trades": pd.DataFrame({"t": [], "qty": []}),
+        "trades": pd.DataFrame({"t": [], "qty": [], "taker_side": []}),
         "orders": pd.DataFrame({"t": [], "qty": [], "filled_qty": []})})
     assert diagnose_run(log)["empty_side_fraction"] == pytest.approx(0.2)
 

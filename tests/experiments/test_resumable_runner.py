@@ -168,3 +168,68 @@ def test_run_id_matches_the_directory_written_by_run(tmp_path):
     for config, seed in ((graph, 5), (single.config, single.seed)):
         expected = run_id(config, seed)
         assert run(config, seed, tmp_path / "runs").name == expected
+
+
+def _two_key_grid(tmp_path, keys, name="two_keys"):
+    values = {"agents.herding.h": [0.0, 0.6], "agents.trend": [1, 2]}
+    config = {
+        "base": {
+            "name": name, "exchange_backend": "python", "graph": "single_asset", "external": "flat",
+            "use_market_index": False, "n_sessions": 2, "warmup_sessions": 0, "sample_dt": 0.1,
+            "agents": {"valuers": 4, "trend": 2, "noise": 2, "n_funds": 1, "herding": {"h": 0.0}},
+        }, "seeds": [31], "grid": {key: values[key] for key in keys},
+    }
+    path = tmp_path / f"{name}_{'_'.join(k.split('.')[-1] for k in keys)}.yaml"
+    path.write_text(yaml.safe_dump(config, sort_keys=False))
+    return path
+
+
+@pytest.mark.parametrize("workers", [1, 2])
+def test_repeated_run_ids_are_refused_before_anything_runs(tmp_path, workers, simulations):
+    out = tmp_path / "runs"
+    with pytest.raises(ValueError, match="share run_ids"):
+        run_experiment(_grid(tmp_path, seeds=(19, 19)), out, workers=workers)
+    assert not simulations and not out.exists()
+    with pytest.raises(ValueError, match="share run_ids"):
+        run_experiment(_grid(tmp_path, seeds=(19, 19)), out, shard=(1, 2))
+
+
+def test_a_reordered_grid_cannot_resume_or_merge_shards(tmp_path, simulations):
+    first = _two_key_grid(tmp_path, ["agents.herding.h", "agents.trend"])
+    swapped = _two_key_grid(tmp_path, ["agents.trend", "agents.herding.h"])
+    assert [spec.seed for spec in expand(load_config(first))] == [spec.seed for spec in expand(load_config(swapped))]
+    out = tmp_path / "resume"
+    run_experiment(first, out, limit=1)
+    with pytest.raises(ValueError, match="different order"):
+        run_experiment(swapped, out)
+    # Shards cut on two machines from differently ordered grids are caught when they are merged.
+    run_experiment(first, tmp_path / "s1", shard=(1, 2))
+    run_experiment(swapped, tmp_path / "s2", shard=(2, 2))
+    merged = tmp_path / "merged"
+    for part in ("s1", "s2"):
+        shutil.copytree(tmp_path / part, merged, dirs_exist_ok=True)
+    with pytest.raises(ValueError, match="different order"):
+        run_experiment(first, merged)
+    with pytest.raises(ValueError, match="different order"):
+        run_experiment(swapped, merged)
+
+
+def test_manifest_and_summary_are_replaced_atomically(tmp_path, monkeypatch):
+    path, out = _grid(tmp_path), tmp_path / "runs"
+    run_experiment(path, out, limit=1)
+    manifest = (out / "experiment.json").read_text()
+    summary = (out / "summary.csv").read_text()
+
+    def interrupted(*args, **kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(runner.os, "replace", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        run_experiment(path, out, limit=2)
+    assert (out / "experiment.json").read_text() == manifest
+    assert (out / "summary.csv").read_text() == summary
+    assert not [p.name for p in out.iterdir() if p.name.endswith(".tmp")]
+    monkeypatch.undo()
+    (out / "experiment.json").write_text('{"config": ')
+    with pytest.raises(ValueError, match="not valid JSON"):
+        run_experiment(path, out)

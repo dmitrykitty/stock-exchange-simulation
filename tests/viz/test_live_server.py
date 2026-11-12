@@ -79,7 +79,8 @@ def test_page_streams_frames_takes_controls_and_writes_the_log(server):
     assert times == sorted(times) and len(times) > 20
     log = load_run(state["status"]["log"])
     assert sorted(log.meta["controls"], key=lambda c: c["kind"]) == [herd, oil["control"]]
-    assert log.meta["config"]["n_sessions"] == log.meta["live"]["stopped_at_session"] < 40
+    # At speed 0 a fast machine may reach the end before Stop arrives; either way the logged config ends there.
+    assert log.meta["config"]["n_sessions"] == log.meta["live"]["stopped_at_session"] <= 40
     kinds = log["events"]["kind"].tolist()
     assert kinds.count("shock_external") == 1 and kinds.count("set_herding") == 1
 

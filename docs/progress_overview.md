@@ -38,7 +38,8 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
 4. **W sprawdzonych konfiguracjach zachowania stadne destabilizowały rynek dopiero wtedy, gdy były silne i dotyczyły większości.**
    - Na rynku jednego aktywa silne naśladowanie ($h = 0{,}6$) zwiększa maksymalne obsunięcie z 0,37% do 9,4% przy starej regule zleceń i z 0,39% do 3,6% z pozycją docelową; efekt jest w obu przypadkach wyraźny (przedziały powyżej zera), ale z pozycją docelową 3–5 razy mniejszy (rozdz. 4.4, wykres 8b).
    - Na łańcuchu ze wstrząsem ropy błąd wyceny rośnie razem z $h$. W składach `mixed` i `trend` (tylko te liczyliśmy przy $h \ge 0{,}6$) rynek załamuje się w 20–30% przebiegów dopiero przy $h = 0{,}8$.
-   - Na pełnej sieci (E5, 270 przebiegów na sygnałach 2024–2025) składy z wyceniającymi nie załamały się ani razu przy $h \le 0{,}4$; skład trendowy z naśladowaniem ($h \ge 0{,}2$) w 6 z 60 przebiegów spycha jedną spółkę poniżej połowy jej wartości referencyjnej w kwietniu 2025 r. (rozdz. 4.6, wykres 13).
+   - Na pełnej sieci (E5, 270 przebiegów, porównanie parami na tych samych ziarnach) naśladowanie w każdym składzie spowalnia rynek i oddala go od grafu, a wyceniający sieciowi opóźniają tylko drugie ogniwo łańcucha (rozdz. 4.6, wykres 13b).
+   - Na pełnej sieci składy z wyceniającymi nie załamały się ani razu przy $h \le 0{,}4$; skład trendowy z naśladowaniem ($h \ge 0{,}2$) w 6 z 60 przebiegów spycha jedną spółkę poniżej połowy jej wartości referencyjnej w kwietniu 2025 r. (rozdz. 4.6, wykres 13).
    - Na łańcuchu (skład `mixed`, stara reguła zleceń) rynek, w którym silnie naśladowała połowa inwestorów, zachował się jak przy tej samej średniej sile naśladowania (rozdz. 4.4–4.5).
 5. **Znaleźliśmy i naprawiliśmy dwa błędy modelu, które zmieniały wyniki.** Pierwszy: zaokrąglanie wielkości zlecenia w dół wyłączało drobnych inwestorów z handlu (F4). Drugi: reguła „kupuj przy każdej decyzji, dopóki sygnał dodatni” dawała ceny z inercją, której nie ma na prawdziwym rynku (autokorelacja +0,59 zamiast −0,05). Teraz inwestor ma pozycję docelową. Po tej zmianie powtórzyliśmy eksperyment E4. Okazało się, że większość załamań na łańcuchu była skutkiem starej reguły, a nie samego naśladowania (rozdz. 4.4–4.6).
 6. **Porównanie z rzeczywistością (2024–2025) robimy uczciwie:** w trakcie przebiegu symulacja nie widzi żadnej prawdziwej ceny akcji, codziennie dostaje tylko pięć szeregów zewnętrznych (cztery surowce i S&P 500). Prawdziwe ceny akcji wchodzą raz, jako stan początkowy z 2 stycznia 2024 r. Każdą miarę zgodności dla $R$ sprawdzamy na 200 losowych grafach, a symulacje porównujemy z kontrolami na tych samych ziarnach: dwoma losowymi grafami i płaskimi wejściami. Miara, którą kontrola przechodzi równie dobrze, niczego nie dowodzi. Parametry symulacji dobieraliśmy na tych samych 502 sesjach, więc miary rynkowe to wyniki kalibracji, a nie niezależna walidacja (rozdz. 4.7).
@@ -104,7 +105,7 @@ Dla porównania liczymy **trajektorię referencyjną** $R$: ceny, jakie byłyby,
 |---|---|---|---|
 | P1 | Jak zachowania stadne wpływają na obsunięcia cen i płynność? | 1 aktywo (F4) | **wyniki są** (rozdz. 4.4) |
 | P2 | Jak koncentracja kapitału w funduszach wpływa na stabilność? | 1 aktywo (F4) | **wyniki są** (rozdz. 4.4) |
-| **P5** | **Jak strategie i zachowania stadne zmieniają propagację szoku w grafie?** | łańcuch (F5), pełna sieć (F6–F7) | **wyniki:** E4 na łańcuchu, pełny E5 na pełnej sieci (270 przebiegów) |
+| **P5** | **Jak strategie i zachowania stadne zmieniają propagację szoku w grafie?** | łańcuch (F5), pełna sieć (F6–F7) | **odpowiedź z przedziałami ufności:** E4 na łańcuchu, pełny E5 na pełnej sieci (270 przebiegów, rozdz. 4.6, wykres 13b) |
 | **P6** | **Czy powstaje współruch spółek niepowiązanych w grafie i dlaczego?** | pełna sieć (F7, eksperyment E6) | mechanizmy gotowe (wspólny portfel, rebalansowanie, limity ryzyka), eksperyment przed nami |
 | P7 | Ilu agentów „znających graf” potrzeba, by fala przechodziła? | eksploracyjnie (F7) | wstępnie: bez wyceniających sieciowych fala nie przechodzi dalej niż o jedno ogniwo |
 
@@ -200,7 +201,7 @@ Projekt jest podzielony na fazy F0–F10. Każda ma właściciela, opis w [`docs
 | F4 | Rynek jednego aktywa, eksperymenty E1–E3 (P1, P2) | ✅ gotowe; E1–E3 policzone też z pozycją docelową, podsumowania liczone metrykami D1 (PR #23) |
 | F5 | Wyceniający według grafu na łańcuchu ropa → COP → VLO → DAL, eksperyment E4 | ✅ gotowe; E4 powtórzony z pozycją docelową (PR #20) |
 | F6 | Pełna sieć 18 spółek na rzeczywistych sygnałach 2024–2025 (kamień milowy M3) | ✅ gotowe (PR #15); kamień milowy M3 spełniony na pełnym E5 |
-| F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | 🟡 pełny E5 policzony (270 przebiegów), E6 i E7 przed nami |
+| F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | 🟡 pełny E5 policzony (270 przebiegów) z odpowiedzią na P5; E6 i E7 przed nami |
 | F8 | Walidacja na danych 2024–2025 | 🟡 pierwsze testy w notatniku, moduł przed nami |
 | F9 | Wizualizacja: odtwarzanie przebiegu, tryb na żywo | ✅ odtwarzanie (PR #18) i tryb na żywo (PR #21) gotowe; porównanie eksperymentów przed nami |
 | F10 | Raport końcowy i obrona | ⬜ |
@@ -890,6 +891,23 @@ Miary fali policzone funkcjami Marty (`marketsim.metrics.wave_metrics`, mediana 
 - Pieniądze i akcje są zachowane także w przebiegach z załamaniem. Wzmacniające działanie animatorów to ograniczenie modelu, które chcemy jeszcze poprawić.
 - We wszystkich 270 przebiegach pieniądze i akcje są zachowane, a `check_invariants` przechodzi. Pełny E5 trwał 2 h 45 min na 10 procesach (30 GB logów).
 
+#### Wykres 13b. Odpowiedź na P5: co zmienia skład inwestorów i naśladowanie
+
+![P5 na E5](figures/f7_p5_contrasts.png)
+
+**Co przedstawia.** Formalne porównanie 9 komórek E5 ([notatnik](../notebooks/07_e5_propagation.ipynb), [przewodnik F7](guides/f7_experiments.md), po rosyjsku). Dla każdego przebiegu liczymy miary szybkości (jaka część ruchu $R$ dochodzi do ceny tego samego i następnego dnia, także osobno dla spółek 1, 2 i 3 ogniwa od ropy; opóźnienie i wzmocnienie zmienności funkcjami Marty `wave_metrics`), zgodności z $R$ i stabilności. Komórki porównujemy **parami na tych samych ziarnach**, przedział 95% to bootstrap po ziarnach; przy 12 porównaniach na miarę sprawdzamy też poprawkę Bonferroniego. Przebiegi z załamaniem nie wchodzą do porównań, ich częstość podajemy osobno.
+- **Lewy panel:** różnica „sieciowy − mieszany” w części ruchu dochodzącej następnego dnia, według odległości od ropy.
+- **Środkowy i prawy:** średnie komórek z przedziałem 95% (30 ziaren).
+
+**Co widać.**
+- **Wyceniający sieciowi opóźniają tylko drugie ogniwo.** Rafinerie (VLO, MPC) dostają następnego dnia o 0,09–0,16 ruchu więcej niż w składzie mieszanym; producenci ropy, linie lotnicze i przewoźnik — bez różnicy. To ten sam wynik co w E4 na łańcuchu, teraz na prawdziwym grafie i prawdziwych szokach: wyceniający sieciowy liczy cenę rafinerii z giełdowej ceny COP, która sama jeszcze się porusza.
+- **Trendowi zmieniają wszystko:** mniej ruchu tego samego dnia (−0,11…−0,14), więcej następnego (+0,19…+0,21), wzmocnienie zmienności +0,20…+0,26, zgodność z $R$ −0,15…−0,18, o 129–220 więcej dni z dużym odchyleniem i inercja cen (+0,19…+0,23).
+- **Naśladowanie w każdym składzie spowalnia rynek i oddala go od grafu**, rosnąco z $h$: przy $h = 0{,}4$ opóźnienie +0,13…+0,15 sesji, wzmocnienie zmienności +0,13…+0,19, zgodność z $R$ −0,12…−0,14.
+- **Skład decyduje, jak bardzo szkodzi naśladowanie:** w składzie trendowym przy $h = 0{,}4$ dodaje ono o 93 [72; 115] dni z dużym odchyleniem więcej niż w mieszanym.
+- **Załamania:** 6 z 60 przebiegów składu trendowego z naśladowaniem (przedział 95%: 4,7–20%), 0 z pozostałych 210 (0–1,8%); dokładny test Fishera $p \approx 10^{-4}$.
+
+**Odpowiedź na P5.** Szok zawsze przechodzi przez cały łańcuch; inwestorzy zmieniają to, **jak szybko i jak czysto** przechodzi. Wyceniający sieciowi opóźniają drugie ogniwo, trendowi i naśladowanie spowalniają i wzmacniają każde ogniwo, a tylko ich połączenie załamuje rynek. Poziomy miar są wynikiem kalibracji; wynikiem badania są różnice między komórkami na tych samych ziarnach.
+
 #### Wykres 14. Cały przebieg 2024–2025 obok rzeczywistości
 
 ![Przebieg na prawdziwych sygnałach](figures/f6_real_run.png)
@@ -1078,7 +1096,7 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 
 | Kolejność | Faza | Co konkretnie | Efekt |
 |---|---|---|---|
-| 1 | F7 | zamrożenie protokołu (metryki, ziarna, reguła wyboru przebiegów); E6: czy szok ropy „przeskakuje” na JPM i spółki spoza łańcucha i którym kanałem (wspólny portfel, rebalansowanie, limity ryzyka, naśladowanie); E7: udział wyceniających sieciowych {0; 25%; 50%}; ablacje | odpowiedzi na P5, P6, P7 z przedziałami ufności |
+| 1 | F7 | zamrożenie protokołu (metryki, ziarna, reguła wyboru przebiegów); E6: czy szok ropy „przeskakuje” na JPM i spółki spoza łańcucha i którym kanałem (wspólny portfel, rebalansowanie, limity ryzyka, naśladowanie); E7: udział wyceniających sieciowych {0; 25%; 50%}; ablacje | odpowiedzi na P6 i P7 z przedziałami ufności (P5 już jest) |
 | 2 | F8 | przeniesienie testów z notatnika do modułu `validation/`; fakty stylizowane **bez sygnałów zewnętrznych**; odtworzenie grafu z cen symulowanych; pasma 90% z wielu przebiegów | rozdział „Walidacja” raportu |
 | 3 | F9 | porównanie eksperymentów (mapy cieplne, wykresy pudełkowe); tryb **na żywo** (przyciski „ropa ±30%”, „wiadomość o spółce”, suwak $h$) jest już gotowy (PR #21) | demonstracja na obronie |
 | 4 | F10 | raport końcowy po polsku, prezentacja | — |
@@ -1098,10 +1116,10 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 | Plan całości i fazy F0–F10 | [`docs/plans/overall_plan.md`](plans/overall_plan.md), [`docs/plans/phases/`](plans/phases/) |
 | Dane: pliki, jednostki, decyzje | [`data/README.md`](../data/README.md) |
 | Graf `real_v1`: krawędzie, przegląd kandydatów | [`data/graph/real_v1/`](../data/graph/real_v1/) |
-| Przewodniki techniczne (po rosyjsku) | [F4](guides/f4_simulation.md), [F5](guides/f5_graph_valuers.md), [F6](guides/f6_full_network.md), [F9](guides/f9_visualization.md) |
-| Notatniki | [`01_data_overview`](../notebooks/01_data_overview.ipynb) (wykresy 1–4), [`02_graph`](../notebooks/02_graph.ipynb), [`03_experiments`](../notebooks/03_experiments.ipynb) (wykresy 8, 8b), [`05_chain_wave`](../notebooks/05_chain_wave.ipynb) (wykresy 9–10), [`06_full_network_wave`](../notebooks/06_full_network_wave.ipynb) i [`06_real_checks`](../notebooks/06_real_checks.ipynb) (wykresy 12, 15–18) |
+| Przewodniki techniczne (po rosyjsku) | [F4](guides/f4_simulation.md), [F5](guides/f5_graph_valuers.md), [F6](guides/f6_full_network.md), [F7](guides/f7_experiments.md), [F9](guides/f9_visualization.md) |
+| Notatniki | [`01_data_overview`](../notebooks/01_data_overview.ipynb) (wykresy 1–4), [`02_graph`](../notebooks/02_graph.ipynb), [`03_experiments`](../notebooks/03_experiments.ipynb) (wykresy 8, 8b), [`05_chain_wave`](../notebooks/05_chain_wave.ipynb) (wykresy 9–10), [`06_full_network_wave`](../notebooks/06_full_network_wave.ipynb) i [`06_real_checks`](../notebooks/06_real_checks.ipynb) (wykresy 12, 15–18), [`07_e5_propagation`](../notebooks/07_e5_propagation.ipynb) (wykres 13b) |
 | Kod | dane [`src/marketsim/data/`](../src/marketsim/data/), graf [`graph/`](../src/marketsim/graph/), giełda [`cpp/`](../cpp/) i [`market/`](../src/marketsim/market/), symulacja [`sim/`](../src/marketsim/sim/) i [`agents/`](../src/marketsim/agents/), metryki [`metrics/`](../src/marketsim/metrics/), wizualizacja [`viz/`](../src/marketsim/viz/) |
-| Testy | [`tests/`](../tests/) — ponad 240 testów, w tym testy kontraktów i porównanie Python = C++ |
+| Testy | [`tests/`](../tests/) — ponad 330 testów, w tym testy kontraktów i porównanie Python = C++ |
 
 **Jak odtworzyć wyniki:**
 
@@ -1112,6 +1130,7 @@ python -m marketsim.data.clean
 python -m marketsim.data.check --strict
 python -m marketsim.experiments.run configs/f4_e1.yaml --out runs/f4/e1 --workers 8
 python -m marketsim.experiments.run configs/f5_e4.yaml --out runs/f5/e4 --workers 8
+python -m marketsim.experiments.run configs/f6_e5.yaml --out runs/f6/v1/e5 --workers 10
 python -m marketsim.viz.replay runs/f5/e4/<przebieg> -o replay.html
 ```
 

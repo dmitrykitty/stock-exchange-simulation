@@ -88,3 +88,79 @@ def test_page_template_takes_the_replay_styles():
     page = render_page()
     assert "--node-up" in page and 'prefers-color-scheme: dark' in page
     assert "/api/control" in page and "shock_valuation" in page and "set_herding" in page
+
+
+def raw(server, path, body, headers):
+    request = urllib.request.Request(server.url.rstrip("/") + path, body, headers, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            return response.status, json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        return error.code, json.loads(error.read())
+
+
+def test_other_sites_and_malformed_requests_are_refused(server):
+    hub = server.hub
+    queued = []
+    original = hub.command
+    hub.command = lambda command: (queued.append(command), original(command))[1]
+    body = json.dumps({"kind": "set_herding", "params": {"h": 0.9}}).encode()
+    host = server.url.split("//", 1)[1].rstrip("/")
+    # A page on another site: simple text/plain request, or JSON with its own Origin.
+    assert raw(server, "/api/control", body, {"Content-Type": "text/plain", "Origin": "http://evil.example"})[0] == 403
+    assert raw(server, "/api/control", body, {"Content-Type": "text/plain"})[0] == 415
+    assert raw(server, "/api/speed", b'{"value": 0}', {"Content-Type": "application/json",
+                                                       "Origin": "http://evil.example"})[0] == 403
+    assert raw(server, "/api/stop", b"{}", {"Content-Type": "application/json", "Host": "evil.example"})[0] == 403
+    assert raw(server, "/api/control", b"x" * 5000, {"Content-Type": "application/json"})[0] == 413
+    json_headers = {"Content-Type": "application/json", "Origin": f"http://{host}"}
+    for bad in (b"[]", b'{"kind": "set_herding", "params": 4}', b'{"kind": "set_herding", "params": {"h": "x"}}',
+                b'{"kind": "shock_external", "params": {"node": 1, "change": 0.1}}', b'"text"', b"{bad"):
+        status, reply = raw(server, "/api/control", bad, json_headers)
+        assert status == 400 and reply["error"], bad
+    for bad in (b'{"value": "Infinity"}', b'{"value": Infinity}', b'{"value": 1e309}', b'{"value": -1}', b"{}"):
+        assert raw(server, "/api/speed", bad, json_headers)[0] == 400, bad
+    status, reply = raw(server, "/api/control", json.dumps(
+        {"kind": "shock_external", "params": {"node": "wti", "change": 1e308}}).encode(), json_headers)
+    assert status == 400 and "factor" in reply["error"]
+    assert not queued, "nothing reached the simulation"
+    state = json.loads(get(server, "/api/state"))  # still serializable
+    assert state["status"]["error"] is None and not state["controls"]
+
+
+def test_ctrl_c_in_the_terminal_writes_the_log(tmp_path):
+    import os
+    import signal
+    import subprocess
+    import sys
+
+    import yaml
+
+    config = tmp_path / "live.yaml"
+    from dataclasses import asdict
+
+    config.write_text(yaml.safe_dump({"base": asdict(CONFIG), "seeds": [3], "grid": {}}))
+    # As in a terminal, Ctrl+C raises KeyboardInterrupt in the server (a test runner may start children with SIGINT
+    # ignored); the simulation process it spawns gets the server's own protection only.
+    launcher = ("import runpy, signal, sys; signal.signal(signal.SIGINT, signal.default_int_handler); "
+                "sys.argv = ['live'] + sys.argv[1:]; runpy.run_module('marketsim.viz.live', run_name='__main__')")
+    process = subprocess.Popen(
+        [sys.executable, "-c", launcher, "--config", str(config), "--port", "0", "--no-browser",
+         "--out", str(tmp_path / "out"), "--sessions", "6"],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
+    try:
+        lines = []
+        for line in process.stdout:  # wait until the server and the simulation process are up
+            lines.append(line)
+            if "live: open" in line:
+                break
+        time.sleep(3)
+        os.killpg(process.pid, signal.SIGINT)  # what Ctrl+C does: the whole process group
+        out, _ = process.communicate(timeout=120)
+    finally:
+        if process.poll() is None:
+            process.kill()
+    text = "".join(lines) + out
+    assert "run log written to" in text, text
+    logs = list((tmp_path / "out").iterdir())
+    assert len(logs) == 1 and load_run(logs[0]).meta["live"]["stopped_at_session"] >= 1

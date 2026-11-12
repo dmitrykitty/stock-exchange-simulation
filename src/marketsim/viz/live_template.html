@@ -113,6 +113,15 @@ button.down { border-color: var(--down) !important; color: var(--down) !importan
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
+// Elements with text from the run as text nodes, never as markup: h("b", {}, "COP", " · x") -> <b>COP · x</b>.
+function h(tag, attrs, ...children) {
+  const e = document.createElement(tag);
+  for (const k in attrs || {}) k === "className" ? (e.className = attrs[k]) : e.setAttribute(k, attrs[k]);
+  for (const c of children) if (c != null) e.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  return e;
+}
+function fill(target, ...children) { target.replaceChildren(...children.map(c => c instanceof Node ? c : document.createTextNode(String(c)))); }
+const sameControl = (a, b) => a.t === b.t && a.kind === b.kind && JSON.stringify(a) === JSON.stringify(b);
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const fmtUSD = ticks => ticks == null ? "–" : "$" + (ticks / 100).toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
 const fmtPct = v => v == null || !isFinite(v) ? "–" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1) + "%";
@@ -121,14 +130,14 @@ const SHORT = {wti: "Oil", henry_hub: "Gas", copper: "Copper", gold: "Gold", sp5
 const CONFIG = {displaylogo: false, responsive: true, displayModeBar: false};
 const usd = arr => arr.map(v => v == null ? null : v / 100);
 
-let S = null, A = [], T = [], EXT = [], EXTS = [], H = [], controls = [], status = {}, tickerIndex = {};
+let S = null, A = [], T = [], EXT = [], EXTS = [], H = [], controls = [], applied = [], status = {}, tickerIndex = {};
 let sel = 0, mode = "start", nodes = [], nodeIndex = {}, graphEdges = [], indexChildren = new Set();
 let svgNodes = [], svgEdges = [], recent = null, dirty = false, lastCharts = 0, lastMinis = 0, pace = [];
 
 // ----- data ---------------------------------------------------------------------------------------------------
 function search(t) { let lo = 0, hi = T.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (T[m] <= t) lo = m; else hi = m - 1; } return Math.max(0, lo); }
 function init(m) {
-  S = m.static; status = m.status || {}; controls = [];
+  S = m.static; status = m.status || {}; controls = []; applied = (m.applied || []).slice();
   tickerIndex = Object.fromEntries(S.assets.map((a, i) => [a.ticker, i]));
   A = S.assets.map(a => ({...a, price: [], ref: [], vmean: [], bid: [], ask: [], db: [], da: [], cd: [], sp: [], sr: []}));
   T = []; EXT = S.externals.names.map(() => []); EXTS = S.externals.names.map(() => []); H = []; pace = [];
@@ -164,9 +173,9 @@ const sessionNow = () => Math.min(S.n_sessions - 1, Math.floor(T[last()] + 1e-9)
 
 // ----- header and status ------------------------------------------------------------------------------------
 function header() {
-  const parts = [`<b>${S.name}</b>`, `graph <b>${S.graph}</b>`, `signals <b>${S.scenario}</b>`, `${S.n_sessions} sessions`,
-    `investors: <b>${S.composition}</b> mix (${S.investors}, ${S.followers} follow their neighbours)`, `seed ${S.seed}`, `${S.backend} exchange`];
-  $("meta").innerHTML = parts.join(" · ");
+  const parts = [[h("b", {}, S.name)], ["graph ", h("b", {}, S.graph)], ["signals ", h("b", {}, S.scenario)], [`${S.n_sessions} sessions`],
+    ["investors: ", h("b", {}, S.composition), ` mix (${S.investors}, ${S.followers} follow their neighbours)`], [`seed ${S.seed}`], [`${S.backend} exchange`]];
+  fill($("meta"), ...parts.flatMap((p, k) => k ? [" · ", ...p] : p));
   $("foot").textContent = "Frames come from the running simulation (book tops, trades, mean valuations, R, external levels) after every sampling step of " + S.sample_dt + " session.";
 }
 function showStatus() {
@@ -178,7 +187,8 @@ function showStatus() {
     if (!["mode-start", "mode-ref"].includes(e.id)) e.disabled = !!(done || err);
   });
   if (status.speed != null) $("speed").value = String(status.speed);
-  $("logpath").innerHTML = status.log ? `Run log written to <code>${status.log}</code>; <code>python -m marketsim.viz.replay ${status.log}</code> makes its replay page.` : "";
+  if (status.log) fill($("logpath"), "Run log written to ", h("code", {}, status.log), "; ", h("code", {}, `python -m marketsim.viz.replay ${status.log}`), " makes its replay page.");
+  else fill($("logpath"));
   if (err) say(err, true);
 }
 function say(text, error) { const m = $("msg"); m.textContent = text; m.className = error ? "err" : ""; }
@@ -200,7 +210,7 @@ function describe(c) {
 async function sendControl(kind, params) {
   try {
     const {control} = await post("/api/control", {kind, params});
-    if (!controls.some(c => c.t === control.t && c.kind === control.kind && JSON.stringify(c) === JSON.stringify(control))) controls.push(control);
+    if (!controls.some(c => sameControl(c, control))) controls.push(control);
     say(`Scheduled at t = ${control.t.toFixed(2)}: ${describe(control)}`); drawLog(); dirty = true;
   } catch (e) { say(e.message, true); }
 }
@@ -332,16 +342,18 @@ function updateGraph() {
 }
 function showTip(j, ev) {
   const n = nodes[j], i = last(), tip = $("tip");
-  let h;
   if (n.kind === "external") {
     const v = EXT[extPos(n.id)];
-    h = `<b>${n.label}</b><br>${v ? v[i].toLocaleString("en-US", {maximumFractionDigits: 2}) : "–"} · ${fmtPct(extChange(n.id, i))} since start`;
+    fill(tip, h("b", {}, n.label), h("br"), `${v ? v[i].toLocaleString("en-US", {maximumFractionDigits: 2}) : "–"} · ${fmtPct(extChange(n.id, i))} since start`);
   } else {
     const a = A[tickerIndex[n.id]];
     const parents = S.edges.filter(e => e.child === n.id).map(e => `${e.parent} ${e.w != null ? e.w.toFixed(2) : "?"}${e.weak ? "*" : ""}`);
-    h = `<b>${n.id}</b> · ${a.name}${a.sector ? " · " + a.sector : ""}<br>price ${fmtUSD(a.price[i])} · R ${fmtUSD(a.ref[i])}<br>since start ${fmtPct(lnPct(a.price[i], a.start))} · gap to R ${fmtPct(lnPct(a.price[i], a.ref[i]))}<br><span style="color:var(--ink-2)">parents (weight): ${parents.join(", ") || "–"}</span>`;
+    fill(tip, h("b", {}, n.id), ` · ${a.name}${a.sector ? " · " + a.sector : ""}`, h("br"),
+      `price ${fmtUSD(a.price[i])} · R ${fmtUSD(a.ref[i])}`, h("br"),
+      `since start ${fmtPct(lnPct(a.price[i], a.start))} · gap to R ${fmtPct(lnPct(a.price[i], a.ref[i]))}`, h("br"),
+      h("span", {style: "color:var(--ink-2)"}, `parents (weight): ${parents.join(", ") || "–"}`));
   }
-  tip.innerHTML = h; tip.style.display = "block";
+  tip.style.display = "block";
   const box = $("graph").getBoundingClientRect();
   let x = ev.clientX - box.left + 14, y = ev.clientY - box.top + 14;
   if (x + 300 > box.width) x = ev.clientX - box.left - 300;
@@ -442,7 +454,8 @@ function buildMinis() {
   const box = $("minis"); box.innerHTML = ""; miniDivs.length = 0;
   A.forEach((a, k) => {
     const m = document.createElement("div"); m.className = "mini" + (k === sel ? " sel" : ""); m.tabIndex = 0;
-    m.innerHTML = `<div class="t"><b>${a.ticker}</b><span>${a.sector}</span></div><div class="t"><span class="chg"></span><span class="gap"></span></div><div class="chart"></div>`;
+    m.append(h("div", {className: "t"}, h("b", {}, a.ticker), h("span", {}, a.sector)),
+      h("div", {className: "t"}, h("span", {className: "chg"}), h("span", {className: "gap"})), h("div", {className: "chart"}));
     m.onclick = () => selectAsset(k); m.onkeydown = e => { if (e.key === "Enter") selectAsset(k); };
     box.appendChild(m); miniDivs.push(m);
   });
@@ -486,12 +499,16 @@ function selectAsset(k) {
 
 // ----- per-frame update -------------------------------------------------------------------------------------
 function drawLog() {
-  const ul = $("ctl-log"), now = T.length ? T[last()] : 0;
+  // "applied" only when the simulation has confirmed it (the event boundary is exclusive, and a run stopped at
+  // the control's own time never applies it).
+  const ul = $("ctl-log");
   $("ctl-empty").hidden = controls.length > 0;
-  ul.innerHTML = controls.slice().reverse().map(c => {
-    const on = now >= c.t;
-    return `<li><span class="when">t = ${c.t.toFixed(2)}</span><span>${describe(c)}</span><span class="state ${on ? "on" : ""}">${on ? "applied" : "pending"}</span></li>`;
-  }).join("");
+  fill(ul, ...controls.slice().reverse().map(c => {
+    const on = applied.some(a => sameControl(a, c));
+    const word = on ? "applied" : status.done ? "not applied (run ended)" : "pending";
+    return h("li", {}, h("span", {className: "when"}, `t = ${c.t.toFixed(2)}`), h("span", {}, describe(c)),
+      h("span", {className: "state" + (on ? " on" : "")}, word));
+  }));
 }
 function stats() {
   const i = last(), a = A[sel];
@@ -538,9 +555,10 @@ function connect() {
     if (m.type === "error") { status.error = m.message; if (S) showStatus(); else { $("state").textContent = "error"; $("state").className = "pill err"; say(m.message, true); } return; }
     if (!S) return;
     if (m.type === "frame") { addFrame(m.frame); dirty = true; }
-    else if (m.type === "control") { if (!controls.some(c => JSON.stringify(c) === JSON.stringify(m.control))) controls.push(m.control); drawLog(); dirty = true; }
+    else if (m.type === "control") { if (!controls.some(c => sameControl(c, m.control))) controls.push(m.control); drawLog(); dirty = true; }
+    else if (m.type === "applied") { for (const c of m.controls) applied.push(c); drawLog(); dirty = true; }
     else if (m.type === "status") { status.paused = m.paused; status.done = m.done; showStatus(); }
-    else if (m.type === "end") { status.done = true; status.log = m.path; showStatus(); say(`Run finished at session ${m.session}; ${m.controls.length} control event(s) in the log.`); drawMinis(); drawCharts(); }
+    else if (m.type === "end") { status.done = true; status.log = m.path; showStatus(); drawLog(); say(`Run finished at session ${m.session}; ${m.controls.length} control event(s) in the log.`); drawMinis(); drawCharts(); }
   };
   es.onerror = () => { if (!status.done) { $("state").textContent = "reconnecting…"; $("state").className = "pill"; } };
 }

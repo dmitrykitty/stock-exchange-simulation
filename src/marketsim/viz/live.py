@@ -3,7 +3,7 @@
     python -m marketsim.viz.live                                  # configs/f9_live.yaml, seed 101
     python -m marketsim.viz.live --config configs/f6_e5_short.yaml --seed 3006 --speed 2
 
-The simulation process (``marketsim.sim.live.LiveSession``) takes one sampling step (``sample_dt``) at a time and
+The simulation process (``marketsim.sim.live.serve``) takes one sampling step (``sample_dt``) at a time and
 sends a frame after each: prices, best quotes, R, mean valuations, external levels, new trades. A local web
 server (standard library only) streams the frames to the page as server-sent events and passes the buttons
 back: an external shock (oil +-30%), a valuation shock to one company and a new herding strength h, which are
@@ -11,18 +11,24 @@ control events of the simulation written to its ``events`` table, and pause, res
 only decide how fast steps are taken and never change the result. At the configured end, or on Stop, the run
 log is written to ``runs/live/<run_id>``; ``python -m marketsim.viz.replay`` turns it into a replay page and
 ``marketsim.sim.live.run_with_controls`` reproduces it from ``meta.controls``.
+
+This module only serves pages: it receives plain-data messages (frames, control replies, applied controls) from the
+simulation process and never touches simulation objects. The server answers only requests for its own address
+(``Host``, ``Origin``) with a small JSON body, so another web page open in the browser cannot drive it.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import multiprocessing as mp
 import queue
+import signal
 import threading
 import time
 import webbrowser
-from dataclasses import asdict, replace
+from dataclasses import replace
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
@@ -31,84 +37,15 @@ from itertools import count
 from pathlib import Path
 
 from marketsim import paths
-from marketsim.experiments.config import ConfigError, RunConfig, load_config
+from marketsim.experiments.config import RunConfig, load_config
 from marketsim.viz import replay
 
 DEFAULT_CONFIG = paths.PROJECT_ROOT / "configs" / "f9_live.yaml"
 # Display speeds in sessions per second; 0 = as fast as the simulation goes.
 SPEEDS = (0.25, 0.5, 1, 2, 5, 10, 0)
-
-
-# ----- simulation process -------------------------------------------------------------------------------------
-def _worker(config: RunConfig, seed: int, out_dir: str, speed: float, commands: mp.Queue, out: mp.Queue) -> None:
-    """Runs in its own process: steps the simulation, paced by the wall clock, and obeys the page's commands."""
-    from marketsim.sim.live import LiveSession  # imported here: the server process never runs the simulation
-
-    try:
-        session = LiveSession(config, seed)
-    except Exception as exc:  # noqa: BLE001 - reported to the page and the terminal
-        out.put({"type": "error", "message": f"{type(exc).__name__}: {exc}"})
-        return
-    sim = session.sim
-    hs = sim.settings.herding
-    out.put({
-        "type": "ready", "assets": session.assets, "start": sim.start_ticks, "externals": session.external_names,
-        "n_sessions": config.n_sessions, "sample_dt": config.sample_dt, "seed": seed,
-        "config": asdict(config), "investors": sim.investors, "followers": len(sim.herd_followers),
-        "h": hs.h, "h_std": hs.h_std, "frame": session.frame(),
-    })
-    paused, interval, next_at = True, 0.0, time.perf_counter()
-
-    def set_speed(value: float) -> float:
-        return config.sample_dt / value if value > 0 else 0.0
-
-    interval = set_speed(speed)
-
-    def close() -> None:
-        session.stop()
-        out.put({"type": "frame", "frame": session.frame()})
-        try:
-            path = session.write(out_dir)
-            out.put({"type": "end", "path": str(path), "session": session.end, "controls": sim.applied_controls})
-        except Exception as exc:  # noqa: BLE001
-            out.put({"type": "error", "message": f"could not write the log: {exc}"})
-
-    while True:
-        running = not paused and not session.done
-        wait = max(0.0, next_at - time.perf_counter()) if running else 0.5
-        try:
-            command = commands.get(timeout=wait) if wait > 0 else commands.get_nowait()
-        except queue.Empty:
-            command = None
-        if command is not None:
-            name = command.get("cmd")
-            if name == "quit":
-                break
-            if name == "pause":
-                paused = True
-            elif name == "resume":
-                paused, next_at = False, time.perf_counter()
-            elif name == "speed":
-                interval = set_speed(float(command["value"]))
-                next_at = time.perf_counter()
-            elif name == "control":
-                try:
-                    control = session.control(command["kind"], **command.get("params", {}))
-                    out.put({"type": "control", "id": command.get("id"), "control": control})
-                except (ConfigError, TypeError) as exc:
-                    out.put({"type": "control_error", "id": command.get("id"), "message": str(exc)})
-            elif name == "stop" and not session.done:
-                close()
-            out.put({"type": "status", "paused": paused, "done": session.done})
-            continue
-        if not running:
-            continue
-        session.step()
-        out.put({"type": "frame", "frame": session.frame()})
-        if session.done:
-            close()
-            out.put({"type": "status", "paused": paused, "done": True})
-        next_at = max(next_at + interval, time.perf_counter()) if interval else time.perf_counter()
+MAX_SPEED = 1000.0
+MAX_BODY = 4096  # bytes of a POST body
+CONTROL_KEYS = {"shock_external": {"node", "change"}, "shock_valuation": {"asset", "change"}, "set_herding": {"h"}}
 
 
 # ----- hub in the server process ------------------------------------------------------------------------------
@@ -117,10 +54,12 @@ class Hub:
 
     def __init__(self, config: RunConfig, seed: int, out_dir: Path, speed: float = 1.0, autostart: bool = True):
         self.config, self.seed, self.speed, self.autostart = config, seed, speed, autostart
+        from marketsim.sim.live import serve  # the simulation process; this process never simulates
+
         context = mp.get_context("spawn")
         self._commands, self._out = context.Queue(), context.Queue()
         self._process = context.Process(
-            target=_worker, args=(config, seed, str(out_dir), speed, self._commands, self._out), daemon=True)
+            target=serve, args=(config, seed, str(out_dir), speed, self._commands, self._out), daemon=True)
         self._lock = threading.Lock()
         self._clients: list[queue.Queue] = []
         self._replies: dict[int, tuple[threading.Event, list]] = {}
@@ -128,13 +67,25 @@ class Hub:
         self.static: dict | None = None
         self.frames: list[dict] = []
         self.controls: list[dict] = []
+        self.applied: list[dict] = []  # confirmed by the simulation process, in the order applied
         self.status = {"paused": True, "done": False, "speed": speed, "log": None, "error": None}
         self.ready = threading.Event()
         self.ended = threading.Event()
         self._started_once = False
 
     def start(self) -> None:
-        self._process.start()
+        # Ctrl+C goes to the whole process group. The simulation process ignores it from its first instruction
+        # (an ignored signal stays ignored in a spawned child), so only this process reacts: it asks for a clean
+        # stop and the K3 log is written.
+        try:
+            previous = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        except ValueError:  # not the main thread (tests): nothing to protect
+            previous = None
+        try:
+            self._process.start()
+        finally:
+            if previous is not None:
+                signal.signal(signal.SIGINT, previous)
         threading.Thread(target=self._read, daemon=True).start()
 
     def close(self) -> None:
@@ -164,6 +115,8 @@ class Hub:
                     self.frames.append(message["frame"])
                 elif kind == "control":
                     self.controls.append(message["control"])
+                elif kind == "applied":
+                    self.applied.extend(message["controls"])
                 elif kind == "status":
                     self.status.update(paused=message["paused"], done=message["done"])
                 elif kind == "end":
@@ -201,12 +154,7 @@ class Hub:
     def _static(self, ready: dict) -> dict:
         """Everything the page needs once: graph layout, names, sectors, labels, start prices, settings."""
         assets, externals = ready["assets"], ready["externals"]
-        graph = replay.load_graph(self.config.graph)
-        if assets != graph.companies():
-            from marketsim.sim.api import _subgraph  # the same subset the simulation trades
-
-            graph = _subgraph(graph, tuple(assets))
-        nodes, edges = replay.graph_elements(graph)
+        nodes, edges = replay.graph_elements(replay.load_graph(self.config.graph), assets)
         try:
             names = replay.data_api.load_companies().set_index("ticker")["name"].to_dict()
         except FileNotFoundError:
@@ -225,7 +173,7 @@ class Hub:
 
     def snapshot(self) -> dict:
         return {"static": self.static, "frames": list(self.frames), "controls": list(self.controls),
-                "status": dict(self.status)}
+                "applied": list(self.applied), "status": dict(self.status)}
 
     # page side
     def subscribe(self) -> tuple[queue.Queue, dict | None]:
@@ -300,8 +248,19 @@ class _Handler(BaseHTTPRequestHandler):
     def _json(self, data: dict, status: int = 200) -> None:
         self._send(status, json.dumps(data, allow_nan=False).encode(), "application/json")
 
+    def _own_address(self) -> bool:
+        """Only requests for this server's own address: no DNS rebinding through ``Host``, no other page's
+        ``Origin``."""
+        allowed = self.server.origins
+        host = self.headers.get("Host", "")
+        origin = self.headers.get("Origin")
+        return host in {o.split("//", 1)[1] for o in allowed} and (origin is None or origin in allowed)
+
     def do_GET(self) -> None:
         hub = self.server.hub
+        if not self._own_address():
+            self._send(HTTPStatus.FORBIDDEN, b"forbidden", "text/plain")
+            return
         route = self.path.split("?", 1)[0]
         if route == "/":
             self._send(200, self.server.page, "text/html; charset=utf-8")
@@ -342,15 +301,37 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         hub = self.server.hub
+        # A cross-site form or text/plain request is a "simple" request that browsers send without asking; JSON
+        # needs a preflight, which this server never grants. Together with the Host/Origin check this keeps other
+        # pages out.
+        if not self._own_address():
+            self._json({"error": "forbidden"}, HTTPStatus.FORBIDDEN)
+            return
+        if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
+            self._json({"error": "send application/json"}, HTTPStatus.UNSUPPORTED_MEDIA_TYPE)
+            return
         try:
             length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = -1
+        if not 0 <= length <= MAX_BODY:
+            self._json({"error": f"body must be at most {MAX_BODY} bytes"}, HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+            return
+        try:
             body = json.loads(self.rfile.read(length) or b"{}")
-        except (ValueError, json.JSONDecodeError):
+        except (ValueError, UnicodeDecodeError):
             self._json({"error": "body must be JSON"}, HTTPStatus.BAD_REQUEST)
+            return
+        if not isinstance(body, dict):
+            self._json({"error": "body must be a JSON object"}, HTTPStatus.BAD_REQUEST)
             return
         route = self.path.split("?", 1)[0]
         if route == "/api/control":
-            reply = hub.control(str(body.get("kind")), dict(body.get("params") or {}))
+            problem = _control_problem(body)
+            if problem:
+                self._json({"error": problem}, HTTPStatus.BAD_REQUEST)
+                return
+            reply = hub.control(body["kind"], body["params"])
             if reply["type"] == "control":
                 self._json({"control": reply["control"]})
             else:
@@ -359,15 +340,30 @@ class _Handler(BaseHTTPRequestHandler):
             hub.command({"cmd": route.rsplit("/", 1)[1]})
             self._json({"ok": True})
         elif route == "/api/speed":
-            try:
-                value = float(body["value"])
-            except (KeyError, TypeError, ValueError):
-                self._json({"error": "speed needs a number"}, HTTPStatus.BAD_REQUEST)
+            value = body.get("value")
+            if type(value) not in (int, float) or not math.isfinite(value) or not 0 <= value <= MAX_SPEED:
+                self._json({"error": f"speed must be a number from 0 to {MAX_SPEED:g}"}, HTTPStatus.BAD_REQUEST)
                 return
-            hub.command({"cmd": "speed", "value": max(0.0, value)})
+            hub.command({"cmd": "speed", "value": float(value)})
             self._json({"ok": True})
         else:
             self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)
+
+
+def _control_problem(body: dict) -> str | None:
+    """Structure of a control request; ranges and the shock totals are checked by the simulation."""
+    kind, params = body.get("kind"), body.get("params")
+    if kind not in CONTROL_KEYS:
+        return f"kind must be one of {sorted(CONTROL_KEYS)}"
+    if not isinstance(params, dict) or set(params) != CONTROL_KEYS[kind]:
+        return f"{kind} needs params with exactly the keys {sorted(CONTROL_KEYS[kind])}"
+    for key, value in params.items():
+        if key in ("node", "asset"):
+            if type(value) is not str:
+                return f"{key} must be a string"
+        elif type(value) not in (int, float) or not math.isfinite(value):
+            return f"{key} must be a finite number"
+    return None
 
 
 class LiveServer(ThreadingHTTPServer):
@@ -377,6 +373,8 @@ class LiveServer(ThreadingHTTPServer):
         super().__init__((host, port), _Handler)
         self.hub = hub
         self.page = render_page().encode()
+        bound = self.server_address[1]
+        self.origins = {f"http://127.0.0.1:{bound}", f"http://localhost:{bound}"}
         self.closing = False
         self._plotly: bytes | None = None
 

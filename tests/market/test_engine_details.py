@@ -107,3 +107,14 @@ def test_malformed_order_reaches_the_exchange_and_reserves_nothing():
     report = gw.place(0, 0, BUY, -1, 100, GTC, now=0.0)
     assert report.status == Status.REJECTED_INVALID and report.order_id == 1
     assert gw.portfolio(0).cash_reserved == 0
+
+
+def test_empty_drains_cannot_change_each_other():
+    from marketsim.market.api import FILL_DTYPE
+
+    gw = Gateway(PyExchange(1), np.array([1_000, 1_000], dtype=np.int64), np.array([[10], [10]], dtype=np.int64))
+    first = gw.drain_fills()
+    assert len(first) == 0 and not first.flags.writeable
+    first.dtype = np.dtype("u1")  # allowed on an empty array, even a read-only one
+    second = gw.drain_fills()
+    assert second.dtype == FILL_DTYPE and len(second) == 0

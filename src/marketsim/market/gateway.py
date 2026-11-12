@@ -180,7 +180,8 @@ class Gateway:
     def drain_fills(self) -> np.ndarray:
         pending = self._pending_fills
         if not pending:
-            return _NO_FILLS
+            # A fresh read-only view: changing its dtype or shape cannot reach the shared empty array.
+            return _NO_FILLS[:]
         self._pending_fills = []
         return pending[0] if len(pending) == 1 else np.concatenate(pending)
 

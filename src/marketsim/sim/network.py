@@ -338,11 +338,13 @@ class NetworkSimulation:
         return r
 
     def _wealth(self, portfolio) -> int:
-        holdings = portfolio.shares_available + portfolio.shares_reserved
-        # Zero holdings add nothing, so only held assets are priced.
-        return portfolio.cash_available + portfolio.cash_reserved + sum(
-            int(holdings[j]) * self._price(j) for j in np.flatnonzero(holdings)
-        )
+        wealth = portfolio.cash_available + portfolio.cash_reserved
+        # Python integers, exact; zero holdings add nothing, so only held assets are priced.
+        for j, (available, reserved) in enumerate(zip(portfolio.shares_available.tolist(),
+                                                      portfolio.shares_reserved.tolist())):
+            if available or reserved:
+                wealth += (available + reserved) * self._price(j)
+        return wealth
 
     def _derisking(self, agent: int, now: float) -> bool:
         """Risk limit (F6): True while the agent is selling after a drawdown beyond ``risk_limit``."""

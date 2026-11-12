@@ -206,17 +206,24 @@ def build_payload(run_dir: str | Path, real_prices: bool = True, max_samples: in
         "nodes": [], "edges": [],
     }
     if graph:
-        positions = _layout(graph)
-        for n, node in graph.nodes.items():
-            x, y = positions[n]
-            payload["nodes"].append({"id": n, "kind": node.kind, "x": x, "y": y,
-                                     "label": EXTERNAL_LABELS.get(n, n)})
-        for e in graph.edges:
-            w = e.weight("full")
-            payload["edges"].append({"parent": e.parent, "child": e.child, "source": e.source,
-                                     "w": None if w is None else round(w, 3),
-                                     "weak": e.t_stat_full is not None and abs(e.t_stat_full) < 2})
+        payload["nodes"], payload["edges"] = graph_elements(graph)
     return payload
+
+
+def graph_elements(graph: DependencyGraph) -> tuple[list[dict], list[dict]]:
+    """Nodes with their positions and edges with their full weights, as the page draws them."""
+    positions = _layout(graph)
+    nodes = []
+    for n, node in graph.nodes.items():
+        x, y = positions[n]
+        nodes.append({"id": n, "kind": node.kind, "x": x, "y": y, "label": EXTERNAL_LABELS.get(n, n)})
+    edges = []
+    for e in graph.edges:
+        w = e.weight("full")
+        edges.append({"parent": e.parent, "child": e.child, "source": e.source,
+                      "w": None if w is None else round(w, 3),
+                      "weak": e.t_stat_full is not None and abs(e.t_stat_full) < 2})
+    return nodes, edges
 
 
 def render(payload: dict, cdn: bool = False) -> str:

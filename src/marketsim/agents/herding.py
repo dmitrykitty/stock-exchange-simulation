@@ -31,14 +31,15 @@ class HerdingNetwork:
 
     def mix(self, agent: int, own: float, now: float, h: float, asset: int = 0) -> tuple[float, float]:
         """Return (mean neighbor direction, final signal); expired entries contribute zero."""
-        peers = self.neighbors[agent]
-        if len(peers):
-            peers = peers[self._follows[peers, asset]]
-        if len(peers):
-            fresh = now - self._published_at[peers, asset] < self.ttl
-            herd = float(np.sum(self._directions[peers, asset] * fresh) / len(peers))
-        else:
-            herd = 0.0
+        # Plain Python: numpy overhead dominated on a handful of neighbors; the integer sum is exact.
+        follows, published, directions = self._follows, self._published_at, self._directions
+        total = count = 0
+        for p in self.neighbors[agent]:
+            if follows[p, asset]:
+                count += 1
+                if now - published[p, asset] < self.ttl:
+                    total += int(directions[p, asset])
+        herd = total / count if count else 0.0
         return herd, (1 - h) * own + h * herd
 
 

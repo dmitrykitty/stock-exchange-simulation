@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from bisect import bisect_right
 
 import numpy as np
@@ -65,7 +66,7 @@ class Simulation:
         s = self.settings
         rate = s.market_maker_rate if agent >= self.investors else s.decision_rate
         interval = float(self._wake_rng[agent].exponential(1 / rate))
-        time = max(now + interval, float(np.nextafter(now, np.inf)))
+        time = max(now + interval, math.nextafter(now, math.inf))
         if time < self.config.n_sessions:
             self.scheduler.schedule(time, "wake", agent)
 

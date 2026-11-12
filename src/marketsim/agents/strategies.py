@@ -28,14 +28,19 @@ def market_price(market: MarketDataView, fallback: int, asset: int = 0) -> int:
     return last if last != NO_PRICE else fallback
 
 
+def clip_signal(x: float) -> float:
+    """``x`` capped in [-1, 1]; the same value as ``np.clip`` (NaN included) without numpy's per-call overhead."""
+    return float(min(max(x, -1.0), 1.0))
+
+
 def valuer_signal(valuation: float, price: int, gamma: float) -> float:
     """Undervaluation produces a buy signal, capped in [-1, 1]."""
-    return float(np.clip((valuation - price) / (gamma * price), -1.0, 1.0))
+    return clip_signal((valuation - price) / (gamma * price))
 
 
 def trend_signal(price: int, past_price: int, scale: float) -> float:
     """Scale the price return over the configured lookback window."""
-    return float(np.clip((price - past_price) / (past_price * scale), -1.0, 1.0))
+    return clip_signal((price - past_price) / (past_price * scale))
 
 
 def noise_signal(rng: np.random.Generator) -> float:

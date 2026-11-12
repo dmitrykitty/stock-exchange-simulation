@@ -11,7 +11,7 @@ The documents in this folder are written in Russian; the research proposal is in
 4. [../AGENTS.md](../AGENTS.md): repository rules.
 5. [guides/f4_simulation.md](guides/f4_simulation.md): run the implemented single-asset simulation and reproduce E0–E3.
 6. [guides/f5_graph_valuers.md](guides/f5_graph_valuers.md): the multi-asset graph market, its calibration and experiment E4.
-7. [guides/f9_visualization.md](guides/f9_visualization.md): turn a recorded run into an HTML replay page.
+7. [guides/f9_visualization.md](guides/f9_visualization.md): turn a recorded run into an HTML replay page, or run the market live and shock it from the page.
 
 ## All documents
 
@@ -26,7 +26,7 @@ The documents in this folder are written in Russian; the research proposal is in
 | [plans/phases/](plans/phases/) | every phase F0–F10: goal, interfaces, steps, checks | Russian |
 | [guides/f4_simulation.md](guides/f4_simulation.md) | F4 commands, agent parameters, logging conventions and experiment results | Russian |
 | [guides/f5_graph_valuers.md](guides/f5_graph_valuers.md) | F5 graph valuers: rules, parameters, calibration, E4 results, speed | Russian |
-| [guides/f9_visualization.md](guides/f9_visualization.md) | F9 replay page: command, panels, demo runs | Russian |
+| [guides/f9_visualization.md](guides/f9_visualization.md) | F9 replay page and live mode: commands, panels, control events, defence demo | Russian |
 
 ## Phases
 

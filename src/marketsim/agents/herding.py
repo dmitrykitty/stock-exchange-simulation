@@ -49,8 +49,21 @@ def susceptibility(n_agents: int, h: float, followers: float, h_std: float, rng:
     if followers == 1 and h_std == 0:
         return np.full(n_agents, float(h))
     out = np.zeros(n_agents)
-    n_followers = round(followers * n_agents)
-    chosen = np.sort(rng.choice(n_agents, n_followers, replace=False))
-    draws = rng.normal(h, h_std, n_followers) if h_std > 0 else np.full(n_followers, float(h))
+    chosen = _choose_followers(n_agents, followers, rng)
+    draws = rng.normal(h, h_std, len(chosen)) if h_std > 0 else np.full(len(chosen), float(h))
     out[chosen] = np.clip(draws, 0.0, 1.0)
     return out
+
+
+def _choose_followers(n_agents: int, followers: float, rng: np.random.Generator) -> np.ndarray:
+    return np.sort(rng.choice(n_agents, round(followers * n_agents), replace=False))
+
+
+def follower_ids(n_agents: int, followers: float, h_std: float, rng: np.random.Generator) -> np.ndarray:
+    """The investors that ``susceptibility`` makes followers, given a generator in the same initial state.
+
+    A follower whose drawn h was clipped to 0 is still a follower: a later change of h (F9 live mode) reaches it.
+    """
+    if followers == 1 and h_std == 0:
+        return np.arange(n_agents)
+    return _choose_followers(n_agents, followers, rng)

@@ -191,12 +191,22 @@ def _run_graph(config: RunConfig, seed: int, out_dir: Path) -> Path:
                                    v["reference"])
     initial_resources = simulation.resources()
     simulation.execute()
+    meta = _graph_meta(simulation, run_id, config, seed, v, started, time.perf_counter() - start, initial_resources)
+    return _write(simulation, run_id, meta, out_dir)
+
+
+def _graph_meta(
+    simulation: NetworkSimulation, run_id: str, config: RunConfig, seed: int, v: dict, started: str,
+    wall_time_s: float, initial_resources: dict,
+) -> dict:
+    """meta.json of a finished network run (also used by the F9 live mode)."""
+    settings = v["settings"]
     population = simulation.population
     investors = simulation.investors
     meta = {
         "run_id": run_id, "log_version": LOG_VERSION, "contract_version": CONTRACT_VERSION,
         "config": asdict(config), "seed": seed, "git_commit": _git_commit(), "versions": _versions(),
-        "started_at": started, "wall_time_s": time.perf_counter() - start, "assets": simulation.assets,
+        "started_at": started, "wall_time_s": wall_time_s, "assets": simulation.assets,
         "simulation_version": _NETWORK_VERSION, "resolved_agents": asdict(settings), **v["hashes"],
         "start_prices_ticks": simulation.start_ticks, "external_nodes": v["external_names"],
         "initial_resources": initial_resources, "final_resources": simulation.resources(),
@@ -221,7 +231,7 @@ def _run_graph(config: RunConfig, seed: int, out_dir: Path) -> Path:
     if settings.risk_limit > 0:
         meta["risk_limit_triggers"] = simulation.risk_triggers
         meta["population"]["risk_limited"] = np.flatnonzero(simulation.risk_limited).tolist()
-    return _write(simulation, run_id, meta, out_dir)
+    return meta
 
 
 def run(config: RunConfig, seed: int, out_dir: Path) -> Path:

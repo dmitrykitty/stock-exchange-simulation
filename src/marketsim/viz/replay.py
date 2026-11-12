@@ -214,23 +214,32 @@ def build_payload(run_dir: str | Path, real_prices: bool = True, max_samples: in
         "nodes": [], "edges": [],
     }
     if graph:
-        # Only the companies traded in this run (meta.assets) and every external node; edges between those.
-        shown = {n for n, node in graph.nodes.items() if node.kind != "company" or n in assets}
-        positions = _layout(graph)
-        for n, node in graph.nodes.items():
-            if n not in shown:
-                continue
-            x, y = positions[n]
-            payload["nodes"].append({"id": n, "kind": node.kind, "x": x, "y": y,
-                                     "label": EXTERNAL_LABELS.get(n, n)})
-        for e in graph.edges:
-            if e.parent not in shown or e.child not in shown:
-                continue
-            w = e.weight("full")
-            payload["edges"].append({"parent": e.parent, "child": e.child, "source": e.source,
-                                     "w": None if w is None else round(w, 3),
-                                     "weak": e.t_stat_full is not None and abs(e.t_stat_full) < 2})
+        payload["nodes"], payload["edges"] = graph_elements(graph, assets)
     return payload
+
+
+def graph_elements(graph: DependencyGraph, assets: list[str] | None = None) -> tuple[list[dict], list[dict]]:
+    """Nodes with their positions and edges with their full weights, as the page draws them.
+
+    With ``assets``, only those companies (the ones a run trades, ``meta.assets``) and every external node are
+    kept, with the edges between kept nodes."""
+    shown = {n for n, node in graph.nodes.items() if assets is None or node.kind != "company" or n in assets}
+    positions = _layout(graph)
+    nodes = []
+    for n, node in graph.nodes.items():
+        if n not in shown:
+            continue
+        x, y = positions[n]
+        nodes.append({"id": n, "kind": node.kind, "x": x, "y": y, "label": EXTERNAL_LABELS.get(n, n)})
+    edges = []
+    for e in graph.edges:
+        if e.parent not in shown or e.child not in shown:
+            continue
+        w = e.weight("full")
+        edges.append({"parent": e.parent, "child": e.child, "source": e.source,
+                      "w": None if w is None else round(w, 3),
+                      "weak": e.t_stat_full is not None and abs(e.t_stat_full) < 2})
+    return nodes, edges
 
 
 def render(payload: dict, cdn: bool = False) -> str:

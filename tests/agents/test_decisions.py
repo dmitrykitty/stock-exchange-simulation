@@ -134,3 +134,33 @@ def test_inventory_skew_lowers_both_quotes_when_maker_holds_too_many_shares():
     bid, ask = maker_orders(10000, p, 2000, s)
     assert (bid.limit, ask.limit) == (9993, 10003)
     assert bid.qty * bid.limit <= p.cash_available and ask.qty <= 2100
+
+
+@pytest.mark.parametrize("price", [1, 2, 5, 50, 99, 100, 101, 10_000, 34_629])
+def test_protected_orders_reach_at_least_one_tick_past_the_price(price):
+    from marketsim.agents.strategies import _protected_limit, risk_sale
+    from marketsim.sim.settings import AgentSettings
+
+    buy = _protected_limit(int(Side.BUY), price, 0.01)
+    sell = _protected_limit(int(Side.SELL), price, 0.01)
+    assert buy == max(int(price * 1.01), price + 1)
+    assert sell == max(1, min(-(-price * 99 // 100), price - 1))
+    assert buy > price and (sell < price or sell == 1)
+    assert risk_sale(price, 3, AgentSettings()).limit == sell
+    if price >= 100:  # the fraction alone is at least one tick: the same limits as before the floor
+        assert (buy, sell) == (int(price * 1.01), -(-price * 99 // 100))
+
+
+def test_two_tick_book_does_not_trap_an_aggressive_buyer():
+    from marketsim.agents.strategies import _limit_and_tif
+    from marketsim.sim.settings import AgentSettings
+
+    class Always:
+        def random(self):
+            return 0.0  # always aggressive
+
+    settings = AgentSettings(aggressive_prob=1.0)
+    top = Top(1, 100, 2, 100)
+    price = (top.bid + top.ask) // 2  # the integer midpoint the agents use: 1
+    limit, tif = _limit_and_tif(int(Side.BUY), price, top, settings, Always())
+    assert tif == int(TimeInForce.IOC) and limit >= top.ask

@@ -320,8 +320,9 @@ class NetworkSimulation:
     def _wealth(self, portfolio) -> int:
         market = self.gateway.market()
         holdings = portfolio.shares_available + portfolio.shares_reserved
+        # Zero holdings add nothing, so only held assets are priced.
         return portfolio.cash_available + portfolio.cash_reserved + sum(
-            int(holdings[j]) * market_price(market, self.start_ticks[j], j) for j in range(len(self.assets))
+            int(holdings[j]) * market_price(market, self.start_ticks[j], j) for j in np.flatnonzero(holdings)
         )
 
     def _derisking(self, agent: int, now: float) -> bool:

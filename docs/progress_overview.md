@@ -47,7 +47,7 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
    - grube ogony rozkładu i brak autokorelacji stóp zwrotu to cele kalibracji; grube ogony pochodzą z prawdziwych sygnałów wejściowych, a nie od agentów.
 8. **Czego nie odtwarza:** prawdziwy rynek uwzględnia ruch tego samego dnia, a u nas ok. 1/5 ruchu dochodzi dopiero następnego dnia. Zapisujemy to jako ograniczenie, a nie ukrywamy.
 9. **Jest wizualizacja:** strona HTML, która odtwarza przebieg. Widać na niej, jak fala płynie po grafie, jak zmieniają się ceny, świece i płynność arkusza (rozdz. 4.8).
-10. **Zostało:** pełne eksperymenty F7 (E5–E7), moduł walidacji F8, tryb „na żywo” do prezentacji i raport końcowy.
+10. **Zostało:** pełne eksperymenty F7 (E5–E7), moduł walidacji F8 i raport końcowy. Tryb „na żywo” do prezentacji jest gotowy (PR #21, [przewodnik F9](guides/f9_visualization.md), po rosyjsku).
 
 ---
 ## 1. Idea projektu w pięciu minutach
@@ -201,7 +201,7 @@ Projekt jest podzielony na fazy F0–F10. Każda ma właściciela, opis w [`docs
 | F6 | Pełna sieć 18 spółek na rzeczywistych sygnałach 2024–2025 (kamień milowy M3) | 🟡 zrobione, w przeglądzie (PR #15) |
 | F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | 🟡 skrócony E5 policzony (90 przebiegów), pełne przed nami |
 | F8 | Walidacja na danych 2024–2025 | 🟡 pierwsze testy w notatniku, moduł przed nami |
-| F9 | Wizualizacja: odtwarzanie przebiegu, tryb na żywo | 🟡 odtwarzanie gotowe (PR #18), tryb na żywo przed nami |
+| F9 | Wizualizacja: odtwarzanie przebiegu, tryb na żywo | ✅ odtwarzanie (PR #18) i tryb na żywo (PR #21) gotowe; porównanie eksperymentów przed nami |
 | F10 | Raport końcowy i obrona | ⬜ |
 
 Kod jest w repozytorium [`github.com/dmitrykitty/stock-exchange-simulation`](https://github.com/dmitrykitty/stock-exchange-simulation). Każda zmiana przechodzi przez *pull request* z automatycznymi testami (ponad 240 testów, w tym testy kontraktów i porównanie implementacji Python i C++).
@@ -1045,12 +1045,12 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 | 1 | F6 | przegląd i scalenie PR #15 | pełna sieć w gałęzi głównej (kamień milowy M3) |
 | 2 | F7 | **E1–E2 (F4) ponownie z pozycją docelową** (E4 już powtórzony, wykres 10b); pełny E5 (270 przebiegów, ok. 4,5 h na 10 procesach); E6: czy szok ropy „przeskakuje” na JPM i spółki spoza łańcucha i którym kanałem (wspólny portfel, rebalansowanie, limity ryzyka, naśladowanie); E7: udział wyceniających sieciowych {0; 25%; 50%}; ablacje | odpowiedzi na P5, P6, P7 z przedziałami ufności |
 | 3 | F8 | przeniesienie testów z notatnika do modułu `validation/`; fakty stylizowane **bez sygnałów zewnętrznych**; odtworzenie grafu z cen symulowanych; pasma 90% z wielu przebiegów | rozdział „Walidacja” raportu |
-| 4 | F9 | tryb **na żywo**: przyciski „ropa ±30%”, „krach spółki X”, suwak $h$ w trakcie przebiegu; porównanie eksperymentów (mapy cieplne, wykresy pudełkowe) | demonstracja na obronie |
+| 4 | F9 | porównanie eksperymentów (mapy cieplne, wykresy pudełkowe); tryb **na żywo** (przyciski „ropa ±30%”, „wiadomość o spółce”, suwak $h$) jest już gotowy (PR #21) | demonstracja na obronie |
 | 5 | F10 | raport końcowy po polsku, prezentacja | — |
 
 **Kierunek, który chcemy zbadać w F7 (pytanie o ograniczoną uwagę).** W literaturze finansowej (Cohen i Frazzini, 2008) opisano, że cena odbiorcy reaguje na wiadomości o dostawcy z opóźnieniem, a wyjaśnia się to ograniczoną uwagą inwestorów. Na prawdziwym rynku nie da się sprawdzić tego mechanizmu, bo nie można „włączyć” inwestorom uwagi. W naszym modelu można: uwaga, opóźnienie, krótkowzroczność i błąd wiedzy to parametry. Zmierzymy, jak każdy z nich zmienia kompletność, opóźnienie i przestrzelenie fali. Ograniczenie, które już wiemy: w dziennych danych 2024–2025 opóźnienia między dostawcą a odbiorcą nie widać (wykres 17), więc model nie może być wolniejszy od rynku.
 
-**Ryzyka i co robimy, jeśli zabraknie czasu** (w tej kolejności): rezygnujemy z E7, z trybu na żywo (zostaje odtwarzanie), upraszczamy walidację. Rdzenia (graf + propagacja + P5/P6) nie ruszamy.
+**Ryzyka i co robimy, jeśli zabraknie czasu** (w tej kolejności): rezygnujemy z E7, upraszczamy walidację. Rdzenia (graf + propagacja + P5/P6) nie ruszamy.
 
 ---
 

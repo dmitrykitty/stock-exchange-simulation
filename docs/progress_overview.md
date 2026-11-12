@@ -35,8 +35,11 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
 1. **Działa cały łańcuch:** dane → graf zależności → giełda z arkuszami zleceń (C++) → ok. 500 agentów → log przebiegu → analiza i wizualizacja. Każdy przebieg jest powtarzalny (ta sama konfiguracja i ziarno dają identyczny log), a suma pieniędzy i akcji jest stała we wszystkich ponad 1 300 przebiegach.
 2. **Graf zależności `real_v1` jest gotowy:** 18 spółek, 4 surowce i S&P 500, 47 krawędzi. Strukturę wzięliśmy z tabel przepływów międzygałęziowych BEA, a wagi z regresji na latach 2021–2023 (rozdz. 4.2).
 3. **Fala szoku przechodzi przez graf dzięki transakcjom, a nie formule.** Po skoku ropy o 20% producenci ropy dochodzą do swojej ceny referencyjnej w 0,85 sesji, rafinerie w 0,95 sesji, linie lotnicze tanieją, a spółki niepowiązane z ropą stoją w miejscu (rozdz. 4.6, wykres 12).
-4. **Zachowania stadne destabilizują rynek, ale dopiero gdy dotyczą większości.** Na rynku jednego aktywa silne naśladowanie ($h = 0{,}6$) zwiększa maksymalne obsunięcie z 0,37% do 9,4%. Na łańcuchu ze wstrząsem ropy przy $h \ge 0{,}5$ rynek się załamuje. Jeśli jednak silnie naśladuje tylko połowa inwestorów, rynek zachowuje się jak przy średniej sile naśladowania (rozdz. 4.4–4.5).
-5. **Znaleźliśmy i naprawiliśmy dwa błędy modelu, które zmieniały wyniki.** Pierwszy: zaokrąglanie wielkości zlecenia w dół wyłączało drobnych inwestorów z handlu (F4). Drugi: reguła „kupuj przy każdej decyzji, dopóki sygnał dodatni” dawała ceny z inercją, której nie ma na prawdziwym rynku (autokorelacja +0,59 zamiast −0,05). Teraz inwestor ma pozycję docelową (rozdz. 4.4 i 4.6).
+4. **Zachowania stadne destabilizują rynek, ale dopiero gdy dotyczą większości.**
+   - Na rynku jednego aktywa silne naśladowanie ($h = 0{,}6$) zwiększa maksymalne obsunięcie z 0,37% do 9,4%.
+   - Na łańcuchu ze wstrząsem ropy błąd wyceny rośnie razem z $h$, a rynek załamuje się w 20–30% przebiegów dopiero przy $h = 0{,}8$.
+   - Jeśli silnie naśladuje tylko połowa inwestorów, rynek zachowuje się jak przy średniej sile naśladowania (rozdz. 4.4–4.5).
+5. **Znaleźliśmy i naprawiliśmy dwa błędy modelu, które zmieniały wyniki.** Pierwszy: zaokrąglanie wielkości zlecenia w dół wyłączało drobnych inwestorów z handlu (F4). Drugi: reguła „kupuj przy każdej decyzji, dopóki sygnał dodatni” dawała ceny z inercją, której nie ma na prawdziwym rynku (autokorelacja +0,59 zamiast −0,05). Teraz inwestor ma pozycję docelową. Po tej zmianie powtórzyliśmy eksperyment E4. Okazało się, że większość załamań na łańcuchu była skutkiem starej reguły, a nie samego naśladowania (rozdz. 4.4–4.6).
 6. **Porównanie z rzeczywistością (2024–2025) robimy uczciwie:** symulacja nie widzi żadnej prawdziwej ceny akcji. Każdą miarę zgodności sprawdzamy też na 200 losowych grafach. Miara, którą losowy graf przechodzi równie dobrze, niczego nie dowodzi (rozdz. 4.7).
 7. **Co model odtwarza:**
    - graf poza próbą przewiduje dzienne ruchy lepiej niż sama beta rynkowa i lepiej niż każdy z 200 losowych grafów;
@@ -194,7 +197,7 @@ Projekt jest podzielony na fazy F0–F10. Każda ma właściciela, opis w [`docs
 | F2 | Graf zależności `real_v1`, trajektoria referencyjna, scenariusze sygnałów | ✅ gotowe |
 | F3 | Giełda (Python + C++), bramka, test skali na 18 spółkach | ✅ gotowe |
 | F4 | Rynek jednego aktywa, eksperymenty E1–E3 (P1, P2) | ✅ gotowe (wersja po poprawce minimalnego zlecenia) |
-| F5 | Wyceniający według grafu na łańcuchu ropa → COP → VLO → DAL, eksperyment E4 | ✅ gotowe |
+| F5 | Wyceniający według grafu na łańcuchu ropa → COP → VLO → DAL, eksperyment E4 | ✅ gotowe; E4 powtórzony z pozycją docelową (PR #20) |
 | F6 | Pełna sieć 18 spółek na rzeczywistych sygnałach 2024–2025 (kamień milowy M3) | 🟡 zrobione, w przeglądzie (PR #15) |
 | F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | 🟡 skrócony E5 policzony (90 przebiegów), pełne przed nami |
 | F8 | Walidacja na danych 2024–2025 | 🟡 pierwsze testy w notatniku, moduł przed nami |
@@ -664,7 +667,10 @@ Test w parach ($h = 0{,}6$ minus $h = 0$, te same 30 ziaren, przedział ufności
 - **Odpowiedź na P1:** naśladowanie wyraźnie destabilizuje rynek. Po usunięciu błędu zaokrąglania efekt jest większy, a nie mniejszy: obsunięcie rośnie ok. 25 razy (0,37% → 9,39%).
 - **Odpowiedź na P2:** koncentracja kapitału pogarsza stabilność przy słabym naśladowaniu, ale przy silnym jej efekt ginie w efekcie stada.
 - **Zmiana wniosku względem poprzedniej wersji:** przy silnym naśladowaniu arkusz jest teraz **częściej** jednostronny (mediana 9,5% czasu przy $h = 0{,}6$ wobec 0,3% przy $h = 0$), czyli zgodnie z hipotezą H1. Wcześniejszy wynik odwrotny był skutkiem błędu zaokrąglania.
-- **Ograniczenia:** rynek jest krótki (30 sesji), syntetyczny, bez wiadomości z zewnątrz. Wzór mieszania sygnałów jednocześnie osłabia własny sygnał i dodaje sygnał znajomych; tych dwóch kanałów E1 nie rozdziela.
+- **Ograniczenia:**
+  - rynek jest krótki (30 sesji), syntetyczny i bez wiadomości z zewnątrz;
+  - wzór mieszania sygnałów jednocześnie osłabia własny sygnał i dodaje sygnał znajomych, a E1 tych dwóch kanałów nie rozdziela;
+  - **F4 liczyliśmy jeszcze ze starą regułą wielkości zlecenia** („kupuj przy każdej decyzji”). Na łańcuchu ta reguła mocno zawyżała niestabilność (rozdz. 4.5), więc E1–E2 trzeba powtórzyć z pozycją docelową. Dopiero wtedy będzie wiadomo, ile z efektu 9,4% zostaje.
 
 ---
 
@@ -731,7 +737,8 @@ To jest stan z F5, z regułą zleceń „kupuj, dopóki sygnał dodatni”. W F6
 **Co widać.**
 - Skład z wyceniającymi jest stabilny do $h = 0{,}2$ i prawie stabilny przy $h = 0{,}4$ (7–13% załamań).
 - Skład trendowy załamuje się już przy $h = 0{,}2$ w 83% przebiegów, a przy $h = 0{,}4$ prawie zawsze.
-- Na pilotażu przy $h \ge 0{,}5$ załamywały się prawie wszystkie przebiegi, dlatego siatka $h$ w F5 to {0; 0,2; 0,4}, a nie {0; 0,3; 0,6} jak w F4. Ten próg to **wynik**, a nie ustawienie.
+- Na pilotażu przy $h \ge 0{,}5$ załamywały się prawie wszystkie przebiegi, dlatego siatka $h$ w F5 to {0; 0,2; 0,4}, a nie {0; 0,3; 0,6} jak w F4.
+- **Uwaga:** to wyniki ze starą regułą wielkości zlecenia. Po jej zmianie obraz jest inny (wykres 10b niżej).
 
 **Różne zachowania stadne** (180 dodatkowych przebiegów, wszyscy naśladujący mają $h = 0{,}6$):
 
@@ -744,6 +751,26 @@ To jest stan z F5, z regułą zleceń „kupuj, dopóki sygnał dodatni”. W F6
 **Rynek, na którym połowa inwestorów silnie naśladuje innych, zachowuje się jak rynek o tej samej średniej sile naśladowania.** Rynek załamuje dopiero stadna większość, a nie mniejszość.
 
 Wszystkie 738 przebiegów F5 zachowują pieniądze i akcje. Notatnik: [`05_chain_wave.ipynb`](../notebooks/05_chain_wave.ipynb), opis: [przewodnik F5](guides/f5_graph_valuers.md) (po rosyjsku).
+
+#### Wykres 10b. E4 ponownie, z pozycją docelową
+
+![E4: stara reguła a pozycja docelowa](figures/f5_e4_flow_vs_target.png)
+
+**Po co.** W F6 okazało się, że reguła „kupuj przy każdej decyzji, dopóki sygnał dodatni” daje inercję cen i wyczerpuje gotówkę agentów (rozdz. 4.6, wykres 11). Cały E4 był policzony z tą regułą. Powtórzyliśmy więc **te same 540 przebiegów** z tymi samymi ziarnami i jedną zmianą: inwestorzy mają pozycję docelową. Każdy nowy przebieg ma swoją parę w starym E4. Dodatkowo puściliśmy 80 przebiegów z silniejszym naśladowaniem ($h$ = 0,6 i 0,8).
+
+**Co przedstawia.**
+- Lewa mapa: udział załamań ze starą regułą (to samo, co wykres 10).
+- Środkowa: udział załamań z pozycją docelową, także dla $h$ = 0,6 i 0,8.
+- Prawy panel: mediana średniego odchylenia ceny VLO od $R$ po szoku, w zależności od $h$. Linie przerywane to stara reguła, ciągłe to nowa; niebieskie to skład `mixed`, pomarańczowe `trend`.
+
+**Co widać.**
+- **Załamań nie ma aż do $h = 0{,}6$ włącznie.** Pojawiają się dopiero przy $h = 0{,}8$: 20% przebiegów (`mixed`) i 30% (`trend`). Ze starą regułą skład trendowy załamywał się w 98% przebiegów już przy $h = 0{,}4$.
+- **Odchylenie od $R$ jest 3–5 razy mniejsze**, a oscylacje po szoku 5–20 razy mniejsze. W parach z tym samym ziarnem przedział ufności 95% różnicy leży całkowicie poniżej zera we wszystkich 45 kombinacjach miary i komórki.
+- **Naśladowanie nadal szkodzi i to monotonicznie:** odchylenie VLO dla `mixed` wynosi 0,9% → 1,7% → 3,0% → 5,9% przy $h$ = 0 → 0,4 → 0,6 → 0,8.
+- **Trendowi nadal dają przestrzelenie,** choć mniejsze (COP w sesjach 7–9: 1,36 ruchu referencyjnego wobec 1,11 przy składzie `mixed`).
+- **Fala nadal przechodzi przez transakcje:** COP w sesjach 5–6 pokonuje ok. połowy drogi, VLO przestrzela mocniej niż COP, czyli błąd rynku przechodzi dalej po łańcuchu.
+
+**Wniosek.** Większość załamań z wykresu 10 była skutkiem starej reguły zleceń, a nie samego naśladowania: agent kupował lub sprzedawał przy każdym przebudzeniu, aż skończyły mu się pieniądze lub akcje. Model nadal potrafi się załamać, ale dopiero przy bardzo silnym naśladowaniu. Wcześniejszy wniosek „przy $h \ge 0{,}5$ łańcuch prawie zawsze się załamuje” **wycofujemy**. Szczegóły: [przewodnik F5](guides/f5_graph_valuers.md), rozdział o E4 z pozycją docelową (PR #20).
 
 ---
 
@@ -776,7 +803,7 @@ Przejście 3 → 10 → 18 spółek przebiegło bez problemów. Na 18 spółkach
 
 Sprawdziliśmy też wariant, w którym cel jest udziałem wartości portfela, a nie liczbą akcji. Był gorszy: gdy NVDA potroiła się, wszyscy naraz chcieli sprzedać dwie trzecie akcji i cena odstawała od $R$ o −49%.
 
-**Konsekwencja:** wyniki E4 z F5 są policzone ze starą regułą. W F7 powtórzymy je z pozycją docelową.
+**Konsekwencja:** E4 z F5 był policzony ze starą regułą, więc powtórzyliśmy go z pozycją docelową (wykres 10b). Załamania na łańcuchu w większości zniknęły.
 
 #### Pozostała kalibracja (pilotaż, ziarna 1–3)
 
@@ -990,7 +1017,7 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 | 12 | **Pozycja docelowa zamiast „kupuj przy każdej decyzji”** (F6) | stara reguła dawała inercję cen (+0,59) i wyczerpanie gotówki na długich przebiegach | cel jako udział wartości portfela (odchylenia do −49%) |
 | 13 | **Limit ryzyka tylko u 25% inwestorów** | limit u wszystkich wywołuje spiralę i krach do zera; samą spiralę zbadamy w E6 | limit u wszystkich |
 | 14 | **18 spółek, a nie 10** | czas przebiegu prawie nie zależy od liczby spółek; płynność wystarcza | redukcja do 10 |
-| 15 | **Siatka $h$ = {0; 0,2; 0,4} na grafie** | przy $h \ge 0{,}5$ łańcuch prawie zawsze się załamuje; to wynik, który raportujemy | siatka z F4 {0; 0,3; 0,6} |
+| 15 | **Siatka $h$ = {0; 0,2; 0,4} w E4, potem rozszerzona do 0,8** | ze starą regułą zleceń przy $h \ge 0{,}5$ łańcuch prawie zawsze się załamywał; z pozycją docelową próg przesunął się do ok. $h = 0{,}8$ (wykres 10b), więc w F7 siatkę można rozszerzyć | siatka z F4 {0; 0,3; 0,6} |
 | 16 | **Bez „odtwarzania wiadomości”** jako dowodu zgodności z rzeczywistością | podanie agentom różnicy między ceną prawdziwą a grafem dałoby zgodność z definicji, nawet przy błędnym grafie | porównywanie ścieżek cen po podaniu wiadomości |
 | 17 | **Kontrola na losowych grafach dla każdej miary walidacji** | odróżnia miary, które coś mówią o grafie, od takich, które przechodzi każdy model | raportowanie samych liczb bez punktu odniesienia |
 | 18 | **Przebiegi do wykresów wybierane regułą** (mediana, 90. percentyl), nie „na oko” | żeby nie pokazywać wybranych, najładniejszych przypadków | — |
@@ -1003,7 +1030,7 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 | Kolejność | Faza | Co konkretnie | Efekt |
 |---|---|---|---|
 | 1 | F6 | przegląd i scalenie PR #15 | pełna sieć w gałęzi głównej (kamień milowy M3) |
-| 2 | F7 | **E4 ponownie z pozycją docelową**; pełny E5 (270 przebiegów, ok. 4,5 h na 10 procesach); E6: czy szok ropy „przeskakuje” na JPM i spółki spoza łańcucha i którym kanałem (wspólny portfel, rebalansowanie, limity ryzyka, naśladowanie); E7: udział wyceniających sieciowych {0; 25%; 50%}; ablacje | odpowiedzi na P5, P6, P7 z przedziałami ufności |
+| 2 | F7 | **E1–E2 (F4) ponownie z pozycją docelową** (E4 już powtórzony, wykres 10b); pełny E5 (270 przebiegów, ok. 4,5 h na 10 procesach); E6: czy szok ropy „przeskakuje” na JPM i spółki spoza łańcucha i którym kanałem (wspólny portfel, rebalansowanie, limity ryzyka, naśladowanie); E7: udział wyceniających sieciowych {0; 25%; 50%}; ablacje | odpowiedzi na P5, P6, P7 z przedziałami ufności |
 | 3 | F8 | przeniesienie testów z notatnika do modułu `validation/`; fakty stylizowane **bez sygnałów zewnętrznych**; odtworzenie grafu z cen symulowanych; pasma 90% z wielu przebiegów | rozdział „Walidacja” raportu |
 | 4 | F9 | tryb **na żywo**: przyciski „ropa ±30%”, „krach spółki X”, suwak $h$ w trakcie przebiegu; porównanie eksperymentów (mapy cieplne, wykresy pudełkowe) | demonstracja na obronie |
 | 5 | F10 | raport końcowy po polsku, prezentacja | — |

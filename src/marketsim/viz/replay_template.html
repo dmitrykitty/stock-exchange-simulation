@@ -228,7 +228,7 @@ function warmShape() { return P.warmup ? [{type: "rect", xref: "x", yref: "paper
 const nodes = P.nodes, nodeIndex = Object.fromEntries(nodes.map((n, i) => [n.id, i]));
 const SRC = {commodity: "--s2", bea: "--s1", manual: "--s7"};
 const NS_SVG = "http://www.w3.org/2000/svg";
-const COLW = 250, ROWH = 74, PADX = 76, PADY = 36, R = 23;
+const COLW = 250, ROWH = 80, PADX = 76, PADY = 40, R = 23;
 const MINY = Math.min(...P.nodes.map(n => n.y));
 const GX = n => PADX + n.x * COLW, GY = n => PADY + (n.y - MINY) * ROWH;
 const graphEdges = P.edges.filter(e => e.source !== "index" && nodeIndex[e.parent] != null && nodeIndex[e.child] != null);
@@ -277,7 +277,7 @@ function buildGraph() {
     const shape = n.kind === "external" ? el("rect", {x: -R - 4, y: -R + 2, width: 2 * R + 8, height: 2 * R - 4, rx: 7}, g) : el("circle", {r: R}, g);
     const label = n.kind === "external" ? ({wti: "Oil", henry_hub: "Gas", sp500: "S&P 500"}[n.id] || n.label) : n.id;
     el("text", {y: 4, "text-anchor": "middle", "font-size": n.kind === "external" && label.length > 5 ? 11 : 12.5, "font-weight": 600, fill: css("--ink")}, g).textContent = label;
-    const pct = el("text", {y: R + 15, "text-anchor": "middle", "font-size": 11, fill: css("--ink-2"), "font-variant-numeric": "tabular-nums"}, g);
+    const pct = el("text", {y: R + 24, "text-anchor": "middle", "font-size": 11, fill: css("--ink-2"), "font-variant-numeric": "tabular-nums"}, g);
     if (n.kind === "company") {
       const k = tickerIndex[n.id];
       g.addEventListener("click", () => selectAsset(k));

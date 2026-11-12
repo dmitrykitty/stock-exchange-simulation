@@ -27,7 +27,7 @@ import pandas as pd
 from marketsim import paths
 from marketsim.data.api import load_external
 from marketsim.experiments.config import ConfigError, RunConfig
-from marketsim.graph.api import GraphError, load_graph, resolve_graph_dir
+from marketsim.graph.api import DependencyGraph, GraphError, load_graph, resolve_graph_dir
 from marketsim.graph.reference import reference_path
 from marketsim.market.api import CONTRACT_VERSION
 from marketsim.sim.engine import Simulation
@@ -82,6 +82,8 @@ def _validate_graph(config: RunConfig, seed: int) -> dict:
         raise ConfigError(f"graph {config.graph!r}: {exc}") from exc
     if not graph.companies():
         raise ConfigError("the graph has no company nodes")
+    if settings.assets:
+        graph = _subgraph(graph, settings.assets)
     try:
         external = load_external(config.external)
     except FileNotFoundError as exc:
@@ -110,6 +112,25 @@ def _validate_graph(config: RunConfig, seed: int) -> dict:
             "reference": reference, "hashes": hashes}
 
 
+def _subgraph(graph: DependencyGraph, tickers: tuple[str, ...]) -> DependencyGraph:
+    """The graph restricted to ``tickers`` (file order kept) and all external nodes (F6 pilots).
+
+    A selected company must bring its company parents along: without them its remaining weights would describe
+    a different regression.
+    """
+    companies = graph.companies()
+    unknown = [t for t in tickers if t not in companies]
+    if unknown:
+        raise ConfigError(f"agents.assets: {unknown} are not companies of the graph")
+    chosen = set(tickers)
+    for company in tickers:
+        missing = [p for p in graph.parents(company, "full") if p in companies and p not in chosen]
+        if missing:
+            raise ConfigError(f"agents.assets: {company} needs its parents {missing}")
+    nodes = {name: node for name, node in graph.nodes.items() if node.kind == "external" or name in chosen}
+    return DependencyGraph(nodes, [e for e in graph.edges if e.child in chosen], dict(graph.meta)).validate()
+
+
 def _git_commit() -> str:
     try:
         return subprocess.check_output(
@@ -135,14 +156,33 @@ def _write(simulation, run_id: str, meta: dict, out_dir: Path) -> Path:
     return destination
 
 
+def _graph_run_id(config: RunConfig, seed: int, v: dict) -> str:
+    identity = json.dumps({
+        "config": asdict(config), "seed": seed, "resolved_agents": identity_dict(v["settings"]),
+        "simulation_version": _NETWORK_VERSION, **v["hashes"],
+    }, sort_keys=True)
+    return "f5_" + hashlib.sha256(identity.encode()).hexdigest()[:20]
+
+
+def _single_asset_run_id(config: RunConfig, seed: int, settings: AgentSettings) -> str:
+    identity = json.dumps({
+        "config": asdict(config), "seed": seed, "resolved_agents": identity_dict(settings),
+        "simulation_version": _SIMULATION_VERSION,
+    }, sort_keys=True)
+    return "f4_" + hashlib.sha256(identity.encode()).hexdigest()[:20]
+
+
+def run_id(config: RunConfig, seed: int) -> str:
+    """The run_id that ``run(config, seed, ...)`` writes, without simulating (the config is validated)."""
+    if config.graph != "single_asset":
+        return _graph_run_id(config, seed, _validate_graph(config, seed))
+    return _single_asset_run_id(config, seed, _validate(config, seed)[0])
+
+
 def _run_graph(config: RunConfig, seed: int, out_dir: Path) -> Path:
     v = _validate_graph(config, seed)
     settings = v["settings"]
-    identity = json.dumps({
-        "config": asdict(config), "seed": seed, "resolved_agents": identity_dict(settings),
-        "simulation_version": _NETWORK_VERSION, **v["hashes"],
-    }, sort_keys=True)
-    run_id = "f5_" + hashlib.sha256(identity.encode()).hexdigest()[:20]
+    run_id = _graph_run_id(config, seed, v)
     if (Path(out_dir) / run_id).exists():
         raise FileExistsError(f"run already exists: {Path(out_dir) / run_id}")
     started = datetime.now(UTC).isoformat()
@@ -151,12 +191,22 @@ def _run_graph(config: RunConfig, seed: int, out_dir: Path) -> Path:
                                    v["reference"])
     initial_resources = simulation.resources()
     simulation.execute()
+    meta = _graph_meta(simulation, run_id, config, seed, v, started, time.perf_counter() - start, initial_resources)
+    return _write(simulation, run_id, meta, out_dir)
+
+
+def _graph_meta(
+    simulation: NetworkSimulation, run_id: str, config: RunConfig, seed: int, v: dict, started: str,
+    wall_time_s: float, initial_resources: dict,
+) -> dict:
+    """meta.json of a finished network run (also used by the F9 live mode)."""
+    settings = v["settings"]
     population = simulation.population
     investors = simulation.investors
     meta = {
         "run_id": run_id, "log_version": LOG_VERSION, "contract_version": CONTRACT_VERSION,
         "config": asdict(config), "seed": seed, "git_commit": _git_commit(), "versions": _versions(),
-        "started_at": started, "wall_time_s": time.perf_counter() - start, "assets": simulation.assets,
+        "started_at": started, "wall_time_s": wall_time_s, "assets": simulation.assets,
         "simulation_version": _NETWORK_VERSION, "resolved_agents": asdict(settings), **v["hashes"],
         "start_prices_ticks": simulation.start_ticks, "external_nodes": v["external_names"],
         "initial_resources": initial_resources, "final_resources": simulation.resources(),
@@ -171,7 +221,17 @@ def _run_graph(config: RunConfig, seed: int, out_dir: Path) -> Path:
                                 "reference: path R with full weights, constant within a session"),
         "order_status_semantics": "last K1 execution status; cancellations and GTD expiry are recorded in events",
     }
-    return _write(simulation, run_id, meta, out_dir)
+    if settings.price_scaling:
+        meta["asset_parameters"] = {
+            "total_shares": simulation.asset_total_shares, "market_maker_shares": simulation.asset_maker_shares,
+            "market_maker_qty": [a.market_maker_qty for a in simulation.asset_settings],
+            "market_maker_spread_ticks": [a.market_maker_spread_ticks for a in simulation.asset_settings],
+            "inventory_skew_ticks": [a.inventory_skew_ticks for a in simulation.asset_settings],
+        }
+    if settings.risk_limit > 0:
+        meta["risk_limit_triggers"] = simulation.risk_triggers
+        meta["population"]["risk_limited"] = np.flatnonzero(simulation.risk_limited).tolist()
+    return meta
 
 
 def run(config: RunConfig, seed: int, out_dir: Path) -> Path:
@@ -179,11 +239,7 @@ def run(config: RunConfig, seed: int, out_dir: Path) -> Path:
     if config.graph != "single_asset":
         return _run_graph(config, seed, out_dir)
     settings, levels = _validate(config, seed)
-    identity = json.dumps({
-        "config": asdict(config), "seed": seed, "resolved_agents": identity_dict(settings),
-        "simulation_version": _SIMULATION_VERSION,
-    }, sort_keys=True)
-    run_id = "f4_" + hashlib.sha256(identity.encode()).hexdigest()[:20]
+    run_id = _single_asset_run_id(config, seed, settings)
     destination = Path(out_dir) / run_id
     if destination.exists():
         raise FileExistsError(f"run already exists: {destination}")

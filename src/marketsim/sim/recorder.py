@@ -3,20 +3,61 @@
 from __future__ import annotations
 
 import json
+from array import array
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from marketsim.data.api import write_table
+from marketsim.data.schemas import TableSpec
 from marketsim.market.api import MarketDataView, Report, Status
 from marketsim.sim.log_schema import RUN_TABLES
+
+_DTYPES = {"f": "float64", "i": "int64", "s": "string"}
+_FILLED, _RESTING, _PARTIAL = int(Status.FILLED), int(Status.RESTING), int(Status.PARTIAL_RESTING)
+
+
+class _Rows:
+    """Rows of one K3 table stored by column: 8 bytes per number instead of a Python dict per row.
+
+    A two-year run on 18 assets logs millions of rows; dict rows would need several gigabytes per process.
+    """
+
+    def __init__(self, spec: TableSpec) -> None:
+        self.spec = spec
+        self.columns = {c.name: array("d") if c.kind == "f" else array("q") if c.kind == "i" else []
+                        for c in spec.columns}
+        self._appenders = [(c.name, self.columns[c.name].append) for c in spec.columns]
+        self._append_values = [append for _, append in self._appenders]
+
+    def append(self, row: dict) -> int:
+        """Store a row given as a dict with every column of the table; return its position."""
+        for name, append in self._appenders:
+            append(row[name])
+        return len(self) - 1
+
+    def add(self, *values) -> int:
+        """Store a row given positionally in the column order of the table (no dict on hot paths)."""
+        for append, value in zip(self._append_values, values, strict=True):
+            append(value)
+        return len(self) - 1
+
+    def __len__(self) -> int:
+        return len(self.columns[self.spec.columns[0].name])
+
+    def frame(self) -> pd.DataFrame:
+        return pd.DataFrame({
+            c.name: pd.Series(self.columns[c.name] if c.kind == "s" else np.frombuffer(
+                self.columns[c.name], dtype=_DTYPES[c.kind]).copy(), dtype=_DTYPES[c.kind])
+            for c in self.spec.columns
+        })
 
 
 class Recorder:
     def __init__(self) -> None:
-        self.rows: dict[str, list[dict]] = {spec.name: [] for spec in RUN_TABLES}
-        self._orders: dict[int, dict] = {}
+        self.rows: dict[str, _Rows] = {spec.name: _Rows(spec) for spec in RUN_TABLES}
+        self._orders: dict[int, int] = {}  # order id -> position in the orders table
 
     def event(self, now: float, kind: str, payload: dict) -> None:
         """Record a deterministic JSON payload, including lifecycle states absent in K1."""
@@ -28,33 +69,31 @@ class Recorder:
         self, now: float, agent: int, side: int, qty: int, limit: int, tif: int, report: Report, asset: int = 0,
     ) -> None:
         """Register before draining fills, so taker and maker rows can both be updated."""
-        row = {
-            "t": now, "order_id": report.order_id, "agent": agent, "asset": asset,
-            "side": side, "qty": qty, "limit": limit, "tif": tif,
-            "status": int(report.status), "filled_qty": 0,
-        }
-        self.rows["orders"].append(row)
+        position = self.rows["orders"].add(
+            now, report.order_id, agent, asset, side, qty, limit, tif, int(report.status), 0,
+        )
         if report.order_id:
-            self._orders[report.order_id] = row
+            self._orders[report.order_id] = position
 
     def fills(self, now: float, fills: np.ndarray) -> list[int]:
         """Update orders once per fill; return newly fully filled order IDs."""
+        if not len(fills):
+            return []
         completed = []
-        for fill in fills:
-            self.rows["trades"].append({
-                "t": now, **{name: int(fill[name]) for name in (
-                    "seq", "asset", "price", "qty", "taker_owner", "maker_owner", "taker_side",
-                )},
-            })
-            for key in ("taker_order", "maker_order"):
-                order_id = int(fill[key])
+        orders = self.rows["orders"].columns
+        qty, filled, status = orders["qty"], orders["filled_qty"], orders["status"]
+        add_trade = self.rows["trades"].add
+        # tolist() gives Python ints in the FILL_DTYPE field order fixed by K1.
+        for seq, asset, price, q, taker_order, maker_order, taker_owner, maker_owner, side in fills.tolist():
+            add_trade(now, seq, asset, price, q, taker_owner, maker_owner, side)
+            for order_id in (taker_order, maker_order):
                 row = self._orders[order_id]
-                row["filled_qty"] += int(fill["qty"])
-                if row["filled_qty"] == row["qty"]:
-                    row["status"] = int(Status.FILLED)
+                filled[row] += q
+                if filled[row] == qty[row]:
+                    status[row] = _FILLED
                     completed.append(order_id)
-                elif row["status"] == int(Status.RESTING):
-                    row["status"] = int(Status.PARTIAL_RESTING)
+                elif status[row] == _RESTING:
+                    status[row] = _PARTIAL
         return completed
 
     def snapshot(self, now: float, market: MarketDataView, valuations: np.ndarray, initial_price: int) -> None:
@@ -92,13 +131,8 @@ class Recorder:
 
     def write(self, directory: Path, meta: dict) -> None:
         """Write every table with explicit dtypes, including tables with zero rows."""
-        dtypes = {"f": "float64", "i": "int64", "s": "string"}
         for spec in RUN_TABLES:
-            rows = self.rows[spec.name]
-            frame = pd.DataFrame({
-                c.name: pd.Series([row[c.name] for row in rows], dtype=dtypes[c.kind]) for c in spec.columns
-            })
-            write_table(frame, spec, directory / spec.file)
+            write_table(self.rows[spec.name].frame(), spec, directory / spec.file)
         (directory / "meta.json").write_text(
             json.dumps(meta, sort_keys=True, indent=2, allow_nan=False) + "\n", encoding="utf-8",
         )

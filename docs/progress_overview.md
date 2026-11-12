@@ -36,7 +36,7 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
 2. **Graf zależności `real_v1` jest gotowy:** 18 spółek, 4 surowce i S&P 500, 47 krawędzi. Strukturę wzięliśmy z tabel przepływów międzygałęziowych BEA, a wagi z regresji na latach 2021–2023 (rozdz. 4.2).
 3. **Fala szoku przechodzi przez graf dzięki transakcjom, a nie formule.** Po skoku ropy o ±20% producenci ropy dochodzą do swojej ceny referencyjnej w 0,85 sesji, rafinerie w 0,95 sesji (średnio dla obu kierunków szoku), linie lotnicze tanieją, a spółki niepowiązane z ropą stoją w miejscu (rozdz. 4.6, wykres 12).
 4. **W sprawdzonych konfiguracjach zachowania stadne destabilizowały rynek dopiero wtedy, gdy były silne i dotyczyły większości.**
-   - Na rynku jednego aktywa silne naśladowanie ($h = 0{,}6$) zwiększa maksymalne obsunięcie z 0,37% do 9,4%.
+   - Na rynku jednego aktywa silne naśladowanie ($h = 0{,}6$) zwiększa maksymalne obsunięcie z 0,37% do 9,4% przy starej regule zleceń i z 0,39% do 3,6% z pozycją docelową; efekt jest w obu przypadkach wyraźny (przedziały powyżej zera), ale z pozycją docelową 3–5 razy mniejszy (rozdz. 4.4, wykres 8b).
    - Na łańcuchu ze wstrząsem ropy błąd wyceny rośnie razem z $h$. W składach `mixed` i `trend` (tylko te liczyliśmy przy $h \ge 0{,}6$) rynek załamuje się w 20–30% przebiegów dopiero przy $h = 0{,}8$.
    - Na łańcuchu (skład `mixed`, stara reguła zleceń) rynek, w którym silnie naśladowała połowa inwestorów, zachował się jak przy tej samej średniej sile naśladowania (rozdz. 4.4–4.5).
 5. **Znaleźliśmy i naprawiliśmy dwa błędy modelu, które zmieniały wyniki.** Pierwszy: zaokrąglanie wielkości zlecenia w dół wyłączało drobnych inwestorów z handlu (F4). Drugi: reguła „kupuj przy każdej decyzji, dopóki sygnał dodatni” dawała ceny z inercją, której nie ma na prawdziwym rynku (autokorelacja +0,59 zamiast −0,05). Teraz inwestor ma pozycję docelową. Po tej zmianie powtórzyliśmy eksperyment E4. Okazało się, że większość załamań na łańcuchu była skutkiem starej reguły, a nie samego naśladowania (rozdz. 4.4–4.6).
@@ -196,9 +196,9 @@ Projekt jest podzielony na fazy F0–F10. Każda ma właściciela, opis w [`docs
 | F1 | Dane: pobranie, czyszczenie, kontrola (2021–2025) | ✅ gotowe; dodatkowo cena miedzi z LME |
 | F2 | Graf zależności `real_v1`, trajektoria referencyjna, scenariusze sygnałów | ✅ gotowe |
 | F3 | Giełda (Python + C++), bramka, test skali na 18 spółkach | ✅ gotowe |
-| F4 | Rynek jednego aktywa, eksperymenty E1–E3 (P1, P2) | ✅ gotowe (wersja po poprawce minimalnego zlecenia) |
+| F4 | Rynek jednego aktywa, eksperymenty E1–E3 (P1, P2) | ✅ gotowe; E1–E3 policzone też z pozycją docelową, podsumowania liczone metrykami D1 (PR #23) |
 | F5 | Wyceniający według grafu na łańcuchu ropa → COP → VLO → DAL, eksperyment E4 | ✅ gotowe; E4 powtórzony z pozycją docelową (PR #20) |
-| F6 | Pełna sieć 18 spółek na rzeczywistych sygnałach 2024–2025 (kamień milowy M3) | 🟡 zrobione, w przeglądzie (PR #15) |
+| F6 | Pełna sieć 18 spółek na rzeczywistych sygnałach 2024–2025 (kamień milowy M3) | ✅ gotowe (PR #15); pełny E5 przed nami |
 | F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | 🟡 skrócony E5 policzony (90 przebiegów), pełne przed nami |
 | F8 | Walidacja na danych 2024–2025 | 🟡 pierwsze testy w notatniku, moduł przed nami |
 | F9 | Wizualizacja: odtwarzanie przebiegu, tryb na żywo | ✅ odtwarzanie (PR #18) i tryb na żywo (PR #21) gotowe; porównanie eksperymentów przed nami |
@@ -670,7 +670,26 @@ Test w parach ($h = 0{,}6$ minus $h = 0$, te same 30 ziaren, przedział ufności
 - **Ograniczenia:**
   - rynek jest krótki (30 sesji), syntetyczny i bez wiadomości z zewnątrz;
   - wzór mieszania sygnałów jednocześnie osłabia własny sygnał i dodaje sygnał znajomych, a E1 tych dwóch kanałów nie rozdziela;
-  - **F4 liczyliśmy jeszcze ze starą regułą wielkości zlecenia** („kupuj przy każdej decyzji”). Na łańcuchu ta reguła mocno zawyżała niestabilność (rozdz. 4.5), więc E1–E2 trzeba powtórzyć z pozycją docelową. Dopiero wtedy będzie wiadomo, ile z efektu 9,4% zostaje.
+  - powyższe liczby pochodzą ze starej reguły wielkości zlecenia („kupuj przy każdej decyzji”); powtórzenie z pozycją docelową — wykres 8b niżej.
+
+#### Wykres 8b. F4 ponownie, z pozycją docelową
+
+![F4: stara reguła a pozycja docelowa](figures/f4_flow_vs_target.png)
+
+**Po co.** Na łańcuchu (rozdz. 4.5) i w pełnej sieci (rozdz. 4.6) okazało się, że reguła „kupuj przy każdej decyzji” zawyża niestabilność. Powtórzyliśmy więc E1–E3 (450 przebiegów, te same ziarna i parametry) z jedną zmianą: inwestor ma pozycję docelową (początkowa liczba akcji × (1 + 0,5 × sygnał)), a zlecenie zamyka różnicę do celu. Jak w poprawce F4, zlecenie ma co najmniej 1 akcję, jeśli różnica to co najmniej cała akcja; bez tego przy $C = 0{,}8$ drobni inwestorzy (portfel ok. 4400 USD) znów wypadliby z handlu. Wszystkie podsumowania (stara i nowa reguła) liczymy teraz formalnymi metrykami D1 (`marketsim.metrics`); dla starej reguły dają dokładnie te same liczby co wcześniej.
+
+**Co przedstawia.**
+- Dwie mapy: mediana maksymalnego obsunięcia w E1 dla starej reguły i dla pozycji docelowej (ta sama skala kolorów).
+- Prawy panel: efekt naśladowania ($h = 0{,}6$ minus $h = 0$, pary z tym samym ziarnem, przedział 95% bootstrap po 30 ziarnach) dla obsunięcia (słupki pełne) i dla czasu z pustą stroną arkusza (słupki kreskowane).
+
+**Co widać.**
+- **Naśladowanie nadal destabilizuje rynek**, przy każdym $C$ przedział jest powyżej zera: +3,4 / +3,1 / +2,0 p.p. obsunięcia przy $C$ = 0,2 / 0,5 / 0,8. To jednak 3–5 razy mniej niż przy starej regule (+11,6 / +10,2 / +9,2 p.p.).
+- **Za to z pozycją docelową stado częściej opróżnia arkusz:** czas z pustą stroną rośnie o 15–19 p.p. (stara reguła: 6–14 p.p.). Stado chcące tej samej strony zdejmuje oferty animatora i czeka, zamiast gonić cenę. Obsunięcie liczymy tylko z cen dwustronnych, więc trzeba je czytać razem z czasem pustej strony.
+- **E2 (przyczyny, $h = 0{,}6$, $C = 0{,}5$):** bez naśladowania 0,39%, bez strategii trendowej 2,1%, wariant bazowy 3,6%. Naśladowanie pozostaje głównym źródłem niestabilności.
+- **E3:** odległość ofert animatora 4 / 10 / 30 centów daje 0,93% / 0,87% / 1,34%; znaczenie nadal niewielkie.
+- **Koncentracja kapitału** przy silnym naśladowaniu nie zwiększa obsunięcia przy żadnej regule.
+
+**Wniosek.** Odpowiedź na P1 się utrzymuje: naśladowanie destabilizuje rynek. Jego skala zależy jednak od reguły wielkości zlecenia, a część efektu ze starej reguły była jej skutkiem. Pozycję docelową dodaliśmy po poznaniu wyników starej reguły, na tych samych ziarnach, więc to powtórzenie z poprawioną regułą, a nie niezależny test. Szczegóły: [przewodnik F4](guides/f4_simulation.md), notatnik [`03_experiments.ipynb`](../notebooks/03_experiments.ipynb) (PR #23).
 
 ---
 
@@ -883,7 +902,7 @@ Miary fali policzone funkcjami Marty (`marketsim.metrics.wave_metrics`, mediana 
 
 Ten wykres pokazuje **czego nie należy oczekiwać** od modelu: nie odtwarza on ścieżek cen pojedynczych spółek i nie ma tego robić (rozdz. 1). Co odtwarza, mierzymy w rozdz. 4.7.
 
-Opis techniczny: [przewodnik F6](guides/f6_full_network.md) (po rosyjsku, w PR #15).
+Opis techniczny: [przewodnik F6](guides/f6_full_network.md) (po rosyjsku).
 
 ---
 
@@ -897,7 +916,7 @@ Opis techniczny: [przewodnik F6](guides/f6_full_network.md) (po rosyjsku, w PR #
 - 200 grafów losowych, w których krawędzie między spółkami i surowcami zostały losowo przestawione (każdy węzeł ma tyle samo krawędzi co w `real_v1`, a wagi są oszacowane tą samą regresją). Na nich liczymy ścieżkę $R$.
 - Pełne symulacje na dwóch takich grafach oraz symulacja z **płaskimi wejściami** (`real_v1`, wszystkie sygnały zamrożone na poziomie z 2 stycznia 2024 r.), każda na tych samych 10 ziarnach co główna komórka (`mixed`, $h = 0{,}2$).
 
-Notatnik: [`06_real_checks.ipynb`](../notebooks/06_real_checks.ipynb) (w PR #15).
+Notatnik: [`06_real_checks.ipynb`](../notebooks/06_real_checks.ipynb).
 
 #### Wykres 15. Graf poza próbą
 
@@ -1052,11 +1071,10 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 
 | Kolejność | Faza | Co konkretnie | Efekt |
 |---|---|---|---|
-| 1 | F6 | przegląd i scalenie PR #15 | pełna sieć w gałęzi głównej (kamień milowy M3) |
-| 2 | F7 | **E1–E2 (F4) ponownie z pozycją docelową** (E4 już powtórzony, wykres 10b); pełny E5 (270 przebiegów, ok. 4,5 h na 10 procesach); E6: czy szok ropy „przeskakuje” na JPM i spółki spoza łańcucha i którym kanałem (wspólny portfel, rebalansowanie, limity ryzyka, naśladowanie); E7: udział wyceniających sieciowych {0; 25%; 50%}; ablacje | odpowiedzi na P5, P6, P7 z przedziałami ufności |
-| 3 | F8 | przeniesienie testów z notatnika do modułu `validation/`; fakty stylizowane **bez sygnałów zewnętrznych**; odtworzenie grafu z cen symulowanych; pasma 90% z wielu przebiegów | rozdział „Walidacja” raportu |
-| 4 | F9 | porównanie eksperymentów (mapy cieplne, wykresy pudełkowe); tryb **na żywo** (przyciski „ropa ±30%”, „wiadomość o spółce”, suwak $h$) jest już gotowy (PR #21) | demonstracja na obronie |
-| 5 | F10 | raport końcowy po polsku, prezentacja | — |
+| 1 | F7 | zamrożenie protokołu (metryki, ziarna, reguła wyboru przebiegów); pełny E5 (270 przebiegów, ok. 4,5 h na 10 procesach); E6: czy szok ropy „przeskakuje” na JPM i spółki spoza łańcucha i którym kanałem (wspólny portfel, rebalansowanie, limity ryzyka, naśladowanie); E7: udział wyceniających sieciowych {0; 25%; 50%}; ablacje | odpowiedzi na P5, P6, P7 z przedziałami ufności |
+| 2 | F8 | przeniesienie testów z notatnika do modułu `validation/`; fakty stylizowane **bez sygnałów zewnętrznych**; odtworzenie grafu z cen symulowanych; pasma 90% z wielu przebiegów | rozdział „Walidacja” raportu |
+| 3 | F9 | porównanie eksperymentów (mapy cieplne, wykresy pudełkowe); tryb **na żywo** (przyciski „ropa ±30%”, „wiadomość o spółce”, suwak $h$) jest już gotowy (PR #21) | demonstracja na obronie |
+| 4 | F10 | raport końcowy po polsku, prezentacja | — |
 
 **Kierunek, który chcemy zbadać w F7 (pytanie o ograniczoną uwagę).** W literaturze finansowej (Cohen i Frazzini, 2008) opisano, że cena odbiorcy reaguje na wiadomości o dostawcy z opóźnieniem, a wyjaśnia się to ograniczoną uwagą inwestorów. Na prawdziwym rynku nie da się sprawdzić tego mechanizmu, bo nie można „włączyć” inwestorom uwagi. W naszym modelu można: uwaga, opóźnienie, krótkowzroczność i błąd wiedzy to parametry. Zmierzymy, jak każdy z nich zmienia kompletność, opóźnienie i przestrzelenie fali. Ograniczenie, które już wiemy: w dziennych danych 2024–2025 opóźnienia między dostawcą a odbiorcą nie widać (wykres 17), więc model nie może być wolniejszy od rynku.
 
@@ -1073,8 +1091,8 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 | Plan całości i fazy F0–F10 | [`docs/plans/overall_plan.md`](plans/overall_plan.md), [`docs/plans/phases/`](plans/phases/) |
 | Dane: pliki, jednostki, decyzje | [`data/README.md`](../data/README.md) |
 | Graf `real_v1`: krawędzie, przegląd kandydatów | [`data/graph/real_v1/`](../data/graph/real_v1/) |
-| Przewodniki techniczne (po rosyjsku) | [F4](guides/f4_simulation.md), [F5](guides/f5_graph_valuers.md), F6 (PR #15), [F9](guides/f9_visualization.md) |
-| Notatniki | [`01_data_overview`](../notebooks/01_data_overview.ipynb) (wykresy 1–4), [`02_graph`](../notebooks/02_graph.ipynb), [`03_experiments`](../notebooks/03_experiments.ipynb) (wykres 8), [`05_chain_wave`](../notebooks/05_chain_wave.ipynb) (wykresy 9–10), `06_full_network_wave` i `06_real_checks` (PR #15, wykresy 12, 15–18) |
+| Przewodniki techniczne (po rosyjsku) | [F4](guides/f4_simulation.md), [F5](guides/f5_graph_valuers.md), [F6](guides/f6_full_network.md), [F9](guides/f9_visualization.md) |
+| Notatniki | [`01_data_overview`](../notebooks/01_data_overview.ipynb) (wykresy 1–4), [`02_graph`](../notebooks/02_graph.ipynb), [`03_experiments`](../notebooks/03_experiments.ipynb) (wykresy 8, 8b), [`05_chain_wave`](../notebooks/05_chain_wave.ipynb) (wykresy 9–10), [`06_full_network_wave`](../notebooks/06_full_network_wave.ipynb) i [`06_real_checks`](../notebooks/06_real_checks.ipynb) (wykresy 12, 15–18) |
 | Kod | dane [`src/marketsim/data/`](../src/marketsim/data/), graf [`graph/`](../src/marketsim/graph/), giełda [`cpp/`](../cpp/) i [`market/`](../src/marketsim/market/), symulacja [`sim/`](../src/marketsim/sim/) i [`agents/`](../src/marketsim/agents/), metryki [`metrics/`](../src/marketsim/metrics/), wizualizacja [`viz/`](../src/marketsim/viz/) |
 | Testy | [`tests/`](../tests/) — ponad 240 testów, w tym testy kontraktów i porównanie Python = C++ |
 

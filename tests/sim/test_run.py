@@ -155,3 +155,67 @@ def test_retail_investors_can_submit_orders_across_concentration_and_herding(tmp
     assert (retail_orders.qty >= 1).all()
     assert log.meta["simulation_version"] == "f4-v3"
     assert log.meta["initial_resources"] == log.meta["final_resources"]
+
+
+def test_flow_is_the_default_of_the_single_asset_market(tmp_path):
+    from marketsim.sim.settings import AgentSettings, identity_dict
+
+    agents = small_config().agents
+    assert identity_dict(AgentSettings.from_dict(agents)) == identity_dict(
+        AgentSettings.from_dict({**agents, "position_sizing": "flow", "position_tilt": 0.5}))
+    plain = load_run(run(small_config(), 5, tmp_path / "plain"))
+    explicit = load_run(run(small_config(position_sizing="flow", position_tilt=0.5), 5, tmp_path / "explicit"))
+    for spec in RUN_TABLES:
+        pd.testing.assert_frame_equal(plain[spec.name], explicit[spec.name], check_exact=True)
+
+
+def test_target_positions_stay_within_the_tilt_and_conserve_resources(tmp_path):
+    from marketsim.sim.api import _validate
+    from marketsim.sim.engine import Simulation
+
+    config = small_config(position_sizing="target", position_tilt=0.4, herding={"h": 0.6})
+    log = load_run(run(config, 6, tmp_path))
+    assert log.meta["initial_resources"] == log.meta["final_resources"]
+    assert len(log["trades"]) and log.meta["run_id"] != load_run(run(small_config(herding={"h": 0.6}), 6,
+                                                                     tmp_path / "flow")).meta["run_id"]
+    settings, levels = _validate(config, 6)
+    simulation = Simulation(config, settings, 6, levels)
+    initial = simulation.population.shares[:simulation.investors, 0].copy()
+    simulation.execute()
+    final = np.array([int(simulation.gateway.portfolio(a).shares_available[0]) for a in range(simulation.investors)])
+    assert (final != initial).any()
+    # A target is initial * (1 + 0.4 * signal), signal in [-1, 1]; one order may overshoot it by its own rounding.
+    assert (final <= np.floor(initial * 1.4) + 1).all() and (final >= np.ceil(initial * 0.6) - 1).all()
+
+
+def test_target_runs_are_identical_on_both_exchanges(tmp_path):
+    from marketsim.market.cpp_exchange import is_available
+
+    if not is_available():
+        pytest.skip("lob_core not built")
+    config = small_config(position_sizing="target", herding={"h": 0.3})
+    a = load_run(run(config, 7, tmp_path / "py"))
+    b = load_run(run(replace(config, exchange_backend="cpp"), 7, tmp_path / "cpp"))
+    for spec in RUN_TABLES:
+        pd.testing.assert_frame_equal(a[spec.name], b[spec.name], check_exact=True)
+
+
+def test_other_graph_keys_stay_rejected_in_the_single_asset_market(tmp_path):
+    with pytest.raises(ConfigError, match="need a graph"):
+        run(small_config(position_sizing="target", rebalancers=2), 1, tmp_path)
+
+
+@pytest.mark.parametrize("concentration", [0.2, 0.8])
+def test_target_keeps_small_retail_portfolios_in_the_market(tmp_path, concentration):
+    # At C = 0.8 a retail portfolio is so small that rho * wealth is below one share; the one-share minimum keeps it
+    # trading, as with flow (f4-v3).
+    config = RunConfig(
+        name="target_retail", exchange_backend="python", graph="single_asset", external="flat",
+        use_market_index=False, n_sessions=6, warmup_sessions=1, sample_dt=0.05,
+        agents={"valuers": 40, "trend": 20, "noise": 20, "n_funds": 8, "concentration": concentration,
+                "position_sizing": "target", "herding": {"h": 0.3}},
+    )
+    log = load_run(run(config, 2, tmp_path))
+    funds = set(log.meta["population"]["fund_ids"])
+    retail = log["orders"].loc[lambda d: ~d.agent.isin(funds) & (d.agent < 80) & (d.t >= 1)]
+    assert retail.agent.nunique() >= 40

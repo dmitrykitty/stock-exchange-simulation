@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import html
 import json
 import math
+import re
 from importlib import resources
 from pathlib import Path
 
@@ -101,14 +103,20 @@ def _external_frame(log: RunLog, scenario: str | None) -> pd.DataFrame:
 
 
 def _real_closes(tickers: list[str], dates: pd.Series) -> dict[str, list[float | None]]:
-    """Real close prices (adjusted for splits only, as the start prices) on the sessions' dates, in USD."""
+    """Real close prices (adjusted for splits only, as the start prices) on the sessions' dates, in USD.
+
+    A session without a date (missing in the scenario or in the log) gets no real price."""
     try:
         closes = data_api.load_stock_prices(adjusted=False)
     except FileNotFoundError:
         return {}
     closes.index = pd.to_datetime(closes.index)
-    on_dates = closes.reindex(pd.to_datetime(dates.to_numpy()))
+    on_dates = closes.reindex(pd.to_datetime(dates.to_numpy()))  # NaT rows come back as NaN -> None
     return {t: _round_list(on_dates[t].to_numpy(dtype=float), 2) for t in tickers if t in on_dates.columns}
+
+
+def _date_list(dates: pd.Series) -> list[str | None]:
+    return [None if pd.isna(d) else d.strftime("%Y-%m-%d") for d in pd.to_datetime(dates)]
 
 
 def _round_list(values: np.ndarray, digits: int) -> list[float | None]:
@@ -200,18 +208,24 @@ def build_payload(run_dir: str | Path, real_prices: bool = True, max_samples: in
             "labels": [EXTERNAL_LABELS.get(n, n) for n in ext_names],
             "values": {n: _round_list(externals[n].to_numpy(dtype=float), 4) for n in ext_names},
         },
-        "dates": [d.strftime("%Y-%m-%d") for d in pd.to_datetime(dates)] if dates is not None else None,
+        "dates": _date_list(dates) if dates is not None else None,
         "real": _real_closes(assets, dates) if (real_prices and dates is not None) else {},
         "graph_changed": bool(graph_dir and _graph_changed(graph_dir, meta)),
         "nodes": [], "edges": [],
     }
     if graph:
+        # Only the companies traded in this run (meta.assets) and every external node; edges between those.
+        shown = {n for n, node in graph.nodes.items() if node.kind != "company" or n in assets}
         positions = _layout(graph)
         for n, node in graph.nodes.items():
+            if n not in shown:
+                continue
             x, y = positions[n]
             payload["nodes"].append({"id": n, "kind": node.kind, "x": x, "y": y,
                                      "label": EXTERNAL_LABELS.get(n, n)})
         for e in graph.edges:
+            if e.parent not in shown or e.child not in shown:
+                continue
             w = e.weight("full")
             payload["edges"].append({"parent": e.parent, "child": e.child, "source": e.source,
                                      "w": None if w is None else round(w, 3),
@@ -228,10 +242,12 @@ def render(payload: dict, cdn: bool = False) -> str:
         from plotly.offline import get_plotlyjs  # optional dependency: pip install -e ".[viz]"
 
         plotly_tag = f"<script>{get_plotlyjs()}</script>"
-    data = json.dumps(payload, separators=(",", ":"), allow_nan=False).replace("</", "<\\/")
-    return (template.replace("<!--PLOTLY-->", plotly_tag)
-            .replace("/*PAYLOAD*/null", data)
-            .replace("{{TITLE}}", f"Market replay {payload['run_id']}"))
+    # Every "<" as the JSON escape <: no "</script" and no "<!--" can end or confuse the script block.
+    data = json.dumps(payload, separators=(",", ":"), allow_nan=False).replace("<", "\\u003c")
+    values = {"<!--PLOTLY-->": plotly_tag, "/*PAYLOAD*/null": data,
+              "{{TITLE}}": html.escape(f"Market replay {payload['run_id']}")}
+    # One pass: text inserted for one marker is never searched for another (a run_id may contain any marker).
+    return re.sub("|".join(map(re.escape, values)), lambda m: values[m.group(0)], template)
 
 
 def write_html(run_dir: str | Path, out: str | Path, real_prices: bool = True, cdn: bool = False) -> Path:

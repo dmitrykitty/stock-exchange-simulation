@@ -203,3 +203,19 @@ def test_target_runs_are_identical_on_both_exchanges(tmp_path):
 def test_other_graph_keys_stay_rejected_in_the_single_asset_market(tmp_path):
     with pytest.raises(ConfigError, match="need a graph"):
         run(small_config(position_sizing="target", rebalancers=2), 1, tmp_path)
+
+
+@pytest.mark.parametrize("concentration", [0.2, 0.8])
+def test_target_keeps_small_retail_portfolios_in_the_market(tmp_path, concentration):
+    # At C = 0.8 a retail portfolio is so small that rho * wealth is below one share; the one-share minimum keeps it
+    # trading, as with flow (f4-v3).
+    config = RunConfig(
+        name="target_retail", exchange_backend="python", graph="single_asset", external="flat",
+        use_market_index=False, n_sessions=6, warmup_sessions=1, sample_dt=0.05,
+        agents={"valuers": 40, "trend": 20, "noise": 20, "n_funds": 8, "concentration": concentration,
+                "position_sizing": "target", "herding": {"h": 0.3}},
+    )
+    log = load_run(run(config, 2, tmp_path))
+    funds = set(log.meta["population"]["fund_ids"])
+    retail = log["orders"].loc[lambda d: ~d.agent.isin(funds) & (d.agent < 80) & (d.t >= 1)]
+    assert retail.agent.nunique() >= 40

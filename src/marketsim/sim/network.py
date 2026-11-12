@@ -35,6 +35,7 @@ import numpy as np
 from marketsim.agents.herding import HerdingNetwork, susceptibility
 from marketsim.agents.strategies import (
     OrderIntent,
+    clip_signal,
     make_order,
     maker_orders,
     market_price,
@@ -291,7 +292,7 @@ class NetworkSimulation:
         s = self.settings
         rate = s.market_maker_rate if agent >= self.investors else s.decision_rate
         interval = float(self._wake_rng[agent].exponential(1 / rate))
-        time = max(now + interval, float(np.nextafter(now, np.inf)))
+        time = max(now + interval, math.nextafter(now, math.inf))
         if time < self.config.n_sessions:
             self.scheduler.schedule(time, "wake", agent)
 
@@ -392,7 +393,7 @@ class NetworkSimulation:
                     target_value = self._targets[agent][asset] * self._wealth(portfolio)
                     held = int(portfolio.shares_available[asset]) + int(portfolio.shares_reserved[asset])
                     deviation = (target_value - held * price) / target_value if target_value > 0 else 0.0
-                    own = float(np.clip(deviation, -1.0, 1.0))
+                    own = clip_signal(deviation)
                     herd, signal = self.network.mix(agent, own, now, h, asset)
                     intent = rebalance_order(deviation, target_value, price, market.top(asset), portfolio,
                                              self.asset_settings[asset], self._decision_rng[agent], asset)

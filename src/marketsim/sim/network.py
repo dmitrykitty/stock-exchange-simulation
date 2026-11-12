@@ -68,6 +68,9 @@ from marketsim.sim.settings import AgentSettings
 INVESTOR_KINDS = ("valuer_myopic", "valuer_network", "trend", "noise")
 # Control events of the live mode (F9), also the ``kind`` of their rows in the events table.
 CONTROL_KINDS = ("shock_external", "shock_valuation", "set_herding")
+# Largest total move that shocks may give one external level (against the scenario) or one company's valuations:
+# a factor between 1/1000 and 1000, so prices, R and valuations stay finite and positive.
+CONTROL_MAX_FACTOR = 1000.0
 _REJECTED = (Status.REJECTED_FUNDS, Status.REJECTED_INVALID, Status.REJECTED_SELF_TRADE)
 
 
@@ -215,6 +218,7 @@ class NetworkSimulation:
         self._owners: dict[int, int] = {}
         # Copies: control events change levels and the reference from a session on.
         self._external = np.array(external, dtype=float)
+        self._external_scenario = self._external.copy()  # levels before any control, for the shock bounds
         self._external_base = self._external[0].copy()
         self._external_names = external_names
         self._reference = np.array(reference, dtype=float)
@@ -557,13 +561,33 @@ class NetworkSimulation:
                 raise ConfigError(f"{kind}: change must be a finite number > -1")
         if kind == "shock_external":
             node = params["node"]
-            if node not in self._external_names or (node == "sp500" and not self.config.use_market_index):
+            if type(node) is not str or node not in self._external_names or (
+                    node == "sp500" and not self.config.use_market_index):
                 raise ConfigError(f"shock_external: {node!r} is not an external signal the agents see")
             if time != math.floor(time) or time < 1:
                 raise ConfigError("shock_external starts at a session open after the first one")
-        if kind == "shock_valuation" and params["asset"] not in self.assets:
+        if kind == "shock_valuation" and (type(params["asset"]) is not str or params["asset"] not in self.assets):
             raise ConfigError(f"shock_valuation: {params['asset']!r} is not an asset of this market")
+        if kind != "set_herding":
+            self._check_shock_total(kind, params)
         heapq.heappush(self._controls, (float(time), next(self._control_seq), kind, dict(params)))
+
+    def _check_shock_total(self, kind: str, params: dict) -> None:
+        """Refuse a shock that, with the shocks applied and queued for the same target, moves it by a factor beyond
+        ``CONTROL_MAX_FACTOR`` (shocks only multiply, so the largest total is the product of them all)."""
+        key = "node" if kind == "shock_external" else "asset"
+        total = math.log1p(params["change"]) + sum(
+            math.log1p(p["change"]) for _, _, k, p in self._controls if k == kind and p[key] == params[key])
+        if kind == "shock_external":
+            k = self._external_names.index(params["node"])
+            # Shocks already applied scale the later sessions; the new ones scale them again.
+            ratio = self._external[:, k] / self._external_scenario[:, k]
+            total = max(abs(total + math.log(float(ratio.max()))), abs(total + math.log(float(ratio.min()))))
+        else:
+            total = abs(total + float(self._ln_shift[self.assets.index(params["asset"])]))
+        if not total <= math.log(CONTROL_MAX_FACTOR):
+            raise ConfigError(f"{kind}: together with earlier shocks of {params[key]!r} the change would exceed a "
+                              f"factor of {CONTROL_MAX_FACTOR:g}")
 
     def _apply_control(self, time: float, kind: str, params: dict) -> None:
         payload = dict(params)

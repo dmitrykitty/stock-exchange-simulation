@@ -17,6 +17,8 @@ import argparse
 import hashlib
 import json
 import math
+import queue
+import signal
 import tempfile
 import time
 from dataclasses import asdict, replace
@@ -138,6 +140,20 @@ class LiveSession:
             "h": round(float(sim.herd_h[followers].mean()), 4) if len(followers) else 0.0,
         }
 
+    def describe(self) -> dict:
+        """What the live page needs once, as plain data: assets, start prices, external names, run settings."""
+        sim, hs = self.sim, self.sim.settings.herding
+        return {
+            "assets": list(sim.assets), "start": list(sim.start_ticks), "externals": list(self.external_names),
+            "n_sessions": self.config.n_sessions, "sample_dt": self.config.sample_dt, "seed": self.seed,
+            "config": asdict(self.config), "investors": sim.investors, "followers": len(sim.herd_followers),
+            "h": hs.h, "h_std": hs.h_std,
+        }
+
+    def applied_controls(self) -> list[dict]:
+        """Controls the simulation has applied so far, in order (``{"t", "kind", **params}``)."""
+        return [dict(c) for c in self.sim.applied_controls]
+
     def logged_config(self) -> RunConfig:
         """The configuration a fresh run needs to give this log: ``n_sessions`` cut to where the run stopped."""
         if self.end is None:
@@ -159,6 +175,106 @@ class LiveSession:
         meta["controls"] = controls
         meta["live"] = {"configured_sessions": self.config.n_sessions, "stopped_at_session": self.end}
         return api._write(self.sim, run_id, meta, out_dir)
+
+
+def serve(config: RunConfig, seed: int, out_dir: str, speed: float, commands, out) -> None:
+    """The simulation process of the live page: steps a ``LiveSession`` paced by the wall clock, obeys commands
+    from ``commands`` and puts plain-data messages on ``out`` (``ready``, ``frame``, ``applied``, ``control`` /
+    ``control_error`` replies, ``status``, ``end``, ``error``).
+
+    Commands: ``{"cmd": "pause" | "resume" | "stop" | "quit"}``, ``{"cmd": "speed", "value": sessions per second,
+    0 = as fast as possible}`` and ``{"cmd": "control", "id", "kind", "params"}``. Ctrl+C in the terminal reaches
+    every process of the group; this one ignores it, so the server can ask for a clean stop and the log is written.
+    A failure of the simulation is reported as an ``error`` message, never as a silent exit.
+    """
+    try:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+    except ValueError:  # run in a thread (tests): signals stay with the main thread
+        pass
+    try:
+        session = LiveSession(config, seed)
+        out.put({"type": "ready", **session.describe(), "frame": session.frame()})
+        _serve_loop(session, out_dir, speed, commands, out)
+    except Exception as exc:  # noqa: BLE001 - reported to the page and the terminal
+        out.put({"type": "error", "message": f"the simulation failed: {type(exc).__name__}: {exc}"})
+
+
+def _pace(value) -> float:
+    """A display speed in sessions per second (0 = as fast as possible), checked."""
+    value = float(value)
+    if not math.isfinite(value) or value < 0:
+        raise ValueError("speed must be a finite number >= 0")
+    return value
+
+
+def _serve_loop(session: LiveSession, out_dir: str, speed: float, commands, out) -> None:
+    config = session.config
+    paused, next_at, reported = True, time.perf_counter(), 0
+
+    def interval_of(value: float) -> float:
+        return config.sample_dt / value if value > 0 else 0.0
+
+    def report_applied() -> None:
+        nonlocal reported
+        applied = session.applied_controls()
+        if len(applied) > reported:
+            out.put({"type": "applied", "controls": applied[reported:]})
+            reported = len(applied)
+
+    def close() -> None:
+        session.stop()
+        report_applied()
+        out.put({"type": "frame", "frame": session.frame()})
+        try:
+            path = session.write(out_dir)
+            out.put({"type": "end", "path": str(path), "session": session.end, "controls": session.applied_controls()})
+        except Exception as exc:  # noqa: BLE001
+            out.put({"type": "error", "message": f"could not write the log: {exc}"})
+
+    interval = interval_of(_pace(speed))
+    while True:
+        running = not paused and not session.done
+        wait = max(0.0, next_at - time.perf_counter()) if running else 0.5
+        try:
+            command = commands.get(timeout=wait) if wait > 0 else commands.get_nowait()
+        except queue.Empty:
+            command = None
+        if command is not None:
+            name = command.get("cmd")
+            if name == "quit":
+                break
+            if name == "pause":
+                paused = True
+            elif name == "resume":
+                paused, next_at = False, time.perf_counter()
+            elif name == "speed":
+                try:
+                    interval = interval_of(_pace(command.get("value")))
+                except (TypeError, ValueError):
+                    pass  # the server checks the value; a bad one leaves the speed as it is
+                next_at = time.perf_counter()
+            elif name == "control":
+                try:
+                    params = command.get("params", {})
+                    if not isinstance(params, dict):
+                        raise ConfigError("control params must be an object")
+                    control = session.control(str(command.get("kind")), **params)
+                    out.put({"type": "control", "id": command.get("id"), "control": control})
+                except (ConfigError, TypeError, ValueError) as exc:
+                    out.put({"type": "control_error", "id": command.get("id"), "message": str(exc)})
+            elif name == "stop" and not session.done:
+                close()
+            out.put({"type": "status", "paused": paused, "done": session.done})
+            continue
+        if not running:
+            continue
+        session.step()
+        report_applied()
+        out.put({"type": "frame", "frame": session.frame()})
+        if session.done:
+            close()
+            out.put({"type": "status", "paused": paused, "done": True})
+        next_at = max(next_at + interval, time.perf_counter()) if interval else time.perf_counter()
 
 
 def _run_id(config: RunConfig, seed: int, v: dict, controls: list[dict]) -> str:

@@ -1,6 +1,7 @@
 """F9 live mode: control events change the running market, are logged and replay into the same log."""
 
 import json
+import threading
 
 import numpy as np
 import pandas as pd
@@ -160,3 +161,61 @@ def test_frame_has_one_value_per_asset_and_external():
     assert frame["session"] == 1 and frame["t"] == pytest.approx(1.25)
     assert session.frame()["candles"] == []  # trades are reported once
     json.dumps(frame, allow_nan=False)
+
+
+@pytest.mark.parametrize("kind,key", [("shock_external", {"node": "wti"}), ("shock_valuation", {"asset": "VLO"})])
+def test_shocks_are_bounded_in_total_before_they_are_queued(kind, key):
+    session = LiveSession(live_config(), 1)
+    with pytest.raises(ConfigError, match="factor"):
+        session.sim.schedule_control(2.0, kind, {**key, "change": 1e308})
+    session.sim.schedule_control(2.0, kind, {**key, "change": 19.0})       # x20
+    session.sim.schedule_control(3.0, kind, {**key, "change": 19.0})       # x400 in total
+    with pytest.raises(ConfigError, match="factor"):
+        session.sim.schedule_control(4.0, kind, {**key, "change": 19.0})   # x8000: refused, nothing queued
+    session.sim.schedule_control(4.0, kind, {**key, "change": -0.9})       # back down is fine
+    session.sim.advance(5.0)
+    assert len(session.sim.applied_controls) == 3
+
+
+def test_serve_reports_a_failing_simulation_instead_of_dying(monkeypatch, tmp_path):
+    import queue
+
+    from marketsim.sim import live
+
+    def broken(self):
+        raise FloatingPointError("overflow")
+
+    monkeypatch.setattr(live.LiveSession, "step", broken)
+    commands, out = queue.Queue(), queue.Queue()
+    commands.put({"cmd": "resume"})
+    live.serve(live_config(), 1, str(tmp_path), 0, commands, out)
+    messages = []
+    while not out.empty():
+        messages.append(out.get())
+    assert messages[0]["type"] == "ready"
+    assert messages[-1]["type"] == "error" and "FloatingPointError" in messages[-1]["message"]
+
+
+def test_serve_confirms_applied_controls_and_logs_only_those(tmp_path):
+    import queue
+
+    from marketsim.sim import live
+
+    commands, out = queue.Queue(), queue.Queue()
+    commands.put({"cmd": "control", "id": 1, "kind": "set_herding", "params": {"h": 0.5}})
+    commands.put({"cmd": "control", "id": 2, "kind": "shock_external", "params": {"node": "wti", "change": 0.1}})
+    commands.put({"cmd": "resume"})
+    thread = threading.Thread(target=live.serve, args=(live_config(n_sessions=3), 1, str(tmp_path), 0, commands, out))
+    thread.start()
+    messages = []
+    while not messages or messages[-1]["type"] != "end":
+        messages.append(out.get(timeout=120))
+    commands.put({"cmd": "quit"})
+    thread.join(10)
+    replies = {m["id"]: m["control"] for m in messages if m["type"] == "control"}
+    applied = [c for m in messages if m["type"] == "applied" for c in m["controls"]]
+    end = next(m for m in messages if m["type"] == "end")
+    assert applied == [replies[1], replies[2]] == end["controls"]
+    # applied arrives only after the frame that crossed the control's time
+    first = next(i for i, m in enumerate(messages) if m["type"] == "applied")
+    assert all(m["frame"]["t"] <= replies[1]["t"] for m in messages[:first] if m["type"] == "frame")

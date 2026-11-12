@@ -40,11 +40,11 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
    - Na łańcuchu ze wstrząsem ropy błąd wyceny rośnie razem z $h$. W składach `mixed` i `trend` (tylko te liczyliśmy przy $h \ge 0{,}6$) rynek załamuje się w 20–30% przebiegów dopiero przy $h = 0{,}8$.
    - Na łańcuchu (skład `mixed`, stara reguła zleceń) rynek, w którym silnie naśladowała połowa inwestorów, zachował się jak przy tej samej średniej sile naśladowania (rozdz. 4.4–4.5).
 5. **Znaleźliśmy i naprawiliśmy dwa błędy modelu, które zmieniały wyniki.** Pierwszy: zaokrąglanie wielkości zlecenia w dół wyłączało drobnych inwestorów z handlu (F4). Drugi: reguła „kupuj przy każdej decyzji, dopóki sygnał dodatni” dawała ceny z inercją, której nie ma na prawdziwym rynku (autokorelacja +0,59 zamiast −0,05). Teraz inwestor ma pozycję docelową. Po tej zmianie powtórzyliśmy eksperyment E4. Okazało się, że większość załamań na łańcuchu była skutkiem starej reguły, a nie samego naśladowania (rozdz. 4.4–4.6).
-6. **Porównanie z rzeczywistością (2024–2025) robimy uczciwie:** symulacja nie widzi żadnej prawdziwej ceny akcji. Każdą miarę zgodności sprawdzamy też na 200 losowych grafach. Miara, którą losowy graf przechodzi równie dobrze, niczego nie dowodzi (rozdz. 4.7).
-7. **Co model odtwarza:**
-   - graf poza próbą przewiduje dzienne ruchy lepiej niż sama beta rynkowa i lepiej niż każdy z 200 losowych grafów;
-   - wzorzec reakcji 18 spółek na duże ruchy ropy jest zgodny z rzeczywistym (korelacja 0,83 wobec 0,53–0,66 na losowym grafie);
-   - odtwarza grube ogony rozkładu i brak przewidywalności stóp zwrotu.
+6. **Porównanie z rzeczywistością (2024–2025) robimy uczciwie:** w trakcie przebiegu symulacja nie widzi żadnej prawdziwej ceny akcji, codziennie dostaje tylko pięć szeregów zewnętrznych (cztery surowce i S&P 500). Prawdziwe ceny akcji wchodzą raz, jako stan początkowy z 2 stycznia 2024 r. Każdą miarę zgodności dla $R$ sprawdzamy na 200 losowych grafach, a symulacje porównujemy z kontrolami na tych samych ziarnach: dwoma losowymi grafami i płaskimi wejściami. Miara, którą kontrola przechodzi równie dobrze, niczego nie dowodzi. Parametry symulacji dobieraliśmy na tych samych 502 sesjach, więc miary rynkowe to wyniki kalibracji, a nie niezależna walidacja (rozdz. 4.7).
+7. **Co przechodzi kontrole:**
+   - graf poza próbą przewiduje dzienne ruchy lepiej niż sama beta rynkowa; w medianie dla 18 spółek nie dorównuje mu żaden z 200 losowych grafów (zysk jest w łańcuchu naftowym i metalach);
+   - wzorzec reakcji 18 spółek w dni dużych ruchów ropy jest podobny do rzeczywistego (korelacja 0,83 wobec 0,53–0,68 na losowych grafach z tymi samymi ziarnami);
+   - grube ogony rozkładu i brak autokorelacji stóp zwrotu to cele kalibracji; grube ogony pochodzą z prawdziwych sygnałów wejściowych, a nie od agentów.
 8. **Czego nie odtwarza:** prawdziwy rynek uwzględnia ruch tego samego dnia, a u nas ok. 1/5 ruchu dochodzi dopiero następnego dnia. Zapisujemy to jako ograniczenie, a nie ukrywamy.
 9. **Jest wizualizacja:** strona HTML, która odtwarza przebieg. Widać na niej, jak fala płynie po grafie, jak zmieniają się ceny, świece i płynność arkusza (rozdz. 4.8).
 10. **Zostało:** pełne eksperymenty F7 (E5–E7), moduł walidacji F8, tryb „na żywo” do prezentacji i raport końcowy.
@@ -877,9 +877,15 @@ Opis techniczny: [przewodnik F6](guides/f6_full_network.md) (po rosyjsku, w PR #
 
 ---
 
-### 4.7 Czy to przypomina prawdziwy rynek? Pierwsza walidacja
+### 4.7 Czy to przypomina prawdziwy rynek? Pierwsze porównanie
 
-**Zasada** (rozdz. 1): symulacja nie widzi żadnej prawdziwej ceny akcji z lat 2024–2025, tylko surowce i S&P 500. Porównujemy wzorce, a nie ścieżki. **Każdą miarę liczymy też dla 200 grafów losowych**, w których krawędzie między spółkami i surowcami zostały losowo przestawione (każdy węzeł ma tyle samo krawędzi co w `real_v1`, a wagi są oszacowane tą samą regresją). Dla dwóch takich grafów puściliśmy pełne symulacje (po 5 przebiegów). Jeśli losowy graf przechodzi test tak samo dobrze, test nie mówi nic o naszym grafie.
+**Zasada** (rozdz. 1). W trakcie przebiegu symulacja nie widzi żadnej prawdziwej ceny akcji z lat 2024–2025. Codziennie dostaje pięć szeregów zewnętrznych: ropę, gaz, miedź, złoto i S&P 500. Prawdziwe ceny akcji wchodzą tylko raz, jako stan początkowy z 2 stycznia 2024 r. Porównujemy wzorce, a nie ścieżki.
+
+**Co jest poza próbą, a co nie.** Wagi grafu i bety rynkowe oszacowaliśmy na latach 2021–2023, więc porównanie ścieżki $R$ z prawdziwymi stopami zwrotu 2024–2025 (wykres 15) to prawdziwy test poza próbą. Parametry symulacji dobieraliśmy jednak na tych samych 502 sesjach 2024–2025, m.in. patrząc na prawdziwą autokorelację (−0,05) i kształt reakcji. Inne ziarna nie zmieniają okresu. Dlatego miary rynkowe z wykresów 16–18 to **wyniki kalibracji**. Coś mówi tylko różnica między `real_v1` a kontrolami na tych samych ziarnach.
+
+**Kontrole.**
+- 200 grafów losowych, w których krawędzie między spółkami i surowcami zostały losowo przestawione (każdy węzeł ma tyle samo krawędzi co w `real_v1`, a wagi są oszacowane tą samą regresją). Na nich liczymy ścieżkę $R$.
+- Pełne symulacje na dwóch takich grafach oraz symulacja z **płaskimi wejściami** (`real_v1`, wszystkie sygnały zamrożone na poziomie z 2 stycznia 2024 r.), każda na tych samych 10 ziarnach co główna komórka (`mixed`, $h = 0{,}2$).
 
 Notatnik: [`06_real_checks.ipynb`](../notebooks/06_real_checks.ipynb) (w PR #15).
 
@@ -893,73 +899,80 @@ Notatnik: [`06_real_checks.ipynb`](../notebooks/06_real_checks.ipynb) (w PR #15)
 - **szary słupek:** zakres, w którym mieści się 90% z 200 losowych grafów.
 
 **Co widać.**
-- **Łańcuch naftowy i metale:** nasz graf jest wyraźnie lepszy od samej bety i od wszystkich losowych grafów. Najwyraźniej widać to na NEM (kopalnie złota): korelacja 0,66 wobec 0,23 dla bety, bo NEM zależy od złota, a nie od rynku. Tak samo COP i EOG: 0,66–0,67 wobec ok. 0,40.
+- **Łańcuch naftowy i metale:** nasz graf jest wyraźnie lepszy od samej bety. Najwyraźniej widać to na NEM (kopalnie złota): korelacja 0,66 wobec 0,23 dla bety, bo NEM zależy od złota, a nie od rynku. Tak samo COP i EOG: 0,66–0,67 wobec ok. 0,40. W grupie naftowej 4,5% losowych grafów dorównuje `real_v1` lub go przewyższa, w metalach żaden.
 - **Linie lotnicze i transport:** graf nic nie dodaje do bety. Wpływ ropy na linie lotnicze jest w rzeczywistości słaby i niestabilny.
 - **Siedem spółek po prawej** ma w praktyce tylko krawędź od indeksu, więc graf = beta z definicji. NEE i DUK (energetyka) prawie nie reagują na rynek w tym okresie (0,20 i −0,02), bo ich kursy zależą głównie od stóp procentowych.
 - **Mediana dla 18 spółek:**
   - nasz graf 0,595;
   - sama beta 0,526;
   - średni losowy graf 0,563;
-  - **żaden z 200 losowych grafów nie jest lepszy od `real_v1`**.
+  - **żaden z 200 losowych grafów nie ma wyższej mediany niż `real_v1`** (to dotyczy mediany dla wszystkich 18 spółek).
 
-  Przyrost nad betą to 0,068, z przedziałem 95% [0,042; 0,108] (bootstrap po dniach).
+  Średni po spółkach przyrost korelacji nad betą to 0,068, z przedziałem 95% [0,042; 0,108] (bootstrap blokami po 5 dni). To nie to samo co różnica median z listy (0,069). Mediana przyrostów po spółkach wynosi tylko 0,003: u większości spółek graf nic nie dodaje.
 
 #### Wykres 16. Reakcja na duże ruchy ropy (*event study*)
 
 ![Event study ropy](figures/f8_event_study.png)
 
 **Co przedstawia.**
-- Bierzemy 24 dni z lat 2024–2025 z największymi ruchami ropy i liczymy średnią reakcję każdej spółki ponad to, co wynika z ruchu całego rynku, ze znakiem ruchu ropy (dodatnia = spółka idzie razem z ropą).
-- Czarne kropki z wąsami: prawdziwe akcje z przedziałem ufności 95%.
+- Bierzemy 24 dni z lat 2024–2025 z największymi ruchami ropy (okna nie nakładają się) i liczymy średnią reakcję każdej spółki ponad to, co wynika z ruchu całego rynku, ze znakiem ruchu ropy (dodatnia = spółka idzie razem z ropą).
+- Czarne kropki z wąsami: prawdziwe akcje z przedziałem 95% (bootstrap blokami po 10 dni sesyjnych, bo bliskie zdarzenia dzielą nastroje rynku).
 - Niebieskie romby: symulacja na naszym grafie.
-- Pomarańczowe krzyżyki: symulacja na losowym grafie.
+- Pomarańczowe krzyżyki: symulacja na losowym grafie; szare kropki: symulacja z płaskimi wejściami (te same ziarna).
 
-**Dlaczego to uczciwy test.** W pojedynczym dniu prawdziwa cena to reakcja na ropę plus wiadomości o spółce. Wiadomości są w różne dni różne, więc **uśredniając po wielu dniach, wzajemnie się znoszą**. Zostaje czysta średnia reakcja na ropę. Symulacja dostaje tylko cenę ropy, a reakcję spółek wytwarza sama.
+**Jak to czytać.** Odjęcie bety usuwa ruch całego rynku, ale nie usuwa innych wspólnych ruchów tych dni (wiadomości sektorowe, stopy procentowe). Średnia prawdziwa to więc reakcja na cały dzień z dużym ruchem ropy, a nie wyizolowany efekt ropy. Porównanie pokazuje **podobieństwo wzorca reakcji**, a nie dowód konkretnych dróg przenoszenia.
 
 **Co widać.**
-- **Wzorzec się zgadza:** producenci ropy i rafinerie (prawa strona) reagują najmocniej, metale umiarkowanie, technologia i bank prawie wcale. Korelacja wzorca symulacji z rzeczywistym to **0,83**, a dla symulacji na losowych grafach 0,53–0,66.
-- **Wielkość też się zgadza:** średnio 0,99 prawdziwej reakcji (losowe grafy: 0,45–0,47).
+- **Wzorzec jest podobny:** producenci ropy i rafinerie reagują najmocniej, metale umiarkowanie, technologia i bank prawie wcale. Korelacja wzorca symulacji z rzeczywistym to **0,83**. Na losowych grafach z tymi samymi ziarnami 0,68 i 0,53, przy płaskich wejściach 0,14.
+- **Wielkość:** średnio 0,99 prawdziwej reakcji (losowe grafy: 0,47–0,50).
 - **Czego nie ma:**
   - w rzeczywistości DUK, ODFL i NEE lekko tanieją, gdy drożeje ropa (droższe paliwo i energia), a w symulacji prawie się nie ruszają;
   - symulacja przesadza z EOG.
+- Dla samej ścieżki $R$ korelacja jednego dnia ropy nic nie dowodzi (15,5% losowych grafów dorównuje `real_v1`). Dla okna dwudniowego ropy, dla miedzi (dzień i dwa dni) oraz dla tygodni z ruchem ropy powyżej 5% losowe grafy prawie nie dorównują (0,5%, 0%, 3%).
 - Testy, które **nic nie dowodzą**, bo losowe grafy przechodzą je równie dobrze: odsetek spółek z poprawnym znakiem reakcji i odsetek spółek wewnątrz przedziału ufności. Nie używamy ich jako argumentu.
 
 #### Wykres 17. Szybkość reakcji
 
 ![Opóźnienie](figures/f8_lag.png)
 
-**Co przedstawia.**
-- **Lewy panel:** dla każdej krawędzi grafu sprawdzamy, czy wczorajszy ruch rodzica przewiduje dzisiejszy ruch dziecka. W prawdziwym rynku powinno to nie działać: informacja jest w cenie tego samego dnia.
-- **Prawy panel:** jaka część ruchu referencyjnego dochodzi dopiero następnego dnia.
+**Co przedstawia.** Dwie różne miary, które odpowiadają na różne pytania:
+- **Lewy panel — pojedyncze krawędzie.** Dla każdej krawędzi grafu regresja dzisiejszego ruchu dziecka na wczorajszy ruch rodzica, zwykła statystyka $t$ każdej regresji. Pytanie: czy *jakaś* krawędź się spóźnia?
+- **Prawy panel — miara łączna.** Regresja ruchu każdej spółki na dzisiejszą i wczorajszą zmianę jej własnej ścieżki $R$; współczynnik przy wczorajszej zmianie mówi, jaka część ruchu dochodzi następnego dnia. Obserwacje (spółka × dzień) nie są niezależne, więc błędy liczymy z grupowaniem w bloki po 5 dni sesyjnych i pokazujemy przedział 95%.
 
 **Co widać.**
-- **Prawdziwy rynek:** 0% krawędzi z opóźnieniem, następnego dnia nic nie dochodzi (−0,07).
-- **Nasza symulacja:** ok. połowa krawędzi wykazuje opóźnienie, a następnego dnia dochodzi ok. 0,18 ruchu. Jest lepiej niż przed poprawką (0,55), ale **agenci wciąż są wolniejsi od prawdziwego rynku**. Opóźnienie rośnie ze stadnością (0,24) i przy trendowych (0,40).
-- **Losowy graf daje to samo opóźnienie**, więc test mierzy szybkość agentów, a nie jakość grafu.
-- **Skąd opóźnienie:** inwestor decyduje średnio dwa razy na sesję, więc informacja z końca dnia trafia do ceny następnego dnia. Próbowaliśmy to usunąć (więcej decyzji, większe pozycje), ale wtedy cena przestrzela i wraca, a autokorelacja robi się ujemna (−0,14…−0,18), czego na prawdziwym rynku też nie ma. Zostawiliśmy wariant z autokorelacją jak w rzeczywistości i **uczciwie zapisujemy tę różnicę jako ograniczenie modelu**.
+- **Prawdziwy rynek:** żadna z 29 krawędzi nie jest istotna. Miara łączna wynosi −0,068 [−0,133; −0,003], czyli następnego dnia jest raczej lekki powrót niż dociąganie.
+- **Nasza symulacja:** ok. połowa krawędzi wykazuje opóźnienie, a następnego dnia dochodzi 0,18 [0,14; 0,22] ruchu. Jest lepiej niż przed poprawką (0,55), ale **agenci wciąż są wolniejsi od prawdziwego rynku**. Opóźnienie rośnie ze stadnością (0,24) i przy trendowych (0,40).
+- **Losowy graf daje to samo opóźnienie** (0,19–0,22), więc test mierzy szybkość agentów, a nie jakość grafu. Przy płaskich wejściach nie ma czego opóźniać (0,00).
+- **Skąd opóźnienie:** inwestor decyduje średnio dwa razy na sesję, więc informacja z końca dnia trafia do ceny następnego dnia. Próbowaliśmy to usunąć (więcej decyzji, większe pozycje), ale wtedy cena przestrzela i wraca, a autokorelacja robi się ujemna (−0,14…−0,18). Zostawiliśmy wariant z autokorelacją jak w rzeczywistości i **zapisujemy tę różnicę jako ograniczenie modelu**.
 
-#### Wykres 18. Fakty stylizowane
+#### Wykres 18. Fakty stylizowane — cele kalibracji
 
 ![Fakty stylizowane](figures/f8_stylised_facts.png)
 
-**Co przedstawia.** Trzy własności, które ma praktycznie każdy prawdziwy rynek akcji, policzone tak samo dla prawdziwych akcji 2024–2025 (zielony) i dla symulacji (niebieski).
+**Co przedstawia.** Trzy własności, które ma praktycznie każdy prawdziwy rynek akcji, policzone tak samo dla prawdziwych akcji 2024–2025, dla symulacji i dla kontroli na tych samych ziarnach. Autokorelację dobieraliśmy przy kalibracji, więc zgodność z rzeczywistością jest tu oczekiwana; ciekawe jest, czy wymaga ona grafu i prawdziwych wejść.
 
-- **Lewy panel — grube ogony.** Rozkład dziennych zmian w jednostkach odchylenia standardowego, oś pionowa w skali logarytmicznej. Szara przerywana linia to rozkład normalny. Dni z ruchem powyżej 4 odchyleń są i na prawdziwym rynku, i w symulacji wielokrotnie częstsze, niż przewiduje rozkład normalny (kurtoza: symulacja 7–9,5, rzeczywistość 9,9).
-- **Środkowy panel — brak przewidywalności.** Korelacja dzisiejszej zmiany ze zmianą sprzed 1–10 dni jest w rzeczywistości i w symulacji bliska zera. Czerwona linia to reguła z F5 przed poprawką: wyraźna inercja (+0,58 przy opóźnieniu 1 dnia), której na prawdziwym rynku nie ma.
-- **Prawy panel — skupiska zmienności.** Po dniu z dużym ruchem częściej przychodzi dzień z dużym ruchem (dodatnia korelacja wartości bezwzględnych). Symulacja to odtwarza: 0,16 wobec 0,10–0,12 w rzeczywistości.
+| Miara (mediana po spółkach) | Rzeczywistość | Symulacja | Losowe grafy | Płaskie wejścia |
+|---|---|---|---|---|
+| autokorelacja stóp zwrotu (1 dzień) | −0,035 | −0,046 | −0,063…−0,067 | −0,55 |
+| autokorelacja wartości bezwzględnych (1 dzień) | 0,10 | 0,16 | 0,17 | 0,33 |
+| kurtoza nadwyżkowa | 6,9 | 5,2 | 5,4–5,5 | 0,9 |
 
-**Zastrzeżenie.** Część grubych ogonów może pochodzić z prawdziwych sygnałów (ropa, S&P 500), a nie od agentów. W F8 te same miary policzymy dla przebiegów bez sygnałów zewnętrznych, żeby rozdzielić te dwa źródła.
+- **Grube ogony** pochodzą z prawdziwych sygnałów wejściowych (ropa, S&P 500), a nie od agentów: przy płaskich wejściach kurtoza spada do 0,9.
+- **Brak przewidywalności i skupiska zmienności** są takie same na losowych grafach, więc nie mówią nic o grafie.
+- Czerwona linia (reguła z F5 przed poprawką) pokazuje inercję +0,58, której na prawdziwym rynku nie ma.
 
-#### Podsumowanie walidacji
+#### Podsumowanie
 
-| Test | Wynik | Czy losowy graf przechodzi? | Wniosek |
+| Test | Wynik | Czy kontrola przechodzi? | Wniosek |
 |---|---|---|---|
-| graf poza próbą (wykres 15) | 0,595 wobec 0,526 dla bety | nie (0 z 200) | ✅ graf niesie wiedzę |
-| reakcja na ropę (wykres 16) | wzorzec 0,83, wielkość 0,99 | nie (0,53–0,66) | ✅ fala przechodzi właściwymi drogami |
-| reakcja na miedź (dni i tygodnie) | zgodna | nie (0–3% losowych grafów dorównuje) | ✅ |
-| szybkość (wykres 17) | 0,18 ruchu następnego dnia, w rzeczywistości 0 | tak (to test agentów) | ❌ agenci wolniejsi niż rynek |
-| fakty stylizowane (wykres 18) | grube ogony, brak autokorelacji, skupiska zmienności | — | ✅, do sprawdzenia bez sygnałów |
-| zgodność dzień po dniu | 0,45 | prawie tak (0,43) | nie używamy jako argumentu |
+| graf poza próbą (wykres 15) | 0,595 wobec 0,526 dla bety | nie dla mediany 18 spółek (0 z 200); w grupie naftowej 4,5% | ✅ graf niesie wiedzę w łańcuchu naftowym i metalach |
+| reakcja na ropę (wykres 16) | wzorzec 0,83, wielkość 0,99 | losowe grafy 0,53–0,68, płaskie wejścia 0,14 | ✅ podobny wzorzec reakcji (wynik po kalibracji) |
+| reakcja na miedź (dzień i dwa dni), tygodnie z dużym ruchem ropy | zgodne | 0–3% losowych grafów dorównuje | ✅ |
+| szybkość (wykres 17) | 0,18 ruchu następnego dnia; w rzeczywistości −0,07 i 0 istotnych krawędzi | tak (to test agentów) | ❌ agenci wolniejsi niż rynek |
+| fakty stylizowane (wykres 18) | grube ogony, brak autokorelacji, skupiska zmienności | losowe grafy tak samo; grube ogony znikają przy płaskich wejściach | cele kalibracji, nie argument za grafem |
+| zgodność dzień po dniu | 0,45 | prawie tak (0,42) | nie używamy jako argumentu |
+
+**Co jeszcze policzyć przed F8:** fakty stylizowane i *event study* dla większej liczby losowych grafów oraz *event study* z dniami placebo.
 
 ---
 

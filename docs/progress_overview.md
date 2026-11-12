@@ -39,6 +39,7 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
    - Na rynku jednego aktywa silne naśladowanie ($h = 0{,}6$) zwiększa maksymalne obsunięcie z 0,37% do 9,4% przy starej regule zleceń i z 0,39% do 3,6% z pozycją docelową; efekt jest w obu przypadkach wyraźny (przedziały powyżej zera), ale z pozycją docelową 3–5 razy mniejszy (rozdz. 4.4, wykres 8b).
    - Na łańcuchu ze wstrząsem ropy błąd wyceny rośnie razem z $h$. W składach `mixed` i `trend` (tylko te liczyliśmy przy $h \ge 0{,}6$) rynek załamuje się w 20–30% przebiegów dopiero przy $h = 0{,}8$.
    - Na pełnej sieci (E5, 270 przebiegów, porównanie parami na tych samych ziarnach) naśladowanie w każdym składzie spowalnia rynek i oddala go od grafu, a wyceniający sieciowi opóźniają tylko drugie ogniwo łańcucha (rozdz. 4.6, wykres 13b).
+   - Fala przechodzi przez prawdziwy graf także bez wyceniających sieciowych; każdy dodatkowy sieciowy spowalnia rafinerie i zwiększa ich przestrzelenie (E7, rozdz. 4.6, wykres 13c).
    - Na pełnej sieci składy z wyceniającymi nie załamały się ani razu przy $h \le 0{,}4$; skład trendowy z naśladowaniem ($h \ge 0{,}2$) w 6 z 60 przebiegów spycha jedną spółkę poniżej połowy jej wartości referencyjnej w kwietniu 2025 r. (rozdz. 4.6, wykres 13).
    - Na łańcuchu (skład `mixed`, stara reguła zleceń) rynek, w którym silnie naśladowała połowa inwestorów, zachował się jak przy tej samej średniej sile naśladowania (rozdz. 4.4–4.5).
 5. **Znaleźliśmy i naprawiliśmy dwa błędy modelu, które zmieniały wyniki.** Pierwszy: zaokrąglanie wielkości zlecenia w dół wyłączało drobnych inwestorów z handlu (F4). Drugi: reguła „kupuj przy każdej decyzji, dopóki sygnał dodatni” dawała ceny z inercją, której nie ma na prawdziwym rynku (autokorelacja +0,59 zamiast −0,05). Teraz inwestor ma pozycję docelową. Po tej zmianie powtórzyliśmy eksperyment E4. Okazało się, że większość załamań na łańcuchu była skutkiem starej reguły, a nie samego naśladowania (rozdz. 4.4–4.6).
@@ -49,7 +50,7 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
    - grube ogony rozkładu i brak autokorelacji stóp zwrotu to cele kalibracji; grube ogony pochodzą z prawdziwych sygnałów wejściowych, a nie od agentów.
 8. **Czego nie odtwarza:** prawdziwy rynek uwzględnia ruch tego samego dnia, a u nas ok. 1/5 ruchu dochodzi dopiero następnego dnia. Zapisujemy to jako ograniczenie, a nie ukrywamy.
 9. **Jest wizualizacja:** strona HTML, która odtwarza przebieg. Widać na niej, jak fala płynie po grafie, jak zmieniają się ceny, świece i płynność arkusza (rozdz. 4.8).
-10. **Zostało:** eksperymenty F7 E6 i E7 (pełny E5 jest policzony: 270 przebiegów), moduł walidacji F8 i raport końcowy. Tryb „na żywo” do prezentacji jest gotowy (PR #21, [przewodnik F9](guides/f9_visualization.md), po rosyjsku).
+10. **Zostało:** eksperyment F7 E6 (E5 i E7 są policzone: 270 i 90 przebiegów), moduł walidacji F8 i raport końcowy. Tryb „na żywo” do prezentacji jest gotowy (PR #21, [przewodnik F9](guides/f9_visualization.md), po rosyjsku).
 
 ---
 ## 1. Idea projektu w pięciu minutach
@@ -107,7 +108,7 @@ Dla porównania liczymy **trajektorię referencyjną** $R$: ceny, jakie byłyby,
 | P2 | Jak koncentracja kapitału w funduszach wpływa na stabilność? | 1 aktywo (F4) | **wyniki są** (rozdz. 4.4) |
 | **P5** | **Jak strategie i zachowania stadne zmieniają propagację szoku w grafie?** | łańcuch (F5), pełna sieć (F6–F7) | **odpowiedź z przedziałami ufności:** E4 na łańcuchu, pełny E5 na pełnej sieci (270 przebiegów, rozdz. 4.6, wykres 13b) |
 | **P6** | **Czy powstaje współruch spółek niepowiązanych w grafie i dlaczego?** | pełna sieć (F7, eksperyment E6) | mechanizmy gotowe (wspólny portfel, rebalansowanie, limity ryzyka), eksperyment przed nami |
-| P7 | Ilu agentów „znających graf” potrzeba, by fala przechodziła? | eksploracyjnie (F7) | wstępnie: bez wyceniających sieciowych fala nie przechodzi dalej niż o jedno ogniwo |
+| P7 | Ilu agentów „znających graf” potrzeba, by fala przechodziła? | eksploracyjnie (F7, E7) | **odpowiedź:** na prawdziwym grafie żadnych; sieciowi spowalniają drugie ogniwo i zwiększają przestrzelenie (rozdz. 4.6, wykres 13c) |
 
 Hipotezy H1–H5 i pełna metodyka: [propozycja, rozdz. 4 i 7](research_proposal.md#4-cel-pytania-badawcze-i-hipotezy).
 
@@ -201,7 +202,7 @@ Projekt jest podzielony na fazy F0–F10. Każda ma właściciela, opis w [`docs
 | F4 | Rynek jednego aktywa, eksperymenty E1–E3 (P1, P2) | ✅ gotowe; E1–E3 policzone też z pozycją docelową, podsumowania liczone metrykami D1 (PR #23) |
 | F5 | Wyceniający według grafu na łańcuchu ropa → COP → VLO → DAL, eksperyment E4 | ✅ gotowe; E4 powtórzony z pozycją docelową (PR #20) |
 | F6 | Pełna sieć 18 spółek na rzeczywistych sygnałach 2024–2025 (kamień milowy M3) | ✅ gotowe (PR #15); kamień milowy M3 spełniony na pełnym E5 |
-| F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | 🟡 pełny E5 policzony (270 przebiegów) z odpowiedzią na P5; E6 i E7 przed nami |
+| F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | 🟡 E5 (270 przebiegów) i E7 (90) policzone, odpowiedzi na P5 i P7; E6 przed nami |
 | F8 | Walidacja na danych 2024–2025 | 🟡 pierwsze testy w notatniku, moduł przed nami |
 | F9 | Wizualizacja: odtwarzanie przebiegu, tryb na żywo | ✅ odtwarzanie (PR #18) i tryb na żywo (PR #21) gotowe; porównanie eksperymentów przed nami |
 | F10 | Raport końcowy i obrona | ⬜ |
@@ -728,7 +729,7 @@ Ze wzoru wynika, że **każdy błąd rynku przechodzi dalej**. Jeśli cena COP n
 | fala szła ok. 1% na sesję niezależnie od agentów | animator przesuwał cenę bardzo powoli, więc to on, a nie agenci, wyznaczał tempo | silniejsze przesuwanie ceny przez animatora (`inventory_skew` 0,02 → 0,1) |
 | przy składzie „trendowym” wszystkie przebiegi się załamywały | 45% trendowych to za dużo | 30% trendowych |
 
-**Sprawdzenie mechanizmu na syntetycznym łańcuchu** x → A → B → C (wagi 0,8). Gdy są tylko wyceniający krótkowzroczni, B i C prawie się nie ruszają (−4% i −10% ruchu referencyjnego). Z wyceniającymi sieciowymi dochodzą do 76% i 81%. **Bez agentów „znających graf” fala nie przechodzi dalej niż o jedno ogniwo** — to wstępna odpowiedź na P7.
+**Sprawdzenie mechanizmu na syntetycznym łańcuchu** x → A → B → C (wagi 0,8). Gdy są tylko wyceniający krótkowzroczni, B i C prawie się nie ruszają (−4% i −10% ruchu referencyjnego). Z wyceniającymi sieciowymi dochodzą do 76% i 81%. **Bez agentów „znających graf” fala nie przechodzi dalej niż o jedno ogniwo** — ale tylko wtedy, gdy krótkowzroczni nie znają zależności pośredniej. Na prawdziwym grafie ich bezpośrednie wagi ją zawierają i fala przechodzi także bez sieciowych (E7, rozdz. 4.6, wykres 13c).
 
 #### Wykres 9. Fala na łańcuchu, jeden przebieg
 
@@ -907,6 +908,21 @@ Miary fali policzone funkcjami Marty (`marketsim.metrics.wave_metrics`, mediana 
 - **Załamania:** 6 z 60 przebiegów składu trendowego z naśladowaniem (przedział 95%: 4,7–20%), 0 z pozostałych 210 (0–1,8%); dokładny test Fishera $p \approx 10^{-4}$.
 
 **Odpowiedź na P5.** Szok zawsze przechodzi przez cały łańcuch; inwestorzy zmieniają to, **jak szybko i jak czysto** przechodzi. Wyceniający sieciowi opóźniają drugie ogniwo, trendowi i naśladowanie spowalniają i wzmacniają każde ogniwo, a tylko ich połączenie załamuje rynek. Poziomy miar są wynikiem kalibracji; wynikiem badania są różnice między komórkami na tych samych ziarnach.
+
+#### Wykres 13c. Odpowiedź na P7: ilu inwestorów musi znać graf
+
+![P7 na E7](figures/f7_p7_network_share.png)
+
+**Co przedstawia.** Eksperyment E7: rynek E5 (prawdziwe sygnały 2024–2025, $h = 0{,}2$) z 300 wyceniającymi, 100 trendowymi i 100 szumowymi. Zmienia się tylko podział wyceniających: 0, 125 lub 250 sieciowych (0%, 25%, 50% inwestorów), reszta krótkowzroczna; po 30 ziaren, razem 90 przebiegów ([notatnik](../notebooks/08_e7_network_share.ipynb), [przewodnik F7](guides/f7_experiments.md)). Punkt 30% to komórka `mixed` z E5 na tych samych ziarnach.
+
+**Ważny szczegół.** Wyceniający krótkowzroczni znają **bezpośrednie** wagi: regresję spółki tylko na jej zewnętrznych rodziców. Na prawdziwym grafie te wagi zawierają już prawie całą drogę pośrednią: dla VLO bezpośrednio ropa 0,43 i S&P 500 0,60, a pełny graf przez COP i EOG daje 0,42 i 0,61.
+
+**Co widać.**
+- **Fala przechodzi bez wyceniających sieciowych.** Przy 0% rafinerie (dwa ogniwa od ropy) dostają w dwa dni 1,19 ruchu $R$, tyle samo co producenci ropy, a ich zgodność z $R$ jest najwyższa (0,83). Żaden z 120 przebiegów się nie załamał.
+- **Wyceniający sieciowi wprowadzają opóźnienie i przestrzelenie na ogniwie, które znają.** Przy 50% sieciowych rafinerie dostają następnego dnia 0,44 ruchu (zamiast −0,09), w dwa dni 1,46 (zamiast 1,19), a ich zgodność z $R$ spada z 0,83 do 0,63. Zależność jest mniej więcej liniowa; komórka E5 (30%) leży na tej samej linii.
+- **Reszta rynku prawie się nie zmienia:** producenci bez różnicy, linie lotnicze nieco więcej (+0,03…+0,05), cały rynek przy 50%: zgodność z $R$ −0,035.
+
+**Odpowiedź na P7.** Na prawdziwym grafie fala przechodzi także bez agentów „znających graf”; każdy dodatkowy wyceniający sieciowy spowalnia rafinerie i zwiększa ich przestrzelenie. Wstępny wniosek z syntetycznego łańcucha (rozdz. 4.5: bez sieciowych fala zatrzymuje się po pierwszym ogniwie) **zawężamy**: tak jest tylko wtedy, gdy prosty model nie zawiera zależności pośredniej. E7 mierzy jednak tylko koszt znajomości grafu — w symulacji nie ma wiadomości o spółkach, a dopiero one dałyby sieciowym przewagę. To sprawdzi E6.
 
 #### Wykres 14. Cały przebieg 2024–2025 obok rzeczywistości
 
@@ -1096,14 +1112,14 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 
 | Kolejność | Faza | Co konkretnie | Efekt |
 |---|---|---|---|
-| 1 | F7 | zamrożenie protokołu (metryki, ziarna, reguła wyboru przebiegów); E6: czy szok ropy „przeskakuje” na JPM i spółki spoza łańcucha i którym kanałem (wspólny portfel, rebalansowanie, limity ryzyka, naśladowanie); E7: udział wyceniających sieciowych {0; 25%; 50%}; ablacje | odpowiedzi na P6 i P7 z przedziałami ufności (P5 już jest) |
+| 1 | F7 | zamrożenie protokołu (metryki, ziarna, reguła wyboru przebiegów); E6: czy szok ropy „przeskakuje” na JPM i spółki spoza łańcucha i którym kanałem (wspólny portfel, rebalansowanie, limity ryzyka, naśladowanie); ablacje | odpowiedź na P6 z przedziałami ufności (P5 i P7 już są) |
 | 2 | F8 | przeniesienie testów z notatnika do modułu `validation/`; fakty stylizowane **bez sygnałów zewnętrznych**; odtworzenie grafu z cen symulowanych; pasma 90% z wielu przebiegów | rozdział „Walidacja” raportu |
 | 3 | F9 | porównanie eksperymentów (mapy cieplne, wykresy pudełkowe); tryb **na żywo** (przyciski „ropa ±30%”, „wiadomość o spółce”, suwak $h$) jest już gotowy (PR #21) | demonstracja na obronie |
 | 4 | F10 | raport końcowy po polsku, prezentacja | — |
 
 **Kierunek, który chcemy zbadać w F7 (pytanie o ograniczoną uwagę).** W literaturze finansowej (Cohen i Frazzini, 2008) opisano, że cena odbiorcy reaguje na wiadomości o dostawcy z opóźnieniem, a wyjaśnia się to ograniczoną uwagą inwestorów. Na prawdziwym rynku nie da się sprawdzić tego mechanizmu, bo nie można „włączyć” inwestorom uwagi. W naszym modelu można: uwaga, opóźnienie, krótkowzroczność i błąd wiedzy to parametry. Zmierzymy, jak każdy z nich zmienia kompletność, opóźnienie i przestrzelenie fali. Ograniczenie, które już wiemy: w dziennych danych 2024–2025 opóźnienia między dostawcą a odbiorcą nie widać (wykres 17), więc model nie może być wolniejszy od rynku.
 
-**Ryzyka i co robimy, jeśli zabraknie czasu** (w tej kolejności): rezygnujemy z E7, upraszczamy walidację. Rdzenia (graf + propagacja + P5/P6) nie ruszamy.
+**Ryzyka i co robimy, jeśli zabraknie czasu** (w tej kolejności): upraszczamy walidację i ablacje. Rdzenia (graf + propagacja + P5/P6) nie ruszamy.
 
 ---
 
@@ -1117,7 +1133,7 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 | Dane: pliki, jednostki, decyzje | [`data/README.md`](../data/README.md) |
 | Graf `real_v1`: krawędzie, przegląd kandydatów | [`data/graph/real_v1/`](../data/graph/real_v1/) |
 | Przewodniki techniczne (po rosyjsku) | [F4](guides/f4_simulation.md), [F5](guides/f5_graph_valuers.md), [F6](guides/f6_full_network.md), [F7](guides/f7_experiments.md), [F9](guides/f9_visualization.md) |
-| Notatniki | [`01_data_overview`](../notebooks/01_data_overview.ipynb) (wykresy 1–4), [`02_graph`](../notebooks/02_graph.ipynb), [`03_experiments`](../notebooks/03_experiments.ipynb) (wykresy 8, 8b), [`05_chain_wave`](../notebooks/05_chain_wave.ipynb) (wykresy 9–10), [`06_full_network_wave`](../notebooks/06_full_network_wave.ipynb) i [`06_real_checks`](../notebooks/06_real_checks.ipynb) (wykresy 12, 15–18), [`07_e5_propagation`](../notebooks/07_e5_propagation.ipynb) (wykres 13b) |
+| Notatniki | [`01_data_overview`](../notebooks/01_data_overview.ipynb) (wykresy 1–4), [`02_graph`](../notebooks/02_graph.ipynb), [`03_experiments`](../notebooks/03_experiments.ipynb) (wykresy 8, 8b), [`05_chain_wave`](../notebooks/05_chain_wave.ipynb) (wykresy 9–10), [`06_full_network_wave`](../notebooks/06_full_network_wave.ipynb) i [`06_real_checks`](../notebooks/06_real_checks.ipynb) (wykresy 12, 15–18), [`07_e5_propagation`](../notebooks/07_e5_propagation.ipynb) (wykres 13b), [`08_e7_network_share`](../notebooks/08_e7_network_share.ipynb) (wykres 13c) |
 | Kod | dane [`src/marketsim/data/`](../src/marketsim/data/), graf [`graph/`](../src/marketsim/graph/), giełda [`cpp/`](../cpp/) i [`market/`](../src/marketsim/market/), symulacja [`sim/`](../src/marketsim/sim/) i [`agents/`](../src/marketsim/agents/), metryki [`metrics/`](../src/marketsim/metrics/), wizualizacja [`viz/`](../src/marketsim/viz/) |
 | Testy | [`tests/`](../tests/) — ponad 330 testów, w tym testy kontraktów i porównanie Python = C++ |
 

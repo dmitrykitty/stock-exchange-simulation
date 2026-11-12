@@ -1,4 +1,4 @@
-"""Multi-asset DES on a dependency graph (F5): valuers update their valuations from the graph (contract K2).
+"""Multi-asset DES on a dependency graph (F5, F6): valuers update their valuations from the graph (contract K2).
 
 Every company of the graph is an asset, in ``graph.companies()`` order. Investors share one wallet across assets
 and trade the assets they follow; one or more market makers quote each asset. Valuers follow the rule of
@@ -16,6 +16,10 @@ fixed personal error eta per agent, asset and parent. ``P^obs(t) = P(t - d_a)``:
 of the session containing ``t - d_a``; for a company, the midpoint on this exchange (last trade, then start price,
 when a side is empty), taken live when ``d_a = 0`` and otherwise from the last book snapshot not after ``t - d_a``.
 
+F6 adds, all off by default: per-asset parameters scaled by the start price, shares held only by the investors
+that trade an asset, rebalancers (funds that keep target portfolio weights) and a risk limit (an investor in a
+drawdown sells its positions proportionally and stays out for a cooldown).
+
 All randomness comes from the run seed; the same config and seed give the same log.
 """
 
@@ -23,8 +27,9 @@ from __future__ import annotations
 
 import math
 from bisect import bisect_right
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
+from fractions import Fraction
 
 import numpy as np
 
@@ -35,10 +40,13 @@ from marketsim.agents.strategies import (
     maker_orders,
     market_price,
     noise_signal,
+    rebalance_order,
+    risk_sale,
+    target_order,
     trend_signal,
     valuer_signal,
 )
-from marketsim.experiments.config import RunConfig
+from marketsim.experiments.config import ConfigError, RunConfig
 from marketsim.graph.api import DependencyGraph
 from marketsim.market import Gateway, make_exchange
 from marketsim.market.api import Report, Status, TimeInForce
@@ -68,18 +76,27 @@ def _allocate(total: int, indices: np.ndarray, out: np.ndarray) -> None:
 
 def make_network_population(
     settings: AgentSettings, n_assets: int, rng: np.random.Generator, attention_rng: np.random.Generator,
+    total_shares: list[int] | None = None, maker_shares: list[int] | None = None,
 ) -> NetworkPopulation:
-    """Investor groups, fund quotas and integer resources as in F4, with shares in every asset."""
+    """Investor groups, fund quotas and integer resources as in F4, with shares in every asset.
+
+    ``total_shares`` / ``maker_shares``: per-asset amounts (default: the settings' values for every asset).
+    Rebalancers (F6) come after the four investor groups and are all funds.
+    """
     s = settings
+    total_shares = total_shares or [s.total_shares] * n_assets
+    maker_shares = maker_shares or [s.market_maker_shares] * n_assets
     counts = (s.valuers_myopic, s.valuers_network, s.trend, s.noise)
     kinds = [kind for kind, size in zip(INVESTOR_KINDS, counts) for _ in range(size)]
+    discretionary = len(kinds)
+    kinds += ["rebalancer"] * s.rebalancers
     n = len(kinds)
     maker_asset = [asset for asset in range(n_assets) for _ in range(s.market_makers_per_asset)]
     kinds += ["market_maker"] * len(maker_asset)
     funds = np.zeros(len(kinds), dtype=bool)
     # Largest-remainder quotas keep the fund strategy mix proportional and independent of the seed and C.
-    quotas = [size * s.n_funds // n for size in counts]
-    remainders = [size * s.n_funds % n for size in counts]
+    quotas = [size * s.n_funds // discretionary for size in counts]
+    remainders = [size * s.n_funds % discretionary for size in counts]
     for index in sorted(range(len(counts)), key=lambda i: (-remainders[i], i))[:s.n_funds - sum(quotas)]:
         quotas[index] += 1
     offset = 0
@@ -87,20 +104,9 @@ def make_network_population(
         if quota:
             funds[offset + rng.choice(size, quota, replace=False)] = True
         offset += size
+    funds[discretionary:n] = True
     fund_indices = np.flatnonzero(funds)
     retail_indices = np.flatnonzero(~funds[:n])
-    cash = np.zeros(len(kinds), dtype=np.int64)
-    shares = np.zeros((len(kinds), n_assets), dtype=np.int64)
-    fund_cash = int(Decimal(str(s.concentration)) * s.total_cash_cents)
-    _allocate(fund_cash, fund_indices, cash)
-    _allocate(s.total_cash_cents - fund_cash, retail_indices, cash)
-    fund_shares = int(Decimal(str(s.concentration)) * s.total_shares)  # total_shares is per asset
-    for asset in range(n_assets):
-        _allocate(fund_shares, fund_indices, shares[:, asset])
-        _allocate(s.total_shares - fund_shares, retail_indices, shares[:, asset])
-    cash[n:] = s.market_maker_cash_cents
-    for k, asset in enumerate(maker_asset):
-        shares[n + k, asset] = s.market_maker_shares
     follows = np.zeros((len(kinds), n_assets), dtype=bool)
     if s.attention == 0 or s.attention >= n_assets:
         follows[:n] = True
@@ -109,6 +115,30 @@ def make_network_population(
             follows[agent, np.sort(attention_rng.choice(n_assets, s.attention, replace=False))] = True
     for k, asset in enumerate(maker_asset):
         follows[n + k, asset] = True
+    cash = np.zeros(len(kinds), dtype=np.int64)
+    shares = np.zeros((len(kinds), n_assets), dtype=np.int64)
+    fund_cash = int(Decimal(str(s.concentration)) * s.total_cash_cents)
+    _allocate(fund_cash, fund_indices, cash)
+    _allocate(s.total_cash_cents - fund_cash, retail_indices, cash)
+    for asset in range(n_assets):
+        fund_shares = int(Decimal(str(s.concentration)) * total_shares[asset])
+        fund_holders, retail_holders = fund_indices, retail_indices
+        if s.holdings == "followed":
+            fund_holders = fund_indices[follows[fund_indices, asset]]
+            retail_holders = retail_indices[follows[retail_indices, asset]]
+            if not len(fund_holders) and not len(retail_holders):
+                raise ConfigError(f"no investor follows asset {asset}; raise attention or the investor count")
+            if not len(fund_holders):
+                fund_shares = 0
+            elif not len(retail_holders):
+                fund_shares = total_shares[asset]
+        if fund_shares:
+            _allocate(fund_shares, fund_holders, shares[:, asset])
+        if total_shares[asset] - fund_shares:
+            _allocate(total_shares[asset] - fund_shares, retail_holders, shares[:, asset])
+    cash[n:] = s.market_maker_cash_cents
+    for k, asset in enumerate(maker_asset):
+        shares[n + k, asset] = maker_shares[asset]
     return NetworkPopulation(kinds, funds, cash, shares, maker_asset, follows)
 
 
@@ -124,10 +154,25 @@ class NetworkSimulation:
         self.assets = graph.companies()
         n_assets = len(self.assets)
         self.start_ticks = [round(graph.nodes[c].start_price * 100) for c in self.assets]
+        # Children of a SeedSequence depend only on their position, so the ninth leaves the first eight (F5) as is.
         (population_seed, value_seed, network_seed, wake_seed, decision_seed, herd_seed, attention_seed,
-         weight_seed) = np.random.SeedSequence(seed).spawn(8)
+         weight_seed, risk_seed) = np.random.SeedSequence(seed).spawn(9)
+        # Per-asset parameters. With price_scaling the settings describe a stock at initial_price_ticks.
+        self.asset_settings = [s] * n_assets
+        self.asset_total_shares = [s.total_shares] * n_assets
+        self.asset_maker_shares = [s.market_maker_shares] * n_assets
+        if s.price_scaling:
+            factors = [start / s.initial_price_ticks for start in self.start_ticks]
+            self.asset_settings = [replace(
+                s, market_maker_qty=max(1, round(s.market_maker_qty / f)),
+                market_maker_spread_ticks=max(2, round(s.market_maker_spread_ticks * f)),
+                inventory_skew_ticks=s.inventory_skew_ticks * f * f,
+            ) for f in factors]
+            self.asset_total_shares = [round(s.total_shares / f) for f in factors]
+            self.asset_maker_shares = [round(s.market_maker_shares / f) for f in factors]
         self.population = make_network_population(
             s, n_assets, np.random.default_rng(population_seed), np.random.default_rng(attention_seed),
+            self.asset_total_shares, self.asset_maker_shares,
         )
         n = len(self.population.kinds)
         self.investors = s.investors
@@ -140,6 +185,8 @@ class NetworkSimulation:
         )
         hs = s.herding
         self.herd_h = susceptibility(self.investors, hs.h, hs.followers, hs.h_std, np.random.default_rng(herd_seed))
+        rebalancers = [a for a in range(self.investors) if self.population.kinds[a] == "rebalancer"]
+        self.herd_h[rebalancers] = 0.0  # a mandate, not an opinion: rebalancers do not herd
         self.gateway = Gateway(make_exchange(config.exchange_backend, n_assets), self.population.cash,
                                self.population.shares)
         self.scheduler = Scheduler()
@@ -153,6 +200,27 @@ class NetworkSimulation:
         self._history_prices = [[p] for p in self.start_ticks]  # per asset, aligned with _history_times
         self.invariant_checks = 0
         self._init_valuers(np.random.default_rng(value_seed), np.random.default_rng(weight_seed))
+        # Rebalancers keep the initial value weights of the assets they follow (the rest of the wealth is cash).
+        # A rebalancer that starts with nothing (e.g. concentration 0) gets zero targets and never trades.
+        self._targets: dict[int, dict[int, float]] = {}
+        for agent in rebalancers:
+            wealth = self._wealth(self.gateway.portfolio(agent))
+            self._targets[agent] = {
+                i: int(self.population.shares[agent, i]) * self.start_ticks[i] / wealth if wealth > 0 else 0.0
+                for i in self.followed[agent]
+            }
+        # Risk limit state per investor: running wealth peak, end of the cooldown, shares to keep per asset.
+        self.risk_triggers = 0
+        self._derisk_until = [-math.inf] * self.investors
+        self._risk_floor: list[dict[int, int]] = [{} for _ in range(self.investors)]
+        self._peak = ([self._wealth(self.gateway.portfolio(a)) for a in range(self.investors)]
+                      if s.risk_limit > 0 else [])
+        self.risk_limited = np.zeros(self.investors, dtype=bool)
+        if s.risk_limit > 0:
+            limited = round(s.risk_limit_share * self.investors)
+            chosen = (np.arange(self.investors) if limited == self.investors else
+                      np.random.default_rng(risk_seed).choice(self.investors, limited, replace=False))
+            self.risk_limited[chosen] = True
 
     # ----- valuers -------------------------------------------------------------------------------------------
     def _init_valuers(self, value_rng: np.random.Generator, weight_rng: np.random.Generator) -> None:
@@ -259,6 +327,35 @@ class NetworkSimulation:
             int(holdings[j]) * market_price(market, self.start_ticks[j], j) for j in range(len(self.assets))
         )
 
+    def _derisking(self, agent: int, now: float) -> bool:
+        """Risk limit (F6): True while the agent is selling after a drawdown beyond ``risk_limit``."""
+        s = self.settings
+        if now < self._derisk_until[agent]:
+            return True
+        portfolio = self.gateway.portfolio(agent)
+        wealth = self._wealth(portfolio)
+        if self._derisk_until[agent] > -math.inf:  # the cooldown is over: start again from the current wealth
+            self._derisk_until[agent] = -math.inf
+            self._peak[agent] = wealth
+        self._peak[agent] = max(self._peak[agent], wealth)
+        # An empty portfolio (zero peak, also right after a cooldown) has nothing to lose: no drawdown.
+        drawdown = 1 - wealth / self._peak[agent] if self._peak[agent] > 0 else 0.0
+        if drawdown <= s.risk_limit:
+            return False
+        self._derisk_until[agent] = now + s.risk_cooldown
+        # Every position actually held is cut, followed or not: with ``holdings: all`` and limited attention an
+        # investor also owns assets it does not trade. Shares kept = floor(held x (1 - fraction)) in exact
+        # rational arithmetic, so 10 shares and a fraction of 0.8 keep 2.
+        keep = 1 - Fraction(str(s.risk_sell_fraction))
+        held = portfolio.shares_available
+        self._risk_floor[agent] = {
+            asset: math.floor(keep * int(held[asset]))
+            for asset in sorted(set(self.followed[agent]) | set(np.flatnonzero(held).tolist()))
+        }
+        self.risk_triggers += 1
+        self.recorder.event(now, "risk_limit", {"agent": agent, "drawdown": round(drawdown, 6)})
+        return True
+
     def _own_signal(self, agent: int, kind: str, asset: int, price: int, now: float) -> float:
         s = self.settings
         if kind.startswith("valuer"):
@@ -279,31 +376,65 @@ class NetworkSimulation:
             for order_id in sorted(self._open[agent]):
                 self._withdraw(agent, order_id, now, "order_cancelled")
             portfolio = self.gateway.portfolio(agent)
-            for intent in maker_orders(price, portfolio, s.market_maker_shares, s, asset):
+            for intent in maker_orders(price, portfolio, self.asset_maker_shares[asset],
+                                       self.asset_settings[asset], asset):
                 self._place(agent, asset, intent, now)
         else:
             for order_id in sorted(self._open[agent]):
                 self._withdraw(agent, order_id, now, "order_cancelled")
             h = 0.0 if s.ablation == "no_herding" else float(self.herd_h[agent])
-            # Followed assets are decided one after another; each decision sees the book and the wallet left by
-            # the previous one, keeping the event-by-event semantics of the model.
-            for asset in self.followed[agent]:
+            derisking = bool(self.risk_limited[agent]) and self._derisking(agent, now)
+            # Assets are decided one after another; each decision sees the book and the wallet left by the
+            # previous one, keeping the event-by-event semantics of the model. While derisking the agent goes over
+            # every asset it held when the limit was hit, in asset order, including assets it does not follow.
+            assets = sorted(self._risk_floor[agent]) if derisking else self.followed[agent]
+            for asset in assets:
                 price = market_price(market, self.start_ticks[asset], asset)
-                own = self._own_signal(agent, kind, asset, price, now)
-                herd, signal = self.network.mix(agent, own, now, h, asset)
+                portfolio = self.gateway.portfolio(agent)
+                tracked = bool(self.population.follows[agent, asset])  # herding only on followed assets
+                if derisking:
+                    # Sell down to the floor fixed when the limit was hit; no purchases during the cooldown.
+                    excess = int(portfolio.shares_available[asset]) - self._risk_floor[agent].get(asset, 0)
+                    own = -1.0 if excess > 0 else 0.0
+                    herd = self.network.mix(agent, own, now, h, asset)[0] if tracked else 0.0
+                    signal = own
+                    intent = risk_sale(price, excess, s) if excess > 0 else None
+                elif kind == "rebalancer":
+                    target_value = self._targets[agent][asset] * self._wealth(portfolio)
+                    held = int(portfolio.shares_available[asset]) + int(portfolio.shares_reserved[asset])
+                    deviation = (target_value - held * price) / target_value if target_value > 0 else 0.0
+                    own = float(np.clip(deviation, -1.0, 1.0))
+                    herd, signal = self.network.mix(agent, own, now, h, asset)
+                    intent = rebalance_order(deviation, target_value, price, market.top(asset), portfolio,
+                                             self.asset_settings[asset], self._decision_rng[agent], asset)
+                elif s.position_sizing == "target":
+                    own = self._own_signal(agent, kind, asset, price, now)
+                    herd, signal = self.network.mix(agent, own, now, h, asset)
+                    # The neutral position is the initial number of shares: at a zero signal everybody wants what
+                    # exists, whatever the price has done since the start.
+                    held = int(portfolio.shares_available[asset]) + int(portfolio.shares_reserved[asset])
+                    neutral = int(self.population.shares[agent, asset]) * price
+                    gap = neutral * (1 + s.position_tilt * signal) - held * price
+                    intent = None
+                    if abs(signal) > s.threshold or abs(gap) > s.rebalance_band * neutral:
+                        intent = target_order(gap, s.rho * self._wealth(portfolio), price, market.top(asset),
+                                              portfolio, self.asset_settings[asset], self._decision_rng[agent], asset)
+                else:
+                    own = self._own_signal(agent, kind, asset, price, now)
+                    herd, signal = self.network.mix(agent, own, now, h, asset)
+                    intent = make_order(signal, price, market.top(asset), portfolio, self.asset_settings[asset],
+                                        self._decision_rng[agent], asset, self._wealth(portfolio))
                 self.recorder.rows["signals"].append({
                     "t": now, "agent": agent, "asset": asset, "own_signal": own,
                     "herd_signal": herd, "final_signal": signal,
                 })
-                portfolio = self.gateway.portfolio(agent)
-                intent = make_order(signal, price, market.top(asset), portfolio, s, self._decision_rng[agent],
-                                    asset, self._wealth(portfolio))
                 direction = 0
                 if intent is not None:
                     report = self._place(agent, asset, intent, now)
                     if report.status not in _REJECTED:
                         direction = intent.side
-                self.network.publish(agent, direction, now, asset)
+                if tracked:
+                    self.network.publish(agent, direction, now, asset)
         if s.debug:
             self._check()
         self._next_wake(agent, now)

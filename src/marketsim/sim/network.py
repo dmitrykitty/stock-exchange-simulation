@@ -189,6 +189,9 @@ class NetworkSimulation:
         self.herd_h[rebalancers] = 0.0  # a mandate, not an opinion: rebalancers do not herd
         self.gateway = Gateway(make_exchange(config.exchange_backend, n_assets), self.population.cash,
                                self.population.shares)
+        # Top of book and market price per asset, valid until an order of that asset is placed or withdrawn.
+        self._tops: list = [None] * n_assets
+        self._prices: list[int | None] = [None] * n_assets
         self.scheduler = Scheduler()
         self.recorder = Recorder()
         self._open: list[set[int]] = [set() for _ in range(n)]
@@ -262,9 +265,21 @@ class NetworkSimulation:
     def _session_of(self, t: float) -> int:
         return min(max(math.floor(t), 0), len(self._external) - 1)
 
+    def _top(self, j: int):
+        top = self._tops[j]
+        if top is None:
+            top = self._tops[j] = self.gateway.market().top(j)
+        return top
+
+    def _price(self, j: int) -> int:
+        price = self._prices[j]
+        if price is None:
+            price = self._prices[j] = market_price(self.gateway.market(), self.start_ticks[j], j)
+        return price
+
     def _observed_company(self, j: int, t: float, now: float) -> int:
         if t >= now:
-            return market_price(self.gateway.market(), self.start_ticks[j], j)
+            return self._price(j)
         index = max(0, bisect_right(self._history_times, t) - 1)
         return self._history_prices[j][index]
 
@@ -303,10 +318,14 @@ class NetworkSimulation:
             remaining = self.gateway.cancel(agent, order_id, now)
         self._open[agent].discard(order_id)
         if remaining:
+            # The order left a book; its asset is not tracked here, so every cached quote is dropped.
+            self._tops = [None] * len(self.assets)
+            self._prices = [None] * len(self.assets)
             self.recorder.event(now, kind, {"order_id": order_id, "agent": agent, "remaining_qty": remaining})
 
     def _place(self, agent: int, asset: int, intent: OrderIntent, now: float) -> Report:
         r = self.gateway.place(agent, asset, intent.side, intent.qty, intent.limit, intent.tif, now)
+        self._tops[asset] = self._prices[asset] = None
         self.recorder.order(now, agent, intent.side, intent.qty, intent.limit, intent.tif, r, asset)
         self._owners[r.order_id] = agent
         if r.resting_qty:
@@ -319,11 +338,10 @@ class NetworkSimulation:
         return r
 
     def _wealth(self, portfolio) -> int:
-        market = self.gateway.market()
         holdings = portfolio.shares_available + portfolio.shares_reserved
         # Zero holdings add nothing, so only held assets are priced.
         return portfolio.cash_available + portfolio.cash_reserved + sum(
-            int(holdings[j]) * market_price(market, self.start_ticks[j], j) for j in np.flatnonzero(holdings)
+            int(holdings[j]) * self._price(j) for j in np.flatnonzero(holdings)
         )
 
     def _derisking(self, agent: int, now: float) -> bool:
@@ -360,12 +378,11 @@ class NetworkSimulation:
 
     def _wake(self, agent: int, now: float) -> None:
         s = self.settings
-        market = self.gateway.market()
         kind = self.population.kinds[agent]
         if kind == "market_maker":
             asset = self.population.maker_asset[agent - self.investors]
             # The maker uses the visible center before removing its own two quotes.
-            price = market_price(market, self.start_ticks[asset], asset)
+            price = self._price(asset)
             for order_id in sorted(self._open[agent]):
                 self._withdraw(agent, order_id, now, "order_cancelled")
             portfolio = self.gateway.portfolio(agent)
@@ -380,7 +397,7 @@ class NetworkSimulation:
             # Followed assets are decided one after another; each decision sees the book and the wallet left by
             # the previous one, keeping the event-by-event semantics of the model.
             for asset in self.followed[agent]:
-                price = market_price(market, self.start_ticks[asset], asset)
+                price = self._price(asset)
                 portfolio = self.gateway.portfolio(agent)
                 if derisking:
                     # Sell down to the floor fixed when the limit was hit; no purchases during the cooldown.
@@ -395,7 +412,7 @@ class NetworkSimulation:
                     deviation = (target_value - held * price) / target_value if target_value > 0 else 0.0
                     own = clip_signal(deviation)
                     herd, signal = self.network.mix(agent, own, now, h, asset)
-                    intent = rebalance_order(deviation, target_value, price, market.top(asset), portfolio,
+                    intent = rebalance_order(deviation, target_value, price, self._top(asset), portfolio,
                                              self.asset_settings[asset], self._decision_rng[agent], asset)
                 elif s.position_sizing == "target":
                     own = self._own_signal(agent, kind, asset, price, now)
@@ -407,12 +424,12 @@ class NetworkSimulation:
                     gap = neutral * (1 + s.position_tilt * signal) - held * price
                     intent = None
                     if abs(signal) > s.threshold or abs(gap) > s.rebalance_band * neutral:
-                        intent = target_order(gap, s.rho * self._wealth(portfolio), price, market.top(asset),
+                        intent = target_order(gap, s.rho * self._wealth(portfolio), price, self._top(asset),
                                               portfolio, self.asset_settings[asset], self._decision_rng[agent], asset)
                 else:
                     own = self._own_signal(agent, kind, asset, price, now)
                     herd, signal = self.network.mix(agent, own, now, h, asset)
-                    intent = make_order(signal, price, market.top(asset), portfolio, self.asset_settings[asset],
+                    intent = make_order(signal, price, self._top(asset), portfolio, self.asset_settings[asset],
                                         self._decision_rng[agent], asset, self._wealth(portfolio))
                 self.recorder.rows["signals"].append({
                     "t": now, "agent": agent, "asset": asset, "own_signal": own,
@@ -468,7 +485,6 @@ class NetworkSimulation:
         for agent in range(self.investors):
             self._next_wake(agent, 0.0)
         self.scheduler.schedule(0.0, "sample", 0)
-        market = self.gateway.market()
         for event in self.scheduler.before(cfg.n_sessions):
             now = event.time
             if event.kind == "wake":
@@ -489,7 +505,7 @@ class NetworkSimulation:
                 self._snapshot(now)
                 self._history_times.append(now)
                 for j in range(len(self.assets)):
-                    self._history_prices[j].append(market_price(market, self.start_ticks[j], j))
+                    self._history_prices[j].append(self._price(j))
                 next_time = (event.payload + 1) * cfg.sample_dt
                 if next_time < cfg.n_sessions:
                     self.scheduler.schedule(next_time, "sample", event.payload + 1)

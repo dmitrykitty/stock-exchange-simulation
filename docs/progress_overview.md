@@ -1074,11 +1074,13 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 
 **Jak czytać.** Kolor węzła to teraz różnica między ceną rynkową a $R$: czerwony = rynek jeszcze nie dogonił wyceny. 0,3 sesji po szoku COP jest 7% poniżej swojej $R$, VLO 6% poniżej. To jest właśnie **opóźnienie fali**, które mierzymy liczbowo w rozdz. 4.6. Wybrana spółka to DAL (linia lotnicza): jej $R$ prawie się nie zmienia, ale cena chwilowo skacze.
 
-#### Wykres 21. Prawdziwe sygnały 2024–2025, 9 kwietnia 2025 r.
+#### Wykres 21. Prawdziwe sygnały 2024–2025, 9 kwietnia 2025 r. (przebieg skróconego E5, seed 3006)
 
 ![Odtwarzanie: 2024–2025](figures/f9_replay_real_2024_2025.png)
 
 **Jak czytać.** Dzień, w którym ogłoszono zawieszenie ceł i S&P 500 wzrósł o 9,5%: **świeci cały graf**, bo indeks jest rodzicem każdej spółki. Wybrana NVDA: cena symulowana (niebieska) jest tego dnia 18% poniżej swojej $R$ i dogania ją następnego dnia. To najgorszy pojedynczy dzień całego przebiegu: przy tak dużym ruchu limit wielkości zlecenia (5% majątku) i dwie decyzje na sesję nie wystarczają, by dojść do celu w jeden dzień. Zielona linia to prawdziwa cena NVDA. Pokazujemy ją tylko do porównania; agenci jej nie widzą.
+
+**Strony na obronę.** Z pełnego E5 i z E7 przygotowaliśmy strony odtwarzania wybrane regułą F7 (mediana i 90. percentyl komórki, a nie „najładniejszy” przebieg): główna komórka `mixed`, $h = 0{,}2$; komórka trendowa z naśladowaniem, w której 90. percentyl to właśnie załamanie NVDA w kwietniu 2025 r.; oraz para z E7 (0% i 50% wyceniających sieciowych), na której widać opóźnienie rafinerii. Lista i polecenia: [przewodnik F9](guides/f9_visualization.md).
 
 ---
 

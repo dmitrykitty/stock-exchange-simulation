@@ -431,10 +431,7 @@ class NetworkSimulation:
                     herd, signal = self.network.mix(agent, own, now, h, asset)
                     intent = make_order(signal, price, self._top(asset), portfolio, self.asset_settings[asset],
                                         self._decision_rng[agent], asset, self._wealth(portfolio))
-                self.recorder.rows["signals"].append({
-                    "t": now, "agent": agent, "asset": asset, "own_signal": own,
-                    "herd_signal": herd, "final_signal": signal,
-                })
+                self.recorder.rows["signals"].add(now, agent, asset, own, herd, signal)
                 direction = 0
                 if intent is not None:
                     report = self._place(agent, asset, intent, now)

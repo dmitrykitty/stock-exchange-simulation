@@ -14,6 +14,7 @@ from marketsim.agents.strategies import (
     maker_orders,
     market_price,
     noise_signal,
+    target_order,
     trend_signal,
     valuer_signal,
 )
@@ -119,7 +120,19 @@ class Simulation:
                 "t": now, "agent": agent, "asset": 0, "own_signal": own,
                 "herd_signal": herd, "final_signal": signal,
             })
-            intent = make_order(signal, price, self.gateway.market().top(0), portfolio, s, self._decision_rng[agent])
+            top = self.gateway.market().top(0)
+            if s.position_sizing == "target":
+                # As in F6: the neutral position is the initial number of shares; the target leans by
+                # position_tilt * signal and an order closes the gap, at most rho * wealth per decision.
+                held = int(portfolio.shares_available[0]) + int(portfolio.shares_reserved[0])
+                neutral = int(self.population.shares[agent, 0]) * price
+                gap = neutral * (1 + s.position_tilt * signal) - held * price
+                intent = None
+                if abs(signal) > s.threshold or abs(gap) > s.rebalance_band * neutral:
+                    wealth = portfolio.cash_available + portfolio.cash_reserved + held * price
+                    intent = target_order(gap, s.rho * wealth, price, top, portfolio, s, self._decision_rng[agent], 0)
+            else:
+                intent = make_order(signal, price, top, portfolio, s, self._decision_rng[agent])
             direction = 0
             if intent is not None:
                 report = self._place(agent, intent, now)

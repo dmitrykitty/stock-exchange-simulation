@@ -34,11 +34,11 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
 
 1. **Działa cały łańcuch:** dane → graf zależności → giełda z arkuszami zleceń (C++) → ok. 500 agentów → log przebiegu → analiza i wizualizacja. Każdy przebieg jest powtarzalny (ta sama konfiguracja i ziarno dają identyczny log), a suma pieniędzy i akcji jest stała we wszystkich ponad 1 300 przebiegach.
 2. **Graf zależności `real_v1` jest gotowy:** 18 spółek, 4 surowce i S&P 500, 47 krawędzi. Strukturę wzięliśmy z tabel przepływów międzygałęziowych BEA, a wagi z regresji na latach 2021–2023 (rozdz. 4.2).
-3. **Fala szoku przechodzi przez graf dzięki transakcjom, a nie formule.** Po skoku ropy o 20% producenci ropy dochodzą do swojej ceny referencyjnej w 0,85 sesji, rafinerie w 0,95 sesji, linie lotnicze tanieją, a spółki niepowiązane z ropą stoją w miejscu (rozdz. 4.6, wykres 12).
-4. **Zachowania stadne destabilizują rynek, ale dopiero gdy dotyczą większości.**
+3. **Fala szoku przechodzi przez graf dzięki transakcjom, a nie formule.** Po skoku ropy o ±20% producenci ropy dochodzą do swojej ceny referencyjnej w 0,85 sesji, rafinerie w 0,95 sesji (średnio dla obu kierunków szoku), linie lotnicze tanieją, a spółki niepowiązane z ropą stoją w miejscu (rozdz. 4.6, wykres 12).
+4. **W sprawdzonych konfiguracjach zachowania stadne destabilizowały rynek dopiero wtedy, gdy były silne i dotyczyły większości.**
    - Na rynku jednego aktywa silne naśladowanie ($h = 0{,}6$) zwiększa maksymalne obsunięcie z 0,37% do 9,4%.
-   - Na łańcuchu ze wstrząsem ropy błąd wyceny rośnie razem z $h$, a rynek załamuje się w 20–30% przebiegów dopiero przy $h = 0{,}8$.
-   - Jeśli silnie naśladuje tylko połowa inwestorów, rynek zachowuje się jak przy średniej sile naśladowania (rozdz. 4.4–4.5).
+   - Na łańcuchu ze wstrząsem ropy błąd wyceny rośnie razem z $h$. W składach `mixed` i `trend` (tylko te liczyliśmy przy $h \ge 0{,}6$) rynek załamuje się w 20–30% przebiegów dopiero przy $h = 0{,}8$.
+   - Na łańcuchu (skład `mixed`, stara reguła zleceń) rynek, w którym silnie naśladowała połowa inwestorów, zachował się jak przy tej samej średniej sile naśladowania (rozdz. 4.4–4.5).
 5. **Znaleźliśmy i naprawiliśmy dwa błędy modelu, które zmieniały wyniki.** Pierwszy: zaokrąglanie wielkości zlecenia w dół wyłączało drobnych inwestorów z handlu (F4). Drugi: reguła „kupuj przy każdej decyzji, dopóki sygnał dodatni” dawała ceny z inercją, której nie ma na prawdziwym rynku (autokorelacja +0,59 zamiast −0,05). Teraz inwestor ma pozycję docelową. Po tej zmianie powtórzyliśmy eksperyment E4. Okazało się, że większość załamań na łańcuchu była skutkiem starej reguły, a nie samego naśladowania (rozdz. 4.4–4.6).
 6. **Porównanie z rzeczywistością (2024–2025) robimy uczciwie:** symulacja nie widzi żadnej prawdziwej ceny akcji. Każdą miarę zgodności sprawdzamy też na 200 losowych grafach. Miara, którą losowy graf przechodzi równie dobrze, niczego nie dowodzi (rozdz. 4.7).
 7. **Co model odtwarza:**
@@ -328,7 +328,7 @@ Pełny opis plików, jednostek i decyzji: [`data/README.md`](../data/README.md).
 
 #### Wartości odstające
 
-Znaleźliśmy **80 dni**, w których któryś szereg zmienił się o ponad 15% w ciągu jednego dnia. **Żadnego nie usuwamy** — to prawdziwe zdarzenia rynkowe, np.:
+Znaleźliśmy **80 obserwacji** (para: data, szereg), w których dzienna zmiana logarytmu ceny przekroczyła co do wartości bezwzględnej 0,15. **Żadnego nie usuwamy** — to prawdziwe zdarzenia rynkowe, np.:
 
 | Data | Szereg | Zmiana | Przyczyna |
 |---|---|---|---|
@@ -338,7 +338,7 @@ Znaleźliśmy **80 dni**, w których któryś szereg zmienił się o ponad 15% w
 | 2025-07-31 | miedź | −22% | zmiana decyzji o cłach na miedź |
 | luty 2021 | gaz | wielokrotnie | burza zimowa Uri w Teksasie |
 
-61 z 80 dni ma przyczynę potwierdzoną źródłem (link w [`data/mapping/outlier_explanations.csv`](../data/mapping/outlier_explanations.csv)). Pozostałe 19 to wahania ceny spot gazu, których pojedynczych przyczyn nie udało się jednoznacznie ustalić — są uczciwie oznaczone jako `unexplained`.
+61 z 80 obserwacji (57 różnych dat) ma źródło opisujące zdarzenie lub jego kontekst (link w [`data/mapping/outlier_explanations.csv`](../data/mapping/outlier_explanations.csv)). Pozostałe 19 obserwacji to wahania ceny spot gazu, których pojedynczych przyczyn nie udało się jednoznacznie ustalić — są uczciwie oznaczone jako `unexplained`.
 
 #### Wykres 5. Miedź: cena amerykańska (COMEX) a światowa (LME)
 
@@ -748,7 +748,7 @@ To jest stan z F5, z regułą zleceń „kupuj, dopóki sygnał dodatni”. W F6
 | 50% inwestorów | 0,30 | 0% |
 | wszyscy | 0,60 | 98% |
 
-**Rynek, na którym połowa inwestorów silnie naśladuje innych, zachowuje się jak rynek o tej samej średniej sile naśladowania.** Rynek załamuje dopiero stadna większość, a nie mniejszość.
+**W tym eksperymencie (skład `mixed`, łańcuch, ze starą regułą zleceń) rynek, na którym połowa inwestorów silnie naśladuje innych, zachował się jak rynek o tej samej średniej sile naśladowania.** Załamania dała dopiero sytuacja, w której naśladowali wszyscy. Nie uogólniamy tego na inne składy ani inne wartości $h$.
 
 Wszystkie 738 przebiegów F5 zachowują pieniądze i akcje. Notatnik: [`05_chain_wave.ipynb`](../notebooks/05_chain_wave.ipynb), opis: [przewodnik F5](guides/f5_graph_valuers.md) (po rosyjsku).
 
@@ -764,13 +764,13 @@ Wszystkie 738 przebiegów F5 zachowują pieniądze i akcje. Notatnik: [`05_chain
 - Prawy panel: mediana średniego odchylenia ceny VLO od $R$ po szoku, w zależności od $h$. Linie przerywane to stara reguła, ciągłe to nowa; niebieskie to skład `mixed`, pomarańczowe `trend`.
 
 **Co widać.**
-- **Załamań nie ma aż do $h = 0{,}6$ włącznie.** Pojawiają się dopiero przy $h = 0{,}8$: 20% przebiegów (`mixed`) i 30% (`trend`). Ze starą regułą skład trendowy załamywał się w 98% przebiegów już przy $h = 0{,}4$.
-- **Odchylenie od $R$ jest 3–5 razy mniejsze**, a oscylacje po szoku 5–20 razy mniejsze. W parach z tym samym ziarnem przedział ufności 95% różnicy leży całkowicie poniżej zera we wszystkich 45 kombinacjach miary i komórki.
+- **Załamań nie ma do $h = 0{,}4$ we wszystkich trzech składach i przy $h = 0{,}6$ w składach `mixed` i `trend`.** Przy $h = 0{,}8$ pojawiają się w 20% przebiegów (`mixed`) i 30% (`trend`). Skład sieciowy przy $h \ge 0{,}6$ nie był liczony. Ze starą regułą skład trendowy załamywał się w 98% przebiegów już przy $h = 0{,}4$.
+- **Odchylenie od $R$ jest 3–5 razy mniejsze**, a oscylacje po szoku 5–20 razy mniejsze. Para to dwa przebiegi z tym samym ziarnem i kierunkiem szoku; różnice obu kierunków uśredniamy dla każdego z 30 ziaren i liczymy przedział bootstrap po ziarnach. Dla odchylenia i oscylacji COP i VLO przedział 95% leży całkowicie poniżej zera we wszystkich 36 kombinacjach miary i komórki. Autokorelacja zmian VLO spada w 7 z 9 komórek, a przy $h = 0$ w składach `mixed` i `network` rośnie. Granice przedziałów: [przewodnik F5](guides/f5_graph_valuers.md).
 - **Naśladowanie nadal szkodzi i to monotonicznie:** odchylenie VLO dla `mixed` wynosi 0,9% → 1,7% → 3,0% → 5,9% przy $h$ = 0 → 0,4 → 0,6 → 0,8.
 - **Trendowi nadal dają przestrzelenie,** choć mniejsze (COP w sesjach 7–9: 1,36 ruchu referencyjnego wobec 1,11 przy składzie `mixed`).
 - **Fala nadal przechodzi przez transakcje:** COP w sesjach 5–6 pokonuje ok. połowy drogi, VLO przestrzela mocniej niż COP, czyli błąd rynku przechodzi dalej po łańcuchu.
 
-**Wniosek.** Większość załamań z wykresu 10 była skutkiem starej reguły zleceń, a nie samego naśladowania: agent kupował lub sprzedawał przy każdym przebudzeniu, aż skończyły mu się pieniądze lub akcje. Model nadal potrafi się załamać, ale dopiero przy bardzo silnym naśladowaniu. Wcześniejszy wniosek „przy $h \ge 0{,}5$ łańcuch prawie zawsze się załamuje” **wycofujemy**. Szczegóły: [przewodnik F5](guides/f5_graph_valuers.md), rozdział o E4 z pozycją docelową (PR #20).
+**Wniosek.** Większość załamań z wykresu 10 była skutkiem starej reguły zleceń, a nie samego naśladowania: agent kupował lub sprzedawał przy każdym przebudzeniu, aż skończyły mu się pieniądze lub akcje. W sprawdzonych komórkach (łańcuch, składy `mixed` i `trend` do $h = 0{,}8$, sieciowy do $h = 0{,}4$) model załamywał się dopiero przy $h = 0{,}8$. Nie jest to ogólny próg rynku ani reguła dla dowolnej stadnej większości. Wcześniejszy wniosek „przy $h \ge 0{,}5$ łańcuch prawie zawsze się załamuje” **wycofujemy**. Szczegóły: [przewodnik F5](guides/f5_graph_valuers.md), rozdział o E4 z pozycją docelową (PR #20).
 
 ---
 
@@ -812,7 +812,7 @@ Sprawdziliśmy też wariant, w którym cel jest udziałem wartości portfela, a 
 | maks. zlecenie | 5% majątku | przy 2% duża zmiana wyceny wymagała kilku decyzji; powyżej 5% bez poprawy |
 | animatorzy | 2 × 100 akcji | z 50 akcjami arkusz pusty 1,9% czasu, ze 100 — 1,1%; trzeci animator spowalniał rynek |
 | przesuwanie ceny przez animatora | 0,3 | przy 0,2 rynek „lepki” (autokorelacja +0,18), przy 0,5 przestrzela i wraca (−0,13); rzeczywistość: −0,05 |
-| limit ryzyka | u 25% inwestorów, próg 20%, sprzedaż połowy | **limit u wszystkich wywołuje spiralę i krach do zera**: sprzedaż jednego obniża cenę, co uruchamia limit u kolejnych, a ci przez 5 sesji nie kupują; granica stabilności leży między 25% a 100% inwestorów i zależy od ziarna; samą spiralę zbadamy w E6 |
+| limit ryzyka | u 25% inwestorów, próg 20%, sprzedaż połowy | **limit u wszystkich wywołuje spiralę i krach do zera**: sprzedaż jednego obniża cenę, co uruchamia limit u kolejnych, a ci przez 5 sesji nie kupują; przy limicie u wszystkich (próg 20%, sprzedaż połowy) ziarno 1 pozostało stabilne, a ziarna 2 i 3 się załamały; granica stabilności leży między 25% a 100% inwestorów; samą spiralę zbadamy w E6 |
 | trendowi | okno 5 sesji, skala 10% | przy skali 2% sygnał nasycał się prawie codziennie (dzienna zmienność to 1–3%), a skupiska zmienności znikały |
 | gotówka | 20 000 USD na inwestora | przy 10 000 USD limit ryzyka uruchamiał się kilka razy częściej |
 
@@ -826,7 +826,7 @@ Sprawdziliśmy też wariant, w którym cel jest udziałem wartości portfela, a 
 - pomarańczowa: średnia wycena agentów.
 
 **Co widać.**
-- **COP (1 krok od ropy):** dochodzi do $R$ (+9,4%) w 0,85 sesji, przestrzela do ok. +12,5% i po ok. 5 sesjach wraca.
+- **COP (1 krok od ropy):** dochodzi do $R$ (+9,4%) w 0,85 sesji (czas liczony dla obu kierunków szoku, ±20%, razem; wykres pokazuje +20%), przestrzela do ok. +12,5% i po ok. 5 sesjach wraca.
 - **VLO (2 kroki):** dochodzi 0,1 sesji później i **przestrzela mocniej**. Wyceniający VLO patrzą na ceny COP i EOG, które same już przestrzeliły, więc błąd rynku przechodzi dalej.
 - **UAL (3 kroki), linia lotnicza:** **tanieje** o ok. 1,3%, zgodnie z $R$ (droższe paliwo). Przed ustaleniem ceny chwilowo spada do −2,8%.
 - **NEE (energetyka, bez połączenia z ropą):** stoi w miejscu, wahania ±0,4% to szum. Spółki spoza łańcucha naftowego przesunęły się średnio o 0,00%.
@@ -1017,7 +1017,7 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 | 12 | **Pozycja docelowa zamiast „kupuj przy każdej decyzji”** (F6) | stara reguła dawała inercję cen (+0,59) i wyczerpanie gotówki na długich przebiegach | cel jako udział wartości portfela (odchylenia do −49%) |
 | 13 | **Limit ryzyka tylko u 25% inwestorów** | limit u wszystkich wywołuje spiralę i krach do zera; samą spiralę zbadamy w E6 | limit u wszystkich |
 | 14 | **18 spółek, a nie 10** | czas przebiegu prawie nie zależy od liczby spółek; płynność wystarcza | redukcja do 10 |
-| 15 | **Siatka $h$ = {0; 0,2; 0,4} w E4, potem rozszerzona do 0,8** | ze starą regułą zleceń przy $h \ge 0{,}5$ łańcuch prawie zawsze się załamywał; z pozycją docelową próg przesunął się do ok. $h = 0{,}8$ (wykres 10b), więc w F7 siatkę można rozszerzyć | siatka z F4 {0; 0,3; 0,6} |
+| 15 | **Siatka $h$ = {0; 0,2; 0,4} w E4, potem rozszerzona do 0,8** | ze starą regułą zleceń przy $h \ge 0{,}5$ łańcuch prawie zawsze się załamywał; z pozycją docelową w składach `mixed` i `trend` załamania pojawiły się dopiero przy $h = 0{,}8$ (wykres 10b), więc w F7 siatkę można rozszerzyć | siatka z F4 {0; 0,3; 0,6} |
 | 16 | **Bez „odtwarzania wiadomości”** jako dowodu zgodności z rzeczywistością | podanie agentom różnicy między ceną prawdziwą a grafem dałoby zgodność z definicji, nawet przy błędnym grafie | porównywanie ścieżek cen po podaniu wiadomości |
 | 17 | **Kontrola na losowych grafach dla każdej miary walidacji** | odróżnia miary, które coś mówią o grafie, od takich, które przechodzi każdy model | raportowanie samych liczb bez punktu odniesienia |
 | 18 | **Przebiegi do wykresów wybierane regułą** (mediana, 90. percentyl), nie „na oko” | żeby nie pokazywać wybranych, najładniejszych przypadków | — |

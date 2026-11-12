@@ -20,19 +20,28 @@ F6 adds, all off by default: per-asset parameters scaled by the start price, sha
 that trade an asset, rebalancers (funds that keep target portfolio weights) and a risk limit (an investor in a
 drawdown sells its positions proportionally and stays out for a cooldown).
 
+F9 adds timed control events for the live mode: a shock to an external signal, a shock to every valuer's
+valuation of one company and a new herding strength. A control scheduled at time t is applied before every event
+at or after t and is written to the ``events`` table, so the same seed and the same timed controls give the same
+log, whenever and at whatever display speed the controls were entered. ``start``, ``advance`` and ``finish`` run
+the event loop in pieces (``execute`` is the three in a row).
+
 All randomness comes from the run seed; the same config and seed give the same log.
 """
 
 from __future__ import annotations
 
+import heapq
 import math
 from bisect import bisect_right
 from dataclasses import dataclass, replace
 from decimal import Decimal
+from itertools import count
 
 import numpy as np
+import pandas as pd
 
-from marketsim.agents.herding import HerdingNetwork, susceptibility
+from marketsim.agents.herding import HerdingNetwork, follower_ids, susceptibility
 from marketsim.agents.strategies import (
     OrderIntent,
     make_order,
@@ -47,6 +56,7 @@ from marketsim.agents.strategies import (
 )
 from marketsim.experiments.config import ConfigError, RunConfig
 from marketsim.graph.api import DependencyGraph
+from marketsim.graph.reference import reference_path
 from marketsim.market import Gateway, make_exchange
 from marketsim.market.api import Report, Status, TimeInForce
 from marketsim.sim.recorder import Recorder
@@ -54,6 +64,8 @@ from marketsim.sim.scheduler import Scheduler
 from marketsim.sim.settings import AgentSettings
 
 INVESTOR_KINDS = ("valuer_myopic", "valuer_network", "trend", "noise")
+# Control events of the live mode (F9), also the ``kind`` of their rows in the events table.
+CONTROL_KINDS = ("shock_external", "shock_valuation", "set_herding")
 _REJECTED = (Status.REJECTED_FUNDS, Status.REJECTED_INVALID, Status.REJECTED_SELF_TRADE)
 
 
@@ -186,15 +198,26 @@ class NetworkSimulation:
         self.herd_h = susceptibility(self.investors, hs.h, hs.followers, hs.h_std, np.random.default_rng(herd_seed))
         rebalancers = [a for a in range(self.investors) if self.population.kinds[a] == "rebalancer"]
         self.herd_h[rebalancers] = 0.0  # a mandate, not an opinion: rebalancers do not herd
+        # The same generator state again gives the investors susceptibility() chose; set_herding changes only them.
+        chosen = follower_ids(self.investors, hs.followers, hs.h_std, np.random.default_rng(herd_seed))
+        self.herd_followers = np.setdiff1d(chosen, rebalancers)
+        self._herd_h0 = self.herd_h.copy()
         self.gateway = Gateway(make_exchange(config.exchange_backend, n_assets), self.population.cash,
                                self.population.shares)
         self.scheduler = Scheduler()
         self.recorder = Recorder()
         self._open: list[set[int]] = [set() for _ in range(n)]
         self._owners: dict[int, int] = {}
-        self._external = external
+        # Copies: control events change levels and the reference from a session on.
+        self._external = np.array(external, dtype=float)
+        self._external_base = self._external[0].copy()
         self._external_names = external_names
-        self._reference = reference
+        self._reference = np.array(reference, dtype=float)
+        self._ln_shift = np.zeros(n_assets)  # valuation shocks per asset, added to every valuer's ln V
+        self._controls: list[tuple[float, int, str, dict]] = []
+        self._control_seq = count()
+        self.applied_controls: list[dict] = []
+        self.horizon = 0.0  # every event before this time has been processed
         self._history_times = [0.0]
         self._history_prices = [[p] for p in self.start_ticks]  # per asset, aligned with _history_times
         self.invariant_checks = 0
@@ -271,11 +294,11 @@ class NetworkSimulation:
         """Valuation in ticks of ``agent`` for ``asset`` at ``now`` (the telescoped F5 rule)."""
         kind = self.population.kinds[agent]
         seen_at = now - float(self.delay[agent])
-        ln_v = self._ln_v0[(agent, asset)]
+        ln_v = self._ln_v0[(agent, asset)] + self._ln_shift[asset]
         weights = self._weights[(agent, asset)]
         for (source, j, _), w in zip(self._parents[(kind, asset)], weights):
             if source == "external":
-                change = math.log(self._external[self._session_of(seen_at), j] / self._external[0, j])
+                change = math.log(self._external[self._session_of(seen_at), j] / self._external_base[j])
             else:
                 change = math.log(self._observed_company(j, seen_at, now) / self.start_ticks[j])
             ln_v += w * change
@@ -426,7 +449,8 @@ class NetworkSimulation:
             self._check()
         self._next_wake(agent, now)
 
-    def _snapshot(self, now: float) -> None:
+    def valuation_stats(self) -> tuple[np.ndarray, np.ndarray]:
+        """Mean and std (ticks) per asset of the valuers' latest valuations, as written to ``valuations``."""
         n_assets = len(self.assets)
         v_mean = np.empty(n_assets)
         v_std = np.zeros(n_assets)
@@ -439,7 +463,19 @@ class NetworkSimulation:
                 v_mean[i], v_std[i] = values.mean(), values.std()
             else:
                 v_mean[i] = self.start_ticks[i]
-        session = self._session_of(now)
+        return v_mean, v_std
+
+    def reference_at(self, session: int) -> np.ndarray:
+        """Reference path R (ticks) of every asset in ``session``."""
+        return self._reference[session]
+
+    def external_at(self, session: int) -> np.ndarray:
+        """External levels in ``session``, in ``external_names`` order, with the controls applied so far."""
+        return self._external[min(max(session, 0), len(self._external) - 1)]
+
+    def _snapshot(self, now: float, session: int | None = None) -> None:
+        v_mean, v_std = self.valuation_stats()
+        session = self._session_of(now) if session is None else session
         self.recorder.snapshot_assets(now, self.gateway.market(), v_mean, v_std, self._reference[session])
 
     def resources(self) -> dict:
@@ -456,9 +492,82 @@ class NetworkSimulation:
             "shares_reserved": sum(int(p.shares_reserved[j]) for p in portfolios for j in range(n_assets)),
         }
 
-    def execute(self) -> None:
-        """Process events in time/sequence order; cancel remaining orders at termination."""
-        cfg = self.config
+    # ----- control events (F9) ------------------------------------------------------------------------------
+    def schedule_control(self, time: float, kind: str, params: dict) -> None:
+        """Change the running market at simulation time ``time``, before every event at or after ``time``.
+
+        ``time`` must not be earlier than the horizon already simulated, so the control lands at the same point of
+        the event sequence whether it was scheduled before the run or while it was running.
+
+        - ``shock_external`` ``{"node": name, "change": x}``: the level of an external node is multiplied by
+          ``1 + x`` from session ``time`` on (``time`` must be a session open); the reference R follows.
+        - ``shock_valuation`` ``{"asset": ticker, "change": x}``: every valuer's valuation of the company is
+          multiplied by ``1 + x`` from ``time`` on (news about the company itself); graph valuers of its customers
+          then react to its price, not to the news.
+        - ``set_herding`` ``{"h": h}``: every follower gets herding strength h (with ``herding.h_std`` > 0 its own
+          draw shifted by ``h - herding.h``, clipped to [0, 1]); rebalancers keep h = 0.
+        """
+        if type(time) not in (int, float) or not math.isfinite(time):
+            raise ConfigError("control time must be a finite number")
+        if not self.horizon <= time < self.config.n_sessions:
+            raise ConfigError(f"control time {time} must be in [{self.horizon}, {self.config.n_sessions})")
+        if kind not in CONTROL_KINDS:
+            raise ConfigError(f"control kind must be one of {CONTROL_KINDS}, got {kind!r}")
+        expected = {"shock_external": {"node", "change"}, "shock_valuation": {"asset", "change"},
+                    "set_herding": {"h"}}[kind]
+        if set(params) != expected:
+            raise ConfigError(f"{kind} needs exactly the keys {sorted(expected)}")
+        if kind == "set_herding":
+            if type(params["h"]) not in (int, float) or not 0 <= params["h"] <= 1:
+                raise ConfigError("set_herding: h must be in [0, 1]")
+        else:
+            change = params["change"]
+            if type(change) not in (int, float) or not math.isfinite(change) or change <= -1:
+                raise ConfigError(f"{kind}: change must be a finite number > -1")
+        if kind == "shock_external":
+            node = params["node"]
+            if node not in self._external_names or (node == "sp500" and not self.config.use_market_index):
+                raise ConfigError(f"shock_external: {node!r} is not an external signal the agents see")
+            if time != math.floor(time) or time < 1:
+                raise ConfigError("shock_external starts at a session open after the first one")
+        if kind == "shock_valuation" and params["asset"] not in self.assets:
+            raise ConfigError(f"shock_valuation: {params['asset']!r} is not an asset of this market")
+        heapq.heappush(self._controls, (float(time), next(self._control_seq), kind, dict(params)))
+
+    def _apply_control(self, time: float, kind: str, params: dict) -> None:
+        payload = dict(params)
+        if kind == "shock_external":
+            k, session = self._external_names.index(params["node"]), int(time)
+            before = float(self._external[session, k])
+            self._external[session:, k] *= 1 + params["change"]
+            levels = pd.DataFrame(self._external, columns=self._external_names,
+                                  index=pd.Index(range(len(self._external)), name="session"))
+            if not self.config.use_market_index and "sp500" in levels:
+                levels["sp500"] = levels["sp500"].iloc[0]  # as sim.api builds R: agents ignore the index
+            path = reference_path(self.graph, levels, mode="full")[self.assets].to_numpy() * 100
+            self._reference[session:] = path[session:]
+            payload.update(session=session, level_before=before, level_after=float(self._external[session, k]))
+        elif kind == "shock_valuation":
+            asset = self.assets.index(params["asset"])
+            self._ln_shift[asset] += math.log1p(params["change"])
+            payload["asset_index"] = asset
+        else:
+            hs, chosen = self.settings.herding, self.herd_followers
+            h = float(params["h"])
+            self.herd_h[chosen] = h if hs.h_std == 0 else np.clip(self._herd_h0[chosen] + h - hs.h, 0.0, 1.0)
+            payload.update(followers=len(chosen),
+                           mean_h=round(float(self.herd_h[chosen].mean()), 6) if len(chosen) else 0.0)
+        self.recorder.event(time, kind, payload)
+        self.applied_controls.append({"t": time, "kind": kind, **params})
+
+    def _due_controls(self, time: float, inclusive: bool) -> None:
+        while self._controls and (self._controls[0][0] <= time if inclusive else self._controls[0][0] < time):
+            t, _, kind, params = heapq.heappop(self._controls)
+            self._apply_control(t, kind, params)
+
+    # ----- event loop ----------------------------------------------------------------------------------------
+    def start(self) -> None:
+        """Schedule the first events; then ``advance`` runs the loop and ``finish`` closes the run."""
         self._check()
         self.scheduler.schedule(0.0, "session", 0)
         for agent in range(self.investors, len(self.population.kinds)):
@@ -466,34 +575,63 @@ class NetworkSimulation:
         for agent in range(self.investors):
             self._next_wake(agent, 0.0)
         self.scheduler.schedule(0.0, "sample", 0)
-        market = self.gateway.market()
-        for event in self.scheduler.before(cfg.n_sessions):
-            now = event.time
-            if event.kind == "wake":
-                self._wake(event.payload, now)
-            elif event.kind == "expire":
-                agent, order_id = event.payload
-                self._withdraw(agent, order_id, now, "order_expired")
-                if self.settings.debug:
-                    self._check()
-            elif event.kind == "session":
-                session = event.payload
-                levels = {name: float(self._external[min(session, len(self._external) - 1), k])
-                          for k, name in enumerate(self._external_names)}
-                self.recorder.event(now, "session_start", {"session": session, **levels})
-                if session + 1 < cfg.n_sessions:
-                    self.scheduler.schedule(now + 1, "session", session + 1)
-            elif event.kind == "sample":
-                self._snapshot(now)
-                self._history_times.append(now)
-                for j in range(len(self.assets)):
-                    self._history_prices[j].append(market_price(market, self.start_ticks[j], j))
-                next_time = (event.payload + 1) * cfg.sample_dt
-                if next_time < cfg.n_sessions:
-                    self.scheduler.schedule(next_time, "sample", event.payload + 1)
-        end = float(cfg.n_sessions)
-        self._snapshot(end)
+
+    def advance(self, until: float) -> None:
+        """Process events in time/sequence order strictly before ``until`` (at most the end of the run)."""
+        until = min(float(until), float(self.config.n_sessions))
+        for event in self.scheduler.before(until):
+            self._due_controls(event.time, inclusive=True)
+            self._process(event)
+        self._due_controls(until, inclusive=False)  # nothing happens between them and the next event
+        self.horizon = max(self.horizon, until)
+
+    def _process(self, event) -> None:
+        cfg = self.config
+        now = event.time
+        if event.kind == "wake":
+            self._wake(event.payload, now)
+        elif event.kind == "expire":
+            agent, order_id = event.payload
+            self._withdraw(agent, order_id, now, "order_expired")
+            if self.settings.debug:
+                self._check()
+        elif event.kind == "session":
+            session = event.payload
+            levels = {name: float(self._external[min(session, len(self._external) - 1), k])
+                      for k, name in enumerate(self._external_names)}
+            self.recorder.event(now, "session_start", {"session": session, **levels})
+            if session + 1 < cfg.n_sessions:
+                self.scheduler.schedule(now + 1, "session", session + 1)
+        elif event.kind == "sample":
+            self._snapshot(now)
+            self._history_times.append(now)
+            market = self.gateway.market()
+            for j in range(len(self.assets)):
+                self._history_prices[j].append(market_price(market, self.start_ticks[j], j))
+            next_time = (event.payload + 1) * cfg.sample_dt
+            if next_time < cfg.n_sessions:
+                self.scheduler.schedule(next_time, "sample", event.payload + 1)
+
+    def finish(self, end: int | None = None) -> None:
+        """Last snapshot and cancellation of the remaining orders at the end of the run.
+
+        ``end``: a session boundary to stop at before the configured end (live mode); every event before it must
+        have been processed. The log then equals that of a run configured with ``n_sessions = end``.
+        """
+        session = None
+        if end is not None:
+            if end != self.horizon or end != math.floor(end) or end < 1:
+                raise ValueError("finish(end): end must be a session boundary equal to the simulated horizon")
+            session = int(end) - 1
+        end = float(self.config.n_sessions if end is None else end)
+        self._snapshot(end, session)
         for agent, orders in enumerate(self._open):
             for order_id in sorted(orders):
                 self._withdraw(agent, order_id, end, "run_end_cancelled")
         self._check()
+
+    def execute(self) -> None:
+        """Process events in time/sequence order; cancel remaining orders at termination."""
+        self.start()
+        self.advance(self.config.n_sessions)
+        self.finish()

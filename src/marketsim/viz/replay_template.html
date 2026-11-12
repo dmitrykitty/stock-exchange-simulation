@@ -155,6 +155,15 @@ footer { color: var(--muted); font-size: 12px; padding: 0 24px 24px; }
 const P = /*PAYLOAD*/null;
 const T = P.t, N = T.length, A = P.assets, NS = P.n_sessions;
 const $ = id => document.getElementById(id);
+// Build HTML elements with text from the run (tickers, names, labels) as text nodes, never as markup.
+// h("b", {}, "COP", " · ", "text") -> <b>COP · text</b>; children may be strings, numbers or nodes.
+function h(tag, attrs, ...children) {
+  const e = document.createElement(tag);
+  for (const k in attrs || {}) k === "className" ? (e.className = attrs[k]) : e.setAttribute(k, attrs[k]);
+  for (const c of children) if (c != null) e.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  return e;
+}
+function fill(target, ...children) { target.replaceChildren(...children.map(c => c instanceof Node ? c : document.createTextNode(String(c)))); }
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const fmtUSD = ticks => ticks == null ? "–" : "$" + (ticks / 100).toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
 const fmtPct = v => v == null || !isFinite(v) ? "–" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1) + "%";
@@ -211,11 +220,11 @@ function warmShape() { return P.warmup ? [{type: "rect", xref: "x", yref: "paper
 
 // ----- header -----------------------------------------------------------------------------------------------
 {
-  const parts = [`graph <b>${P.graph}</b>`, `signals <b>${P.scenario}</b>`, `${NS} sessions`];
-  if (P.composition) parts.push(`investors: <b>${P.composition}</b> mix` + (P.investors ? ` (${P.investors})` : ""));
-  if (P.herding_h != null) parts.push(`herding h = <b>${P.herding_h}</b>`);
-  parts.push(`seed ${P.seed}`);
-  $("meta").innerHTML = parts.join(" · ");
+  const parts = [["graph ", h("b", {}, P.graph)], ["signals ", h("b", {}, P.scenario)], [`${NS} sessions`]];
+  if (P.composition) parts.push(["investors: ", h("b", {}, P.composition), " mix" + (P.investors ? ` (${P.investors})` : "")]);
+  if (P.herding_h != null) parts.push(["herding h = ", h("b", {}, P.herding_h)]);
+  parts.push([`seed ${P.seed}`]);
+  fill($("meta"), ...parts.flatMap((p, k) => k ? [" · ", ...p] : p));
   const notes = ["A session is one trading day. Prices form only from trades between agents; R is the price the graph implies for the external signals."];
   if (P.warmup) notes.push(`Grey band: ${P.warmup} warm-up sessions.`);
   if (P.graph_changed) notes.push("The graph files changed slightly since this run; edges are drawn from the current files.");
@@ -321,16 +330,19 @@ function updateGraph(i) {
 }
 function showTip(j, ev) {
   const n = nodes[j], i = idx, tip = $("tip");
-  let h;
   if (n.kind === "external") {
     const s = session(i), v = P.externals.values[n.id];
-    h = `<b>${n.label}</b><br>${v ? v[Math.min(s, v.length - 1)].toLocaleString("en-US", {maximumFractionDigits: 2}) : "–"} · ${fmtPct(extChange(n.id, s))} since start`;
+    const value = v ? v[Math.min(s, v.length - 1)].toLocaleString("en-US", {maximumFractionDigits: 2}) : "–";
+    fill(tip, h("b", {}, n.label), h("br"), `${value} · ${fmtPct(extChange(n.id, s))} since start`);
   } else {
     const a = A[tickerIndex[n.id]];
     const parents = P.edges.filter(e => e.child === n.id).map(e => `${e.parent} ${e.w != null ? e.w.toFixed(2) : "?"}${e.weak ? "*" : ""}`);
-    h = `<b>${n.id}</b> · ${a.name}${a.sector ? " · " + a.sector : ""}<br>price ${fmtUSD(a.price[i])} · R ${fmtUSD(a.ref[i])}<br>since start ${fmtPct(lnPct(a.price[i], a.start))} · gap to R ${fmtPct(lnPct(a.price[i], a.ref[i]))}<br><span style="color:var(--ink-2)">parents (weight): ${parents.join(", ") || "–"}</span>`;
+    fill(tip, h("b", {}, n.id), ` · ${a.name}${a.sector ? " · " + a.sector : ""}`, h("br"),
+      `price ${fmtUSD(a.price[i])} · R ${fmtUSD(a.ref[i])}`, h("br"),
+      `since start ${fmtPct(lnPct(a.price[i], a.start))} · gap to R ${fmtPct(lnPct(a.price[i], a.ref[i]))}`, h("br"),
+      h("span", {style: "color:var(--ink-2)"}, `parents (weight): ${parents.join(", ") || "–"}`));
   }
-  tip.innerHTML = h; tip.style.display = "block";
+  tip.style.display = "block";
   const box = $("graph").getBoundingClientRect();
   let x = ev.clientX - box.left + 14, y = ev.clientY - box.top + 14;
   if (x + 300 > box.width) x = ev.clientX - box.left - 300;
@@ -434,7 +446,9 @@ function buildMinis() {
   const xs = [...Array(NS).keys()];
   A.forEach((a, k) => {
     const m = document.createElement("div"); m.className = "mini" + (k === sel ? " sel" : ""); m.tabIndex = 0;
-    m.innerHTML = `<div class="t"><b>${a.ticker}</b><span>${a.sector}</span></div><div class="t"><span class="chg"></span><span class="gap"></span></div><div class="chart"><div class="cursor"></div></div>`;
+    m.append(h("div", {className: "t"}, h("b", {}, a.ticker), h("span", {}, a.sector)),
+      h("div", {className: "t"}, h("span", {className: "chg"}), h("span", {className: "gap"})),
+      h("div", {className: "chart"}, h("div", {className: "cursor"})));
     m.onclick = () => selectAsset(k); m.onkeydown = e => { if (e.key === "Enter") selectAsset(k); };
     box.appendChild(m); miniDivs.push(m);
     const price = xs.map(s => a.price[sessionEnd[s]]), ref = xs.map(s => a.ref[sessionEnd[s]]);
@@ -504,7 +518,8 @@ $("back").onclick = () => setIdx(idx - 1); $("fwd").onclick = () => setIdx(idx +
 $("back1").onclick = () => setIdx(search(T[idx] - 1)); $("fwd1").onclick = () => setIdx(search(T[idx] + 1));
 $("slider").max = N - 1; $("slider").oninput = e => { setPlaying(false); setIdx(+e.target.value); };
 document.addEventListener("keydown", e => {
-  if (e.target.tagName === "SELECT" || e.target.tagName === "INPUT" && e.target.type !== "range") return;
+  // Focused controls keep their own keys: Space presses a button, arrows move the slider, selects and inputs edit.
+  if (e.target.closest && e.target.closest("button, input, select, textarea, [contenteditable]")) return;
   if (e.key === " ") { e.preventDefault(); setPlaying(!playing); }
   else if (e.key === "ArrowRight") { e.preventDefault(); e.shiftKey ? $("fwd1").onclick() : setIdx(idx + 1); }
   else if (e.key === "ArrowLeft") { e.preventDefault(); e.shiftKey ? $("back1").onclick() : setIdx(idx - 1); }

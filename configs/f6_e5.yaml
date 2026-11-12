@@ -1,0 +1,56 @@
+# E5 (F6): the full real_v1 network on the real 2024-2025 signals; investor mix x herding x 30 fresh seeds = 270 runs.
+# Parameters were calibrated on the pilot (configs/f6_pilot.yaml, seeds 1-3), see docs/guides/f6_full_network.md.
+base:
+  name: f6_e5
+  exchange_backend: cpp
+  graph: real_v1                  # 18 companies, 4 commodities, S&P 500 (data/graph/real_v1)
+  external: real_2024_2025        # marketsim.graph.scenarios.build_real_2024_2025() writes it to data/processed
+  use_market_index: true
+  n_sessions: 502                 # trading days of 2024-2025
+  warmup_sessions: 10
+  sample_dt: 0.05
+  agents:
+    assets: []                    # empty = all 18 companies
+    composition: mixed            # the investor counts below are redistributed by the named mix
+    valuers_myopic: 500
+    valuers_network: 0
+    trend: 0
+    noise: 0
+    rebalancers: 25               # funds with target weights, on top of the 500 investors
+    rebalance_band: 0.05
+    n_funds: 50
+    concentration: 0.5
+    total_cash_cents: 1000000000  # 20,000 USD of cash per investor on average
+    total_shares: 8000            # per company, for a 100 USD stock: 800,000 USD of every company outstanding
+    price_scaling: true           # share counts, maker quotes and tick parameters follow each start price
+    holdings: followed            # shares of a company go only to the investors that trade it
+    position_sizing: target       # investors hold initial shares * (1 + position_tilt * signal)
+    position_tilt: 0.5
+    attention: 4
+    rho: 0.05                     # largest order of one decision, as a share of the portfolio
+    decision_rate: 2.0
+    market_makers_per_asset: 2
+    market_maker_rate: 20.0
+    market_maker_qty: 100
+    market_maker_spread_ticks: 10
+    inventory_skew_ticks: 0.3
+    trend_lookback: 5.0           # trend followers watch a week, not a day
+    trend_scale: 0.1
+    tif: GTD
+    order_lifetime: 0.5
+    observation_delay: 0.05
+    weight_error_std: 0.1
+    risk_limit: 0.2               # stop-loss of one investor in four: sell half of every position
+    risk_limit_share: 0.25
+    risk_sell_fraction: 0.5
+    risk_cooldown: 5.0
+    ablation: none
+    herding:
+      h: 0.2
+      neighbors: 5
+      followers: 1.0
+      h_std: 0.0
+seeds: [3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010, 3011, 3012, 3013, 3014, 3015, 3016, 3017, 3018, 3019, 3020, 3021, 3022, 3023, 3024, 3025, 3026, 3027, 3028, 3029, 3030]
+grid:
+  agents.composition: [network, mixed, trend]
+  agents.herding.h: [0.0, 0.2, 0.4]

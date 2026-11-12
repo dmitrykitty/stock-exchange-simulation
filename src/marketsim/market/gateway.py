@@ -27,6 +27,8 @@ from marketsim.market.api import (
 
 _BUY, _SELL = int(Side.BUY), int(Side.SELL)
 _VALID_TIF = frozenset(int(t) for t in TimeInForce)
+_NO_FILLS = empty_fills()
+_NO_FILLS.flags.writeable = False  # shared by every drain without trades
 
 
 @dataclass
@@ -61,6 +63,7 @@ class Gateway:
         self._shares_resv = np.zeros_like(shares)
         self._open: dict[int, _OpenOrder] = {}
         self._pending_fills: list[np.ndarray] = []
+        self._n_agents = int(cash.shape[0])
 
     @property
     def exchange(self) -> Exchange:
@@ -68,14 +71,14 @@ class Gateway:
 
     @property
     def n_agents(self) -> int:
-        return int(self._cash_avail.shape[0])
+        return self._n_agents
 
     def _check_agent(self, agent_id: int) -> None:
-        if not 0 <= agent_id < self.n_agents:
+        if not 0 <= agent_id < self._n_agents:
             raise ValueError(f"agent {agent_id} out of range")
 
     def place(self, agent_id: int, asset: int, side: int, qty: int, limit: int, tif: int, now: float) -> Report:
-        agent_id, asset, side, qty, limit, tif = (int(v) for v in (agent_id, asset, side, qty, limit, tif))
+        agent_id, asset, side, qty, limit, tif = int(agent_id), int(asset), int(side), int(qty), int(limit), int(tif)
         self._check_agent(agent_id)
         well_formed = (0 <= asset < self._exchange.n_assets and side in (_BUY, _SELL)
                        and qty > 0 and limit > 0 and tif in _VALID_TIF)
@@ -94,9 +97,10 @@ class Gateway:
                 self._shares_resv[agent_id, asset] += qty
 
         report, fills = self._exchange.submit(asset, agent_id, side, qty, limit, tif)
-        for f in fills:
-            self._settle(agent_id, asset, side, limit, f)
         if len(fills):
+            # tolist() gives Python ints in the FILL_DTYPE field order fixed by K1.
+            for _, _, price, q, _, maker_order, *_ in fills.tolist():
+                self._settle(agent_id, asset, side, limit, q, price, maker_order)
             self._pending_fills.append(fills)
 
         if not well_formed:
@@ -107,9 +111,10 @@ class Gateway:
             self._release(agent_id, asset, side, limit, qty - report.filled_qty)
         return report
 
-    def _settle(self, taker: int, asset: int, taker_side: int, taker_limit: int, fill) -> None:
-        q, price = int(fill["qty"]), int(fill["price"])
-        maker_order = self._open[int(fill["maker_order"])]
+    def _settle(
+        self, taker: int, asset: int, taker_side: int, taker_limit: int, q: int, price: int, maker_id: int,
+    ) -> None:
+        maker_order = self._open[maker_id]
         maker = maker_order.agent
         if taker_side == _BUY:
             self._cash_resv[taker] -= taker_limit * q
@@ -125,7 +130,7 @@ class Gateway:
             self._shares_avail[maker, asset] += q
         maker_order.remaining -= q
         if maker_order.remaining == 0:
-            del self._open[int(fill["maker_order"])]
+            del self._open[maker_id]
 
     def _release(self, agent: int, asset: int, side: int, limit: int, qty: int) -> None:
         if qty <= 0:
@@ -173,9 +178,11 @@ class Gateway:
         return self._exchange
 
     def drain_fills(self) -> np.ndarray:
-        fills = np.concatenate(self._pending_fills) if self._pending_fills else empty_fills()
+        pending = self._pending_fills
+        if not pending:
+            return _NO_FILLS
         self._pending_fills = []
-        return fills
+        return pending[0] if len(pending) == 1 else np.concatenate(pending)
 
     def check_invariants(self) -> None:
         if int(self._cash_avail.sum() + self._cash_resv.sum()) != self._cash_total:

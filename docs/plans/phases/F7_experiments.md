@@ -44,3 +44,4 @@
 - [ ] протокол записан **до** основного запуска (в PR);
 - [ ] для P5 и P6 есть ответ с доверительными интервалами — даже если ответ «эффекта нет».
   - P5: ответ на полном E5 с парными контрастами и бутстрэп-интервалами — `notebooks/07_e5_propagation.ipynb`, `docs/guides/f7_experiments.md`. P6 ждёт E6.
+  - E7 посчитан (90 прогонов, `configs/f7_e7_network{0,25,50}.yaml`), ответ на P7 — `notebooks/08_e7_network_share.ipynb`, `docs/guides/f7_experiments.md`.

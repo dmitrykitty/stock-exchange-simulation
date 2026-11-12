@@ -48,6 +48,19 @@ def noise_signal(rng: np.random.Generator) -> float:
     return float(rng.uniform(-1.0, 1.0))
 
 
+def _protected_limit(side: int, price: int, protection_fraction: float) -> int:
+    """Limit of a protected IOC order: ``protection_fraction`` past ``price``, and at least one tick past it.
+
+    Below 1 / protection_fraction ticks the fraction rounds to zero ticks; an order limited at ``price`` (the
+    rounded-down midpoint) could then never reach the opposite quote, and a two-tick book would trap the price.
+    """
+    # These are intermediate calculations; the actual order limit is always an integer.
+    protected = price * (1 + side * protection_fraction)
+    if side == Side.BUY:
+        return max(math.floor(protected), price + 1)
+    return max(1, min(math.ceil(protected), price - 1))
+
+
 def _limit_and_tif(
     side: int, price: int, top: Top, settings: AgentSettings, rng: np.random.Generator,
 ) -> tuple[int, int]:
@@ -55,9 +68,7 @@ def _limit_and_tif(
     s = settings
     aggressive = rng.random() < s.aggressive_prob
     if aggressive:
-        # These are intermediate calculations; the actual order limit is always an integer.
-        protected = price * (1 + side * s.protection_fraction)
-        limit = math.floor(protected) if side == Side.BUY else math.ceil(protected)
+        limit = _protected_limit(side, price, s.protection_fraction)
         tif = int(TimeInForce.IOC)
     else:
         if side == Side.BUY:
@@ -135,7 +146,7 @@ def target_order(
 
 def risk_sale(price: int, qty: int, settings: AgentSettings) -> OrderIntent:
     """Protected IOC sale used when an investor's risk limit is hit (F6)."""
-    return OrderIntent(int(Side.SELL), qty, max(1, math.ceil(price * (1 - settings.protection_fraction))),
+    return OrderIntent(int(Side.SELL), qty, _protected_limit(int(Side.SELL), price, settings.protection_fraction),
                        int(TimeInForce.IOC))
 
 

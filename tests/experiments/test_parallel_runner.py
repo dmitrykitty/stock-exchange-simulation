@@ -49,22 +49,21 @@ def test_summary_is_saved_before_all_runs_finish(tmp_path, monkeypatch):
     runner = importlib.import_module("marketsim.experiments.run")
     release = Event()
     written = Event()
-    original_to_csv = pd.DataFrame.to_csv
+    original_write = runner._write_summary
 
     def run_one(spec, out_dir):
         if spec.seed != 11 or spec.overrides["agents.herding.h"] != 0.0:
             assert release.wait(10), "unfinished runs were not released"
         return {"run_id": f"{spec.seed}_{spec.overrides['agents.herding.h']}"}
 
-    def write_summary(frame, *args, **kwargs):
-        result = original_to_csv(frame, *args, **kwargs)
+    def write_summary(path, rows):
+        original_write(path, rows)  # the file is in place (atomically replaced) before the event fires
         written.set()
-        return result
 
     # Exercise the real scheduling and writing loop; threads let the test hold tasks with Events.
     monkeypatch.setattr(runner, "ProcessPoolExecutor", lambda **kw: ThreadPoolExecutor(kw["max_workers"]))
     monkeypatch.setattr(runner, "_run_one", run_one)
-    monkeypatch.setattr(pd.DataFrame, "to_csv", write_summary)
+    monkeypatch.setattr(runner, "_write_summary", write_summary)
     output = tmp_path / "par"
     with ThreadPoolExecutor(1) as caller:
         result = caller.submit(run_experiment, _grid(tmp_path), output, workers=2)

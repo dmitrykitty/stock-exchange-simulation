@@ -9,13 +9,34 @@ python -m marketsim.data.fetch --only lme && python -m marketsim.data.clean     
 python -c "from marketsim.graph import scenarios; scenarios.build_real_2024_2025()"   # один раз: сценарий в data/processed
 python -m marketsim.experiments.run configs/f6_pilot.yaml --out runs/f6/v1/pilot --workers 9
 python -m marketsim.experiments.run configs/f6_e5_short.yaml --out runs/f6/v1/e5_short --workers 10   # 90 прогонов, ~1,5 ч
-python -m marketsim.experiments.run configs/f6_e5.yaml --out runs/f6/v1/e5 --workers 10               # 270 прогонов, ~4,5 ч
+python -m marketsim.experiments.run configs/f6_e5.yaml --out runs/f6/v1/e5 --workers 10               # 270 прогонов, ~2,5 ч (по частям и шардами — ниже)
 ```
 
 - `notebooks/06_full_network_wave.ipynb` — волна от нефти по реальному графу (сам создаёт два синтетических сценария и запускает `configs/f6_oil_step.yaml`).
 - `notebooks/06_real_checks.ipynb` — первые проверки «похоже ли на реальность».
 
 Нужен C++-движок (`pip install -e cpp/`): на Python-бирже прогон из 502 сессий слишком долгий. Каталог `runs/` не коммитится.
+
+### E5 по частям и на нескольких ноутбуках
+
+Runner продолжает прерванный эксперимент: прогоны, которые уже лежат в `--out` целиком (`meta.json` этого `run_id` и все шесть таблиц K3), не считаются заново, а только попадают в `summary.csv`. Поэтому E5 можно гонять вечерами одной и той же командой:
+
+```bash
+python -m marketsim.experiments.run configs/f6_e5.yaml --out runs/f6/v1/e5 --workers 5   # Ctrl+C в любой момент
+python -m marketsim.experiments.run configs/f6_e5.yaml --out runs/f6/v1/e5 --workers 5   # на следующий вечер: продолжит
+```
+
+Прерванный прогон теряется целиком (он пишется во временный каталог и переименовывается только после проверки), остальные остаются. В выводе готовые прогоны помечены `(already on disk)`. Каталог прогона без какой-то таблицы — ошибка с его именем: удалить его и запустить снова. Скрытые каталоги `.f5_*` после выключенного ноутбука — недописанные прогоны, их можно удалить. В одном `--out` — только один конфиг (проверяется по `experiment.json`). Две записи сетки с одним `run_id` (например, повторённый seed) — ошибка до запуска: они писали бы в один каталог. `experiment.json` и `summary.csv` заменяются атомарно (запись во временный файл и переименование), поэтому прерывание оставляет предыдущую версию, а не битый файл.
+
+**Шарды.** `--shard I/N` берёт записи сетки I, I+N, I+2N, … (с единицы); так каждый шард получает все ячейки сетки поровну. Например, E5 на трёх ноутбуках:
+
+```bash
+python -m marketsim.experiments.run configs/f6_e5.yaml --out runs/f6/v1/e5 --workers 5 --shard 1/3   # ноутбук 1
+python -m marketsim.experiments.run configs/f6_e5.yaml --out runs/f6/v1/e5 --workers 5 --shard 2/3   # ноутбук 2
+python -m marketsim.experiments.run configs/f6_e5.yaml --out runs/f6/v1/e5 --workers 5 --shard 3/3   # ноутбук 3
+```
+
+Шард тоже можно прерывать и продолжать. `summary.csv` шарда — только его прогоны. Чтобы собрать эксперимент, скопировать каталоги прогонов всех шардов в один каталог (`rsync -a laptop2:runs/f6/v1/e5/ runs/f6/v1/e5/`; `experiment.json` у шардов совпадает по конфигу) и запустить ту же команду без `--shard`: она ничего не считает, если все 270 прогонов на месте, и пишет общий `summary.csv` в порядке сетки. Недостающие прогоны она досчитает. `run_id` не зависит от машины и шарда, а логи — от числа процессов, поэтому результат тот же, что у одного запуска. Шарды берутся по позиции в развёрнутой сетке, поэтому `experiment.json` хранит упорядоченный список `run_id` всей сетки, а каждый шард оставляет ещё `experiment.shard-I-of-N.json`. Если порядок ключей сетки на машинах разный (тот же набор прогонов, но другое разбиение), продолжение или сборка останавливается с ошибкой вместо того, чтобы повторить одни прогоны и пропустить другие. Условие: на всех машинах один коммит, один конфиг с тем же порядком ключей и одни данные (`data/processed`) — в `run_id` входят версия симуляции и хэши графа и сценария, иначе прогоны другой машины не узнаются и будут посчитаны заново.
 
 ## Что изменилось в этой ветке
 

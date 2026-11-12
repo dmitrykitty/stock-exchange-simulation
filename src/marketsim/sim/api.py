@@ -156,14 +156,33 @@ def _write(simulation, run_id: str, meta: dict, out_dir: Path) -> Path:
     return destination
 
 
+def _graph_run_id(config: RunConfig, seed: int, v: dict) -> str:
+    identity = json.dumps({
+        "config": asdict(config), "seed": seed, "resolved_agents": identity_dict(v["settings"]),
+        "simulation_version": _NETWORK_VERSION, **v["hashes"],
+    }, sort_keys=True)
+    return "f5_" + hashlib.sha256(identity.encode()).hexdigest()[:20]
+
+
+def _single_asset_run_id(config: RunConfig, seed: int, settings: AgentSettings) -> str:
+    identity = json.dumps({
+        "config": asdict(config), "seed": seed, "resolved_agents": identity_dict(settings),
+        "simulation_version": _SIMULATION_VERSION,
+    }, sort_keys=True)
+    return "f4_" + hashlib.sha256(identity.encode()).hexdigest()[:20]
+
+
+def run_id(config: RunConfig, seed: int) -> str:
+    """The run_id that ``run(config, seed, ...)`` writes, without simulating (the config is validated)."""
+    if config.graph != "single_asset":
+        return _graph_run_id(config, seed, _validate_graph(config, seed))
+    return _single_asset_run_id(config, seed, _validate(config, seed)[0])
+
+
 def _run_graph(config: RunConfig, seed: int, out_dir: Path) -> Path:
     v = _validate_graph(config, seed)
     settings = v["settings"]
-    identity = json.dumps({
-        "config": asdict(config), "seed": seed, "resolved_agents": identity_dict(settings),
-        "simulation_version": _NETWORK_VERSION, **v["hashes"],
-    }, sort_keys=True)
-    run_id = "f5_" + hashlib.sha256(identity.encode()).hexdigest()[:20]
+    run_id = _graph_run_id(config, seed, v)
     if (Path(out_dir) / run_id).exists():
         raise FileExistsError(f"run already exists: {Path(out_dir) / run_id}")
     started = datetime.now(UTC).isoformat()
@@ -210,11 +229,7 @@ def run(config: RunConfig, seed: int, out_dir: Path) -> Path:
     if config.graph != "single_asset":
         return _run_graph(config, seed, out_dir)
     settings, levels = _validate(config, seed)
-    identity = json.dumps({
-        "config": asdict(config), "seed": seed, "resolved_agents": identity_dict(settings),
-        "simulation_version": _SIMULATION_VERSION,
-    }, sort_keys=True)
-    run_id = "f4_" + hashlib.sha256(identity.encode()).hexdigest()[:20]
+    run_id = _single_asset_run_id(config, seed, settings)
     destination = Path(out_dir) / run_id
     if destination.exists():
         raise FileExistsError(f"run already exists: {destination}")

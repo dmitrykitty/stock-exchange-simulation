@@ -26,6 +26,9 @@ at or after t and is written to the ``events`` table, so the same seed and the s
 log, whenever and at whatever display speed the controls were entered. ``start``, ``advance`` and ``finish`` run
 the event loop in pieces (``execute`` is the three in a row).
 
+F7 adds ``agents.company_shock``: the ``shock_valuation`` control scheduled from the configuration, so a batch run
+of experiment E6 shocks one company at a fixed time.
+
 All randomness comes from the run seed; the same config and seed give the same log.
 """
 
@@ -252,6 +255,10 @@ class NetworkSimulation:
             chosen = (np.arange(self.investors) if limited == self.investors else
                       np.random.default_rng(risk_seed).choice(self.investors, limited, replace=False))
             self.risk_limited[chosen] = True
+        # F7 (E6): news about one company at a fixed time, the same control as the live mode's "Company news".
+        cs = s.company_shock
+        if cs.asset and cs.change != 0:
+            self.schedule_control(float(cs.time), "shock_valuation", {"asset": cs.asset, "change": cs.change})
 
     # ----- valuers -------------------------------------------------------------------------------------------
     def _init_valuers(self, value_rng: np.random.Generator, weight_rng: np.random.Generator) -> None:

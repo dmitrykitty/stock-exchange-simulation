@@ -31,7 +31,7 @@ from marketsim.market.api import NO_PRICE
 from marketsim.sim import api
 from marketsim.sim.log_schema import RUN_TABLES, load_run
 from marketsim.sim.network import CONTROL_KINDS, NetworkSimulation
-from marketsim.sim.settings import identity_dict
+from marketsim.sim.settings import CompanyShock, identity_dict
 
 LIVE_VERSION = "f9-live-v1"
 
@@ -43,6 +43,9 @@ class LiveSession:
         self.config, self.seed = config, seed
         self._v = api._validate_graph(config, seed)
         v = self._v
+        if v["settings"].company_shock != CompanyShock():
+            # A configured shock is not one of the logged controls, so the replay check would apply it twice.
+            raise ConfigError("the live mode sends company news from the page; remove agents.company_shock")
         self.sim = NetworkSimulation(config, v["settings"], seed, v["graph"], v["external"], v["external_names"],
                                      v["reference"])
         self.initial_resources = self.sim.resources()

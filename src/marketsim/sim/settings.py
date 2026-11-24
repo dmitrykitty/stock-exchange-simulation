@@ -26,6 +26,17 @@ class HerdingSettings:
     h_std: float = 0.0
 
 
+@dataclass(frozen=True)
+class CompanyShock:
+    """News about one company at a fixed time (F7, experiment E6): from ``time`` on every valuer's valuation of
+    ``asset`` is multiplied by ``1 + change``, as the live mode's "Company news" button does. An empty ``asset`` or a
+    zero ``change`` means no shock."""
+
+    asset: str = ""
+    change: float = 0.0
+    time: float = 0.0
+
+
 # Investor mixes for experiment E4 (F5): shares of myopic valuers, network valuers, trend followers, noise.
 # Calibrated on the F5 pilot: with 45% trend followers every chain run crashed (an asset lost > 25% from its peak),
 # so the trend-heavy mix uses 30% (docs/guides/f5_graph_valuers.md).
@@ -112,6 +123,7 @@ class AgentSettings:
     risk_sell_fraction: float = 1.0
     risk_cooldown: float = 5.0
     herding: HerdingSettings = field(default_factory=HerdingSettings)
+    company_shock: CompanyShock = CompanyShock()
 
     @property
     def investors(self) -> int:
@@ -130,6 +142,9 @@ class AgentSettings:
         herd = data.pop("herding", {})
         if not isinstance(herd, dict) or set(herd) - {f.name for f in fields(HerdingSettings)}:
             raise ConfigError("herding must contain only h, neighbors, ttl, followers, h_std")
+        shock = data.pop("company_shock", {})
+        if not isinstance(shock, dict) or set(shock) - {f.name for f in fields(CompanyShock)}:
+            raise ConfigError("company_shock must contain only asset, change, time")
         if graph_mode:
             data.setdefault("valuers", 0)
         if "assets" in data:
@@ -138,7 +153,7 @@ class AgentSettings:
                     or len(set(tickers)) != len(tickers)):
                 raise ConfigError("agents.assets must be a list of distinct tickers")
             data["assets"] = tuple(tickers)
-        settings = cls(**data, herding=HerdingSettings(**herd))
+        settings = cls(**data, herding=HerdingSettings(**herd), company_shock=CompanyShock(**shock))
         nonnegative_ints = (
             "valuers", "valuers_myopic", "valuers_network", "trend", "noise", "market_makers_per_asset",
             "n_funds", "total_cash_cents", "total_shares", "market_maker_cash_cents", "market_maker_shares",
@@ -213,6 +228,14 @@ class AgentSettings:
             raise ConfigError("need 0 <= herding.h <= 1 and herding.ttl > 0")
         if not 0 <= h.followers <= 1 or not 0 <= h.h_std <= 1:
             raise ConfigError("need 0 <= herding.followers <= 1 and 0 <= herding.h_std <= 1")
+        cs = settings.company_shock
+        if type(cs.asset) is not str:
+            raise ConfigError("company_shock.asset must be a ticker")
+        for name, value in (("change", cs.change), ("time", cs.time)):
+            if type(value) not in (int, float) or isinstance(value, bool) or not math.isfinite(value):
+                raise ConfigError(f"company_shock.{name} must be finite")
+        if cs.change <= -1 or cs.time < 0:
+            raise ConfigError("need company_shock.change > -1 and company_shock.time >= 0")
         mm = settings.market_makers_per_asset
         if settings.total_cash_cents + mm * settings.market_maker_cash_cents > 2**63 - 1:
             raise ConfigError("total cash exceeds int64")
@@ -247,7 +270,7 @@ def identity_dict(settings: AgentSettings) -> dict:
 
 
 _F6_FIELDS = ("assets", "price_scaling", "holdings", "position_sizing", "position_tilt", "rebalancers", "rebalance_band", "risk_limit",
-              "risk_limit_share", "risk_sell_fraction", "risk_cooldown")
+              "risk_limit_share", "risk_sell_fraction", "risk_cooldown", "company_shock")
 # Fields that exist only with a graph; at their defaults they are left out of run identities.
 _GRAPH_FIELDS = ("valuers_myopic", "valuers_network", "composition", "attention", "observation_delay",
                  "weight_error_std", *_F6_FIELDS)

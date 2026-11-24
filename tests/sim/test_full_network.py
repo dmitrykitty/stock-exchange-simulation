@@ -291,3 +291,25 @@ def test_f6_configs_expand_to_the_planned_grids():
         assert spec.config.graph == "real_v1" and spec.config.external == "real_2024_2025"
         assert spec.config.use_market_index is True
         AgentSettings.from_dict(spec.config.agents, graph_mode=True)
+
+
+def test_no_rebalancing_keeps_the_funds_but_stops_their_trading(tmp_path):
+    config = net_config(n_sessions=12, rebalancers=6, rebalance_band=0.01, inventory_skew_ticks=0.2,
+                        ablation="no_rebalancing")
+    log = load_run(run(config, 4, tmp_path))
+    population = log.meta["population"]
+    rebalancers = [a for a, kind in enumerate(population["kinds"]) if kind == "rebalancer"]
+    assert len(rebalancers) == 6 and set(rebalancers) <= set(population["fund_ids"])
+    assert not log["orders"].agent.isin(rebalancers).any()
+    assert len(log["signals"].loc[lambda d: d.agent.isin(rebalancers)])  # they still look, and log what they see
+    trading = replace(config, agents={**config.agents, "ablation": "none"})
+    with_trading, without = (NetworkSimulation(c, *_sim_args(c)) for c in (trading, config))
+    np.testing.assert_array_equal(with_trading.population.cash, without.population.cash)
+    np.testing.assert_array_equal(with_trading.population.shares, without.population.shares)
+    with pytest.raises(ConfigError, match="needs a graph"):
+        AgentSettings.from_dict({"ablation": "no_rebalancing"})
+
+
+def _sim_args(config, seed=4):
+    v = _validate_graph(config, seed)
+    return v["settings"], seed, v["graph"], v["external"], v["external_names"], v["reference"]

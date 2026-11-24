@@ -460,8 +460,9 @@ class NetworkSimulation:
                     deviation = (target_value - held * price) / target_value if target_value > 0 else 0.0
                     own = clip_signal(deviation)
                     herd, signal = self.network.mix(agent, own, now, h, asset)
-                    intent = rebalance_order(deviation, target_value, price, self._top(asset), portfolio,
-                                             self.asset_settings[asset], self._decision_rng[agent], asset)
+                    intent = None if s.ablation == "no_rebalancing" else rebalance_order(
+                        deviation, target_value, price, self._top(asset), portfolio, self.asset_settings[asset],
+                        self._decision_rng[agent], asset)
                 elif s.position_sizing == "target":
                     own = self._own_signal(agent, kind, asset, price, now)
                     herd, signal = self.network.mix(agent, own, now, h, asset)

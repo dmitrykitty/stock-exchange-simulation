@@ -47,6 +47,11 @@ COMPOSITIONS = {
 }
 
 
+# ``no_rebalancing`` (F7, E6): the rebalancers keep their capital and holdings but never trade, so the rebalancing
+# channel is off while the wealth of every investor group stays as it was.
+ABLATIONS = ("none", "no_herding", "no_trend", "no_rebalancing")
+
+
 @dataclass(frozen=True)
 class AgentSettings:
     ticker: str = "SYNTH"
@@ -191,8 +196,10 @@ class AgentSettings:
             raise ConfigError("debug must be boolean")
         if settings.tif not in ("GTC", "GTD", "IOC"):
             raise ConfigError("tif must be GTC, GTD or IOC")
-        if settings.ablation not in ("none", "no_herding", "no_trend"):
-            raise ConfigError("ablation must be none, no_herding or no_trend")
+        if settings.ablation not in ABLATIONS:
+            raise ConfigError(f"ablation must be one of {ABLATIONS}")
+        if settings.ablation == "no_rebalancing" and not graph_mode:
+            raise ConfigError("ablation no_rebalancing needs a graph (F6 rebalancers)")
         positive = ("gamma", "decision_rate", "market_maker_rate", "trend_lookback", "trend_scale",
                     "order_lifetime", "protection_fraction")
         unit = ("rho", "threshold", "aggressive_prob", "concentration")

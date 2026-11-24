@@ -1,6 +1,6 @@
 """F8 on a study root: prepare the control inputs, then compute every check and write it to ``<root>/validation``.
 
-    python -m marketsim.validation.run prepare --root runs/main     # control graphs and the flat scenario
+    python -m marketsim.validation.run prepare                      # control graphs and the flat scenario
     python -m marketsim.validation.run checks --root runs/main      # after the runs: the tables
 
 Groups of runs: the main cell of E5 (mixed investors, h = 0.2; collapsed runs left out by the rule of
@@ -30,15 +30,17 @@ from marketsim.validation.reality import Reality, SimRun, load_reality, load_sim
 FLAT_SCENARIO = "f6_flat_2024"
 CONTROLS = ("random_graph_1", "random_graph_2", "flat_inputs")
 MAIN_CELL = ("mixed", 0.2)
+CONTROL_GRAPHS = Path("runs/main/controls/graphs")  # the path in configs/main/controls/random_graph_*.yaml
 
 
-def prepare(root: Path, reality: Reality | None = None) -> list[Path]:
-    """Write the two control graphs (the first random graphs of ``random_graphs``) to ``<root>/controls/graphs``
-    and the flat external scenario (every level of 2 January 2024 kept for 502 sessions) to data/processed."""
+def prepare(graphs: Path = CONTROL_GRAPHS, reality: Reality | None = None) -> list[Path]:
+    """Write the two control graphs (the first random graphs of ``random_graphs``; the same every time) to
+    ``graphs``, where ``configs/main/controls`` read them, and the flat external scenario (every level of 2 January
+    2024 kept for 502 sessions) to data/processed."""
     reality = reality or load_reality()
     written = []
     for k, (graph, _) in enumerate(random_graphs(reality, n=2), 1):
-        written.append(save_graph(graph, root / "controls" / "graphs" / f"g{k}"))
+        written.append(save_graph(graph, graphs / f"g{k}"))
     if not api.table_path(S.EXTERNAL, scenario=FLAT_SCENARIO).exists():
         levels = reality.levels
         flat = pd.DataFrame({c: np.full(len(levels), float(levels[c].iloc[0])) for c in levels.columns},
@@ -117,7 +119,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--random-graphs", type=int, default=200, help="control graphs for the R-based checks")
     args = parser.parse_args(argv)
     if args.step == "prepare":
-        for path in prepare(args.root):
+        for path in prepare():
             print(path)
         return
     for name, table in run_checks(args.root, args.workers, args.random_graphs).items():

@@ -94,7 +94,8 @@
 ## 10. Как запустить
 
 ```bash
-scripts/run_main_study.sh          # ~6 ч на 10 процессах, ~70 ГБ в runs/main; можно прерывать и продолжать
+SMOKE=1 ROOT=runs/smoke scripts/run_main_study.sh   # пробный прогон: один seed на ячейку, все конфиги сразу, ~20 мин
+scripts/run_main_study.sh                           # ~6 ч на 10 процессах, ~70 ГБ в runs/main; можно прерывать и продолжать
 ```
 
 Скрипт по очереди: готовит контроли (`python -m marketsim.validation.run prepare`), считает все прогоны, затем таблицы ответов (`python -m marketsim.analysis.study`), проверки F8 (`python -m marketsim.validation.run checks`), рисунки отчёта (`python -m marketsim.analysis.figures`) и страницу сравнения экспериментов.

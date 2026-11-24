@@ -313,3 +313,34 @@ def test_no_rebalancing_keeps_the_funds_but_stops_their_trading(tmp_path):
 def _sim_args(config, seed=4):
     v = _validate_graph(config, seed)
     return v["settings"], seed, v["graph"], v["external"], v["external_names"], v["reference"]
+
+
+@pytest.mark.parametrize("anchor", ["others", "smoothed"])
+def test_maker_anchor_runs_are_deterministic_and_keep_resources(tmp_path, anchor):
+    config = net_config(n_sessions=6, inventory_skew_ticks=0.5, maker_anchor=anchor, maker_anchor_halflife=0.5)
+    a = load_run(run(config, 3, tmp_path / "a"))
+    b = load_run(run(config, 3, tmp_path / "b"))
+    for spec in RUN_TABLES:
+        pd.testing.assert_frame_equal(a[spec.name], b[spec.name], obj=spec.name)
+    assert a.meta["initial_resources"] == a.meta["final_resources"]
+    book = load_run(run(net_config(n_sessions=6, inventory_skew_ticks=0.5), 3, tmp_path / "book"))
+    assert not a["orders"].equals(book["orders"])
+
+
+def test_smoothed_anchor_moves_half_way_in_one_half_life():
+    config = net_config(maker_anchor="smoothed", maker_anchor_halflife=2.0)
+    sim = NetworkSimulation(config, *_sim_args(config))
+    assert sim._smoothed_anchor(0, 10_000, 1.0) == 10_000
+    assert sim._smoothed_anchor(0, 11_000, 3.0) == 10_500
+    assert sim._smoothed_anchor(1, 9_000, 3.0) == 9_000      # every maker has its own anchor
+
+
+def test_maker_anchor_default_keeps_identities_and_bad_values_fail():
+    base = {"valuers_myopic": 3, "valuers_network": 3, "trend": 2, "noise": 2, "n_funds": 2}
+    assert not {"maker_anchor", "maker_anchor_halflife"} & set(
+        identity_dict(AgentSettings.from_dict(base, graph_mode=True)))
+    for bad in ({"maker_anchor": "mid"}, {"maker_anchor_halflife": 0.0}):
+        with pytest.raises(ConfigError):
+            AgentSettings.from_dict({**base, **bad}, graph_mode=True)
+    with pytest.raises(ConfigError, match="need a graph"):
+        AgentSettings.from_dict({"maker_anchor": "others"})

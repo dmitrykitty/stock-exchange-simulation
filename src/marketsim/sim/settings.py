@@ -127,6 +127,14 @@ class AgentSettings:
     risk_limit_share: float = 1.0
     risk_sell_fraction: float = 1.0
     risk_cooldown: float = 5.0
+    # ``maker_anchor``: the price a market maker centres its quotes on before the inventory skew. "book" is the
+    # midpoint of the book with its own quotes still in it (F5, F6): a skewed maker then measures its next center
+    # from its own skewed quotes, so the skew compounds at every wake-up. "others" takes the own quotes off first
+    # and uses the midpoint of the rest of the book (the last trade when it is empty); with two makers per asset
+    # each still measures from the other's skewed quotes. "smoothed" centres on the maker's own exponentially
+    # smoothed midpoint (half-life ``maker_anchor_halflife`` sessions), so its quotes feed back only slowly.
+    maker_anchor: str = "book"
+    maker_anchor_halflife: float = 1.0
     herding: HerdingSettings = field(default_factory=HerdingSettings)
     company_shock: CompanyShock = CompanyShock()
 
@@ -207,9 +215,11 @@ class AgentSettings:
             raise ConfigError("price_scaling must be boolean")
         if settings.holdings not in ("all", "followed"):
             raise ConfigError("holdings must be all or followed")
+        if settings.maker_anchor not in ("book", "others", "smoothed"):
+            raise ConfigError("maker_anchor must be book, others or smoothed")
         if settings.position_sizing not in ("flow", "target"):
             raise ConfigError("position_sizing must be flow or target")
-        positive += ("risk_cooldown",)
+        positive += ("risk_cooldown", "maker_anchor_halflife")
         unit += ("rebalance_band", "risk_limit", "risk_limit_share", "risk_sell_fraction", "position_tilt")
         for name in positive + unit + ("valuation_std", "inventory_skew_ticks", "observation_delay", "weight_error_std"):
             value = getattr(settings, name)
@@ -277,7 +287,8 @@ def identity_dict(settings: AgentSettings) -> dict:
 
 
 _F6_FIELDS = ("assets", "price_scaling", "holdings", "position_sizing", "position_tilt", "rebalancers", "rebalance_band", "risk_limit",
-              "risk_limit_share", "risk_sell_fraction", "risk_cooldown", "company_shock")
+              "risk_limit_share", "risk_sell_fraction", "risk_cooldown", "company_shock", "maker_anchor",
+              "maker_anchor_halflife")
 # Fields that exist only with a graph; at their defaults they are left out of run identities.
 _GRAPH_FIELDS = ("valuers_myopic", "valuers_network", "composition", "attention", "observation_delay",
                  "weight_error_std", *_F6_FIELDS)

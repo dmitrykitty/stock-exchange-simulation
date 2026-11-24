@@ -1,4 +1,8 @@
-"""Comparison of simulated markets with real data 2024-2025 (owner: D1).
+"""Validation against the real data 2024–2025 (F8, owner: D1).
 
-Planned checks: docs/model/model_description.md, section 7.
+- ``reality``: the real data aligned with the simulated sessions, simulated runs in the same shape, random
+  control graphs;
+- ``checks``: the checks (graph out of sample, event study, stylised facts, next-day predictability, the graph
+  rebuilt from simulated prices, bands of many runs, correlation structure);
+- ``run``: ``python -m marketsim.validation.run prepare|checks --root runs/main``.
 """

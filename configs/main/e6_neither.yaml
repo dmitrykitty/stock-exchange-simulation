@@ -1,0 +1,55 @@
+# Main study (docs/plans/main_study_protocol.md). E6 (wallet channels): the mixed E5 market with stop-loss off and rebalancers not trading; herding 0 and 0.4, 60 runs.
+# The cells with every channel on are the mixed E5 cells at h = 0 and 0.4 (same seeds).
+base:
+  name: main_e6_neither
+  exchange_backend: cpp
+  graph: real_v1                  # 18 companies, 4 commodities, S&P 500 (data/graph/real_v1)
+  external: real_2024_2025        # marketsim.graph.scenarios.build_real_2024_2025() writes it to data/processed
+  use_market_index: true
+  n_sessions: 502                 # trading days of 2024-2025
+  warmup_sessions: 10
+  sample_dt: 0.05
+  agents:
+    assets: []                    # empty = all 18 companies
+    composition: mixed            # the investor counts below are redistributed by the named mix
+    valuers_myopic: 500
+    valuers_network: 0
+    trend: 0
+    noise: 0
+    rebalancers: 25               # funds with target weights, on top of the 500 investors
+    rebalance_band: 0.05
+    n_funds: 50
+    concentration: 0.5
+    total_cash_cents: 1000000000  # 20,000 USD of cash per investor on average
+    total_shares: 8000            # per company, for a 100 USD stock: 800,000 USD of every company outstanding
+    price_scaling: true           # share counts, maker quotes and tick parameters follow each start price
+    holdings: followed            # shares of a company go only to the investors that trade it
+    position_sizing: target       # investors hold initial shares * (1 + position_tilt * signal)
+    position_tilt: 0.5
+    attention: 4
+    rho: 0.05                     # largest order of one decision, as a share of the portfolio
+    decision_rate: 2.0
+    market_makers_per_asset: 2
+    market_maker_rate: 20.0
+    market_maker_qty: 100
+    market_maker_spread_ticks: 10
+    inventory_skew_ticks: 0.3
+    trend_lookback: 5.0           # trend followers watch a week, not a day
+    trend_scale: 0.1
+    tif: GTD
+    order_lifetime: 0.5
+    observation_delay: 0.05
+    weight_error_std: 0.1
+    risk_limit: 0.0               # E6 channel switch: no stop-loss (E5: 0.2 for one investor in four)
+    risk_limit_share: 0.25
+    risk_sell_fraction: 0.5
+    risk_cooldown: 5.0
+    ablation: no_rebalancing      # E6 channel switch: the rebalancers keep their capital but never trade
+    herding:
+      h: 0.2
+      neighbors: 5
+      followers: 1.0
+      h_std: 0.0
+seeds: [5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008, 5009, 5010, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5024, 5025, 5026, 5027, 5028, 5029, 5030]
+grid:
+  agents.herding.h: [0.0, 0.4]

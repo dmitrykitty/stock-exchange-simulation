@@ -245,6 +245,7 @@ class NetworkSimulation:
             }
         # Risk limit state per investor: running wealth peak, end of the cooldown, shares to keep per asset.
         self.risk_triggers = 0
+        self._maker_anchor: dict[int, tuple[float, float]] = {}  # maker -> (smoothed midpoint, time), F7
         self._derisk_until = [-math.inf] * self.investors
         self._risk_floor: list[dict[int, int]] = [{} for _ in range(self.investors)]
         self._peak = ([self._wealth(self.gateway.portfolio(a)) for a in range(self.investors)]
@@ -426,10 +427,18 @@ class NetworkSimulation:
         kind = self.population.kinds[agent]
         if kind == "market_maker":
             asset = self.population.maker_asset[agent - self.investors]
-            # The maker uses the visible center before removing its own two quotes.
-            price = self._price(asset)
-            for order_id in sorted(self._open[agent]):
-                self._withdraw(agent, order_id, now, "order_cancelled")
+            if s.maker_anchor == "others":
+                # Own quotes off first: the center is the rest of the book, so the skew does not compound.
+                for order_id in sorted(self._open[agent]):
+                    self._withdraw(agent, order_id, now, "order_cancelled")
+                price = self._price(asset)
+            else:
+                # The maker uses the visible center before removing its own two quotes.
+                price = self._price(asset)
+                for order_id in sorted(self._open[agent]):
+                    self._withdraw(agent, order_id, now, "order_cancelled")
+                if s.maker_anchor == "smoothed":
+                    price = self._smoothed_anchor(agent - self.investors, price, now)
             portfolio = self.gateway.portfolio(agent)
             for intent in maker_orders(price, portfolio, self.asset_maker_shares[asset],
                                        self.asset_settings[asset], asset):
@@ -491,6 +500,14 @@ class NetworkSimulation:
         if s.debug:
             self._check()
         self._next_wake(agent, now)
+
+    def _smoothed_anchor(self, maker: int, seen: int, now: float) -> int:
+        """Exponentially smoothed midpoint of one maker (``maker_anchor: smoothed``), in whole ticks."""
+        anchor, last = self._maker_anchor.get(maker, (float(seen), now))
+        weight = 1.0 - math.exp(-(now - last) * math.log(2) / self.settings.maker_anchor_halflife)
+        anchor += weight * (seen - anchor)
+        self._maker_anchor[maker] = (anchor, now)
+        return max(1, round(anchor))
 
     def valuation_stats(self) -> tuple[np.ndarray, np.ndarray]:
         """Mean and std (ticks) per asset of the valuers' latest valuations, as written to ``valuations``."""

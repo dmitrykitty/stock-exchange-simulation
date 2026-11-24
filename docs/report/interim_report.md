@@ -71,6 +71,30 @@ P5 i P6 są pytaniami głównymi. Brak efektu w badanym zakresie też jest wynik
 
 Symulacja zdarzeń dyskretnych: kolejka zdarzeń uporządkowana według czasu i numeru kolejnego (decyzje agentów, wygasanie zleceń, migawki arkusza co 0,05 sesji, początek sesji, zdarzenia sterujące). Jedna sesja symulacji odpowiada jednemu dniowi sesyjnemu danych; agenci budzą się w losowych chwilach (proces Poissona: inwestor średnio 2 razy na sesję, animator rynku 20 razy). Agent decyduje o swoich spółkach po kolei i widzi rynek po transakcjach poprzednich decyzji; zleceń różnych agentów nie łączymy w paczki. Wszystkie losowania pochodzą z generatorów zainicjowanych ziarnem przebiegu: **ta sama konfiguracja i ziarno dają identyczny log** (sprawdzane testami).
 
+```mermaid
+flowchart LR
+    subgraph REAL["Dane rzeczywiste"]
+        W["ceny akcji 2021–2023<br/>+ tabele BEA"]
+        X["sygnały zewnętrzne 2024–2025<br/>ropa, gaz, miedź, złoto, S&P 500"]
+        P0["ceny akcji 2.01.2024"]
+        V["ceny akcji 2024–2025"]
+    end
+    W --> G["graf zależności real_v1<br/>(wiedza agentów)"]
+    G --> A["525 inwestorów<br/>wyceniający, trendowi, szumowi,<br/>fundusze; naśladowanie"]
+    X --> A
+    P0 --> EX
+    A <-->|"zlecenia / transakcje"| EX["giełda: 18 arkuszy zleceń<br/>+ bramka (C++)"]
+    M["animatorzy rynku"] <--> EX
+    EX --> L["log przebiegu"]
+    G --> R["trajektoria referencyjna R"]
+    X --> R
+    L --> AN["miary, testy, rysunki"]
+    R --> AN
+    V -. "tylko do porównania" .-> AN
+```
+
+*Rysunek 0. Przepływ danych w modelu. Prawdziwe ceny akcji z lat 2024–2025 nie trafiają do agentów; służą wyłącznie do walidacji.*
+
 ### 3.2 Giełda i bramka
 
 Każda spółka ma własny arkusz zleceń z regułą *price-time priority*; transakcja zawierana jest po cenie zlecenia oczekującego. Zlecenia z limitem: GTC, IOC, GTD (ważne 0,5 sesji); zlecenie „rynkowe” to IOC z ceną ochronną 1% od ceny i co najmniej jeden tik. Zlecenie, które dopasowałoby się z własnym zleceniem agenta, jest odrzucane. Ceny są liczbami całkowitymi tików (1 tik = 1 cent), środki — całkowitymi centami. Bramka rezerwuje pieniądze lub akcje przed wysłaniem zlecenia i rozlicza obie strony; łączna ilość pieniędzy i akcji jest stała w każdym przebiegu. Silnik ma dwie implementacje: wzorcową w Pythonie i szybką w C++20 (`lob_core`); test różnicowy z losowymi sekwencjami zleceń (hypothesis) wymaga identycznych arkuszy i transakcji obu implementacji.
@@ -214,13 +238,13 @@ Jednostką jest przebieg. **Kontrast parowy:** średnia po ziarnach różnicy dw
 
 ## 6. Wyniki
 
-<!-- WYNIKI: po badaniu głównym -->
+<!-- WYNIKI: po badaniu głównym. Rysunki: f7_e5_cells.png, f7_p5_contrasts.png, f7_p6_channels.png, f7_p6_shock.png, f7_p7_network_share.png; tabela werdyktów H1–H5 -->
 
 ---
 
 ## 7. Walidacja: co model odtwarza, a czego nie
 
-<!-- WALIDACJA: po badaniu głównym -->
+<!-- WALIDACJA: po badaniu głównym. Rysunki: f8_out_of_sample.png, f8_event_study.png, f8_stylised_facts.png, f8_graph_recovery.png, f8_correlation.png, f8_bands.png -->
 
 ---
 

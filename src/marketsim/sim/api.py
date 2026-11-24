@@ -84,6 +84,11 @@ def _validate_graph(config: RunConfig, seed: int) -> dict:
         raise ConfigError("the graph has no company nodes")
     if settings.assets:
         graph = _subgraph(graph, settings.assets)
+    shock = settings.company_shock
+    if shock.asset and shock.asset not in graph.companies():
+        raise ConfigError(f"company_shock.asset: {shock.asset!r} is not a company of this market")
+    if shock.asset and not shock.time < config.n_sessions:
+        raise ConfigError("company_shock.time must be before the end of the run")
     try:
         external = load_external(config.external)
     except FileNotFoundError as exc:

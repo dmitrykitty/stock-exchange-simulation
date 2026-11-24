@@ -26,6 +26,17 @@ class HerdingSettings:
     h_std: float = 0.0
 
 
+@dataclass(frozen=True)
+class CompanyShock:
+    """News about one company at a fixed time (F7, experiment E6): from ``time`` on every valuer's valuation of
+    ``asset`` is multiplied by ``1 + change``, as the live mode's "Company news" button does. An empty ``asset`` or a
+    zero ``change`` means no shock."""
+
+    asset: str = ""
+    change: float = 0.0
+    time: float = 0.0
+
+
 # Investor mixes for experiment E4 (F5): shares of myopic valuers, network valuers, trend followers, noise.
 # Calibrated on the F5 pilot: with 45% trend followers every chain run crashed (an asset lost > 25% from its peak),
 # so the trend-heavy mix uses 30% (docs/guides/f5_graph_valuers.md).
@@ -34,6 +45,11 @@ COMPOSITIONS = {
     "mixed": (0.30, 0.30, 0.20, 0.20),
     "trend": (0.35, 0.15, 0.30, 0.20),
 }
+
+
+# ``no_rebalancing`` (F7, E6): the rebalancers keep their capital and holdings but never trade, so the rebalancing
+# channel is off while the wealth of every investor group stays as it was.
+ABLATIONS = ("none", "no_herding", "no_trend", "no_rebalancing")
 
 
 @dataclass(frozen=True)
@@ -111,7 +127,16 @@ class AgentSettings:
     risk_limit_share: float = 1.0
     risk_sell_fraction: float = 1.0
     risk_cooldown: float = 5.0
+    # ``maker_anchor``: the price a market maker centres its quotes on before the inventory skew. "book" is the
+    # midpoint of the book with its own quotes still in it (F5, F6): a skewed maker then measures its next center
+    # from its own skewed quotes, so the skew compounds at every wake-up. "others" takes the own quotes off first
+    # and uses the midpoint of the rest of the book (the last trade when it is empty); with two makers per asset
+    # each still measures from the other's skewed quotes. "smoothed" centres on the maker's own exponentially
+    # smoothed midpoint (half-life ``maker_anchor_halflife`` sessions), so its quotes feed back only slowly.
+    maker_anchor: str = "book"
+    maker_anchor_halflife: float = 1.0
     herding: HerdingSettings = field(default_factory=HerdingSettings)
+    company_shock: CompanyShock = CompanyShock()
 
     @property
     def investors(self) -> int:
@@ -130,6 +155,9 @@ class AgentSettings:
         herd = data.pop("herding", {})
         if not isinstance(herd, dict) or set(herd) - {f.name for f in fields(HerdingSettings)}:
             raise ConfigError("herding must contain only h, neighbors, ttl, followers, h_std")
+        shock = data.pop("company_shock", {})
+        if not isinstance(shock, dict) or set(shock) - {f.name for f in fields(CompanyShock)}:
+            raise ConfigError("company_shock must contain only asset, change, time")
         if graph_mode:
             data.setdefault("valuers", 0)
         if "assets" in data:
@@ -138,7 +166,7 @@ class AgentSettings:
                     or len(set(tickers)) != len(tickers)):
                 raise ConfigError("agents.assets must be a list of distinct tickers")
             data["assets"] = tuple(tickers)
-        settings = cls(**data, herding=HerdingSettings(**herd))
+        settings = cls(**data, herding=HerdingSettings(**herd), company_shock=CompanyShock(**shock))
         nonnegative_ints = (
             "valuers", "valuers_myopic", "valuers_network", "trend", "noise", "market_makers_per_asset",
             "n_funds", "total_cash_cents", "total_shares", "market_maker_cash_cents", "market_maker_shares",
@@ -176,8 +204,10 @@ class AgentSettings:
             raise ConfigError("debug must be boolean")
         if settings.tif not in ("GTC", "GTD", "IOC"):
             raise ConfigError("tif must be GTC, GTD or IOC")
-        if settings.ablation not in ("none", "no_herding", "no_trend"):
-            raise ConfigError("ablation must be none, no_herding or no_trend")
+        if settings.ablation not in ABLATIONS:
+            raise ConfigError(f"ablation must be one of {ABLATIONS}")
+        if settings.ablation == "no_rebalancing" and not graph_mode:
+            raise ConfigError("ablation no_rebalancing needs a graph (F6 rebalancers)")
         positive = ("gamma", "decision_rate", "market_maker_rate", "trend_lookback", "trend_scale",
                     "order_lifetime", "protection_fraction")
         unit = ("rho", "threshold", "aggressive_prob", "concentration")
@@ -185,9 +215,11 @@ class AgentSettings:
             raise ConfigError("price_scaling must be boolean")
         if settings.holdings not in ("all", "followed"):
             raise ConfigError("holdings must be all or followed")
+        if settings.maker_anchor not in ("book", "others", "smoothed"):
+            raise ConfigError("maker_anchor must be book, others or smoothed")
         if settings.position_sizing not in ("flow", "target"):
             raise ConfigError("position_sizing must be flow or target")
-        positive += ("risk_cooldown",)
+        positive += ("risk_cooldown", "maker_anchor_halflife")
         unit += ("rebalance_band", "risk_limit", "risk_limit_share", "risk_sell_fraction", "position_tilt")
         for name in positive + unit + ("valuation_std", "inventory_skew_ticks", "observation_delay", "weight_error_std"):
             value = getattr(settings, name)
@@ -213,6 +245,14 @@ class AgentSettings:
             raise ConfigError("need 0 <= herding.h <= 1 and herding.ttl > 0")
         if not 0 <= h.followers <= 1 or not 0 <= h.h_std <= 1:
             raise ConfigError("need 0 <= herding.followers <= 1 and 0 <= herding.h_std <= 1")
+        cs = settings.company_shock
+        if type(cs.asset) is not str:
+            raise ConfigError("company_shock.asset must be a ticker")
+        for name, value in (("change", cs.change), ("time", cs.time)):
+            if type(value) not in (int, float) or isinstance(value, bool) or not math.isfinite(value):
+                raise ConfigError(f"company_shock.{name} must be finite")
+        if cs.change <= -1 or cs.time < 0:
+            raise ConfigError("need company_shock.change > -1 and company_shock.time >= 0")
         mm = settings.market_makers_per_asset
         if settings.total_cash_cents + mm * settings.market_maker_cash_cents > 2**63 - 1:
             raise ConfigError("total cash exceeds int64")
@@ -247,7 +287,8 @@ def identity_dict(settings: AgentSettings) -> dict:
 
 
 _F6_FIELDS = ("assets", "price_scaling", "holdings", "position_sizing", "position_tilt", "rebalancers", "rebalance_band", "risk_limit",
-              "risk_limit_share", "risk_sell_fraction", "risk_cooldown")
+              "risk_limit_share", "risk_sell_fraction", "risk_cooldown", "company_shock", "maker_anchor",
+              "maker_anchor_halflife")
 # Fields that exist only with a graph; at their defaults they are left out of run identities.
 _GRAPH_FIELDS = ("valuers_myopic", "valuers_network", "composition", "attention", "observation_delay",
                  "weight_error_std", *_F6_FIELDS)

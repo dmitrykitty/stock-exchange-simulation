@@ -26,6 +26,9 @@ at or after t and is written to the ``events`` table, so the same seed and the s
 log, whenever and at whatever display speed the controls were entered. ``start``, ``advance`` and ``finish`` run
 the event loop in pieces (``execute`` is the three in a row).
 
+F7 adds ``agents.company_shock``: the ``shock_valuation`` control scheduled from the configuration, so a batch run
+of experiment E6 shocks one company at a fixed time.
+
 All randomness comes from the run seed; the same config and seed give the same log.
 """
 
@@ -242,6 +245,7 @@ class NetworkSimulation:
             }
         # Risk limit state per investor: running wealth peak, end of the cooldown, shares to keep per asset.
         self.risk_triggers = 0
+        self._maker_anchor: dict[int, tuple[float, float]] = {}  # maker -> (smoothed midpoint, time), F7
         self._derisk_until = [-math.inf] * self.investors
         self._risk_floor: list[dict[int, int]] = [{} for _ in range(self.investors)]
         self._peak = ([self._wealth(self.gateway.portfolio(a)) for a in range(self.investors)]
@@ -252,6 +256,10 @@ class NetworkSimulation:
             chosen = (np.arange(self.investors) if limited == self.investors else
                       np.random.default_rng(risk_seed).choice(self.investors, limited, replace=False))
             self.risk_limited[chosen] = True
+        # F7 (E6): news about one company at a fixed time, the same control as the live mode's "Company news".
+        cs = s.company_shock
+        if cs.asset and cs.change != 0:
+            self.schedule_control(float(cs.time), "shock_valuation", {"asset": cs.asset, "change": cs.change})
 
     # ----- valuers -------------------------------------------------------------------------------------------
     def _init_valuers(self, value_rng: np.random.Generator, weight_rng: np.random.Generator) -> None:
@@ -419,10 +427,18 @@ class NetworkSimulation:
         kind = self.population.kinds[agent]
         if kind == "market_maker":
             asset = self.population.maker_asset[agent - self.investors]
-            # The maker uses the visible center before removing its own two quotes.
-            price = self._price(asset)
-            for order_id in sorted(self._open[agent]):
-                self._withdraw(agent, order_id, now, "order_cancelled")
+            if s.maker_anchor == "others":
+                # Own quotes off first: the center is the rest of the book, so the skew does not compound.
+                for order_id in sorted(self._open[agent]):
+                    self._withdraw(agent, order_id, now, "order_cancelled")
+                price = self._price(asset)
+            else:
+                # The maker uses the visible center before removing its own two quotes.
+                price = self._price(asset)
+                for order_id in sorted(self._open[agent]):
+                    self._withdraw(agent, order_id, now, "order_cancelled")
+                if s.maker_anchor == "smoothed":
+                    price = self._smoothed_anchor(agent - self.investors, price, now)
             portfolio = self.gateway.portfolio(agent)
             for intent in maker_orders(price, portfolio, self.asset_maker_shares[asset],
                                        self.asset_settings[asset], asset):
@@ -453,8 +469,9 @@ class NetworkSimulation:
                     deviation = (target_value - held * price) / target_value if target_value > 0 else 0.0
                     own = clip_signal(deviation)
                     herd, signal = self.network.mix(agent, own, now, h, asset)
-                    intent = rebalance_order(deviation, target_value, price, self._top(asset), portfolio,
-                                             self.asset_settings[asset], self._decision_rng[agent], asset)
+                    intent = None if s.ablation == "no_rebalancing" else rebalance_order(
+                        deviation, target_value, price, self._top(asset), portfolio, self.asset_settings[asset],
+                        self._decision_rng[agent], asset)
                 elif s.position_sizing == "target":
                     own = self._own_signal(agent, kind, asset, price, now)
                     herd, signal = self.network.mix(agent, own, now, h, asset)
@@ -483,6 +500,14 @@ class NetworkSimulation:
         if s.debug:
             self._check()
         self._next_wake(agent, now)
+
+    def _smoothed_anchor(self, maker: int, seen: int, now: float) -> int:
+        """Exponentially smoothed midpoint of one maker (``maker_anchor: smoothed``), in whole ticks."""
+        anchor, last = self._maker_anchor.get(maker, (float(seen), now))
+        weight = 1.0 - math.exp(-(now - last) * math.log(2) / self.settings.maker_anchor_halflife)
+        anchor += weight * (seen - anchor)
+        self._maker_anchor[maker] = (anchor, now)
+        return max(1, round(anchor))
 
     def valuation_stats(self) -> tuple[np.ndarray, np.ndarray]:
         """Mean and std (ticks) per asset of the valuers' latest valuations, as written to ``valuations``."""

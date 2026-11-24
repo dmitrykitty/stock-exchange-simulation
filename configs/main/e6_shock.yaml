@@ -46,6 +46,7 @@ base:
     risk_sell_fraction: 0.5
     risk_cooldown: 5.0
     ablation: none
+    maker_anchor: others          # quotes centred on the book without the maker's own (configs/f7_maker_pilot_*.yaml)
     company_shock:
       asset: NVDA
       change: -0.5

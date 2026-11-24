@@ -45,6 +45,7 @@ base:
     risk_sell_fraction: 0.5
     risk_cooldown: 5.0
     ablation: no_rebalancing      # E6 channel switch: the rebalancers keep their capital but never trade
+    maker_anchor: others          # quotes centred on the book without the maker's own (configs/f7_maker_pilot_*.yaml)
     herding:
       h: 0.2
       neighbors: 5

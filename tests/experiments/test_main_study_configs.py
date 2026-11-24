@@ -27,7 +27,8 @@ def test_grids_and_seeds(name, runs, seeds):
     grid = specs(name)
     assert len(grid) == runs and {s.seed for s in grid} == seeds
     for spec in grid:
-        AgentSettings.from_dict(spec.config.agents, graph_mode=True)
+        settings = AgentSettings.from_dict(spec.config.agents, graph_mode=True)
+        assert settings.maker_anchor == "others"  # chosen on configs/f7_maker_pilot_*.yaml (protocol, section 9)
 
 
 def test_main_seeds_were_never_used_before():

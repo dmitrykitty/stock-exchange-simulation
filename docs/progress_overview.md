@@ -2,7 +2,7 @@
 
 **Projekt:** Propagacja szoków surowcowych w agentowym rynku giełdowym z grafem zależności aktywów
 **Przedmiot:** Symulacja systemów dyskretnych, AGH
-**Stan na:** 12 listopada 2026 r.
+**Stan na:** 26 listopada 2026 r.
 
 Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w projekcie, jak jest zbudowany i na jakim etapie jesteśmy. Druga (rozdziały 4–6) opisuje, co zrobiliśmy w każdej fazie, wraz z wykresami, uzasadnieniem decyzji i linkami do kodu oraz notatników. Wszystkie wykresy powstały z naszych danych i logów przebiegów; pod każdym jest opis: co przedstawia, jak go czytać i co z niego wynika. Pełny opis naukowy (literatura, hipotezy, metodyka) znajduje się w [propozycji projektu](research_proposal.md).
 
@@ -21,8 +21,9 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
    - [4.4 F4 — rynek jednego aktywa](#44-f4--rynek-jednego-aktywa)
    - [4.5 F5 — wyceniający według grafu na łańcuchu](#45-f5--wyceniający-według-grafu-na-łańcuchu)
    - [4.6 F6 — pełna sieć na danych rzeczywistych](#46-f6--pełna-sieć-na-danych-rzeczywistych)
-   - [4.7 Czy to przypomina prawdziwy rynek? Pierwsza walidacja](#47-czy-to-przypomina-prawdziwy-rynek-pierwsza-walidacja)
+   - [4.7 Czy to przypomina prawdziwy rynek? Pierwsze porównanie](#47-czy-to-przypomina-prawdziwy-rynek-pierwsze-porównanie)
    - [4.8 F9 — wizualizacja przebiegu](#48-f9--wizualizacja-przebiegu)
+   - [4.9 F7–F8 — przygotowanie badania głównego](#49-f7f8--przygotowanie-badania-głównego)
 5. [Najważniejsze decyzje i ich uzasadnienie](#5-najważniejsze-decyzje-i-ich-uzasadnienie)
 6. [Co dalej](#6-co-dalej)
 7. [Gdzie zajrzeć głębiej](#7-gdzie-zajrzeć-głębiej)
@@ -50,7 +51,7 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
    - grube ogony rozkładu i brak autokorelacji stóp zwrotu to cele kalibracji; grube ogony pochodzą z prawdziwych sygnałów wejściowych, a nie od agentów.
 8. **Czego nie odtwarza:** prawdziwy rynek uwzględnia ruch tego samego dnia, a u nas ok. 1/5 ruchu dochodzi dopiero następnego dnia. Zapisujemy to jako ograniczenie, a nie ukrywamy.
 9. **Jest wizualizacja:** strona HTML, która odtwarza przebieg. Widać na niej, jak fala płynie po grafie, jak zmieniają się ceny, świece i płynność arkusza (rozdz. 4.8).
-10. **Zostało:** eksperyment F7 E6 (E5 i E7 są policzone: 270 i 90 przebiegów), moduł walidacji F8 i raport końcowy. Tryb „na żywo” do prezentacji jest gotowy (PR #21, [przewodnik F9](guides/f9_visualization.md), po rosyjsku).
+10. **Badanie główne** (rozdz. 4.9): protokół z pytaniami, miarami i regułami rozstrzygania zamroziliśmy przed liczeniem; 690 przebiegów na nowych ziarnach liczy się jednym poleceniem. Po drodze znaleźliśmy i poprawiliśmy błąd animatorów rynku (usuwa 4 z 6 załamań pilotażu) i przeprojektowaliśmy E6 po pilotażu. Wyniki i rozstrzygnięcia hipotez: [raport z etapu](report/interim_report.md). **Zostało:** raport końcowy (artykuł po angielsku) i prezentacja.
 
 ---
 ## 1. Idea projektu w pięciu minutach
@@ -202,18 +203,21 @@ Projekt jest podzielony na fazy F0–F10. Każda ma właściciela, opis w [`docs
 | F4 | Rynek jednego aktywa, eksperymenty E1–E3 (P1, P2) | ✅ gotowe; E1–E3 policzone też z pozycją docelową, podsumowania liczone metrykami D1 (PR #23) |
 | F5 | Wyceniający według grafu na łańcuchu ropa → COP → VLO → DAL, eksperyment E4 | ✅ gotowe; E4 powtórzony z pozycją docelową (PR #20) |
 | F6 | Pełna sieć 18 spółek na rzeczywistych sygnałach 2024–2025 (kamień milowy M3) | ✅ gotowe (PR #15); kamień milowy M3 spełniony na pełnym E5 |
-| F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | 🟡 E5 (270 przebiegów) i E7 (90) policzone, odpowiedzi na P5 i P7; E6 przed nami |
-| F8 | Walidacja na danych 2024–2025 | 🟡 pierwsze testy w notatniku, moduł przed nami |
+| F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | ✅ pilotaż E5 i E7; protokół zamrożony (PR #32); badanie główne E5, E6, E7 na ziarnach 5001–5030 (rozdz. 4.9) |
+| F8 | Walidacja na danych 2024–2025 | ✅ moduł `marketsim.validation` ze wszystkimi kontrolami z planu; liczby z badania głównego w [raporcie z etapu](report/interim_report.md) |
 | F9 | Wizualizacja: odtwarzanie przebiegu, tryb na żywo | ✅ odtwarzanie (PR #18), tryb na żywo (PR #21) i strona porównania eksperymentów E5 i E7 gotowe |
-| F10 | Raport końcowy i obrona | ⬜ |
+| F10 | Raport końcowy i obrona | 🟡 raport z etapu po polsku; artykuł po angielsku i prezentacja przed nami |
 
-Kod jest w repozytorium [`github.com/dmitrykitty/stock-exchange-simulation`](https://github.com/dmitrykitty/stock-exchange-simulation). Każda zmiana przechodzi przez *pull request* z automatycznymi testami (ponad 240 testów, w tym testy kontraktów i porównanie implementacji Python i C++).
+Kod jest w repozytorium [`github.com/dmitrykitty/stock-exchange-simulation`](https://github.com/dmitrykitty/stock-exchange-simulation). Każda zmiana przechodzi przez *pull request* z automatycznymi testami (ponad 380 testów, w tym testy kontraktów i porównanie implementacji Python i C++).
 
 ---
 
 ## 4. Co zrobiliśmy
 
 ### 4.1 F1 — dane
+
+> **Etap w skrócie.** *Cel:* jednolite, sprawdzone dane 2021–2025. *Co zrobiliśmy:* pobieranie z sumami kontrolnymi, czyszczenie według schematów, wspólny kalendarz, kontrola krzyżowa źródeł. *Wynik:* 14 tabel, 1255 dni sesyjnych, wszystkie liczby kontrolne z planu się zgadzają. *Znaczenie:* na tych danych stoją wagi grafu (2021–2023), ceny startowe (2.01.2024) i walidacja (2024–2025).
+
 
 **Cel:** zebrać wszystkie dane, wyczyścić je według jednolitych zasad i sprawdzić, że są poprawne, zanim ktokolwiek zacznie na nich liczyć.
 
@@ -362,6 +366,9 @@ Znaleźliśmy **80 obserwacji** (para: data, szereg), w których dzienna zmiana 
 
 ### 4.2 F2 — graf zależności
 
+> **Etap w skrócie.** *Cel:* wiedza agentów o tym, która spółka od czego zależy. *Co zrobiliśmy:* strukturę wzięliśmy z tabel BEA i przejrzeliśmy ręcznie każdą krawędź, wagi oszacowaliśmy regresją na latach 2021–2023, policzyliśmy dwa zestawy wag i trajektorię referencyjną $R$. *Wynik:* graf `real_v1` z 47 krawędziami. *Znaczenie:* graf jest jedynym kanałem, którym szok surowcowy może dotrzeć do spółek, a $R$ — miarą, z którą porównujemy rynek.
+
+
 **Cel:** dla każdej pary „rodzic → dziecko” ustalić, czy krawędź istnieje i jak silna jest zależność.
 
 **Struktura** (czy krawędź w ogóle istnieje) pochodzi z tabel BEA (rozdz. 4.1, wykres 4). **Wagi** (jak silna jest krawędź) szacujemy z historii cen. Poniżej krok po kroku, jak.
@@ -499,6 +506,9 @@ Razem **47 krawędzi**.
 
 ### 4.3 F3 — silnik giełdowy
 
+> **Etap w skrócie.** *Cel:* szybka i na pewno poprawna giełda. *Co zrobiliśmy:* arkusz zleceń w Pythonie (wzorzec) i w C++ (szybki), bramka z rezerwacją środków, test różnicowy obu implementacji. *Wynik:* 2 mln zleceń na sekundę w paczkach, identyczne wyniki obu implementacji. *Znaczenie:* każdy późniejszy wynik zależy od poprawności giełdy; dzięki szybkości stać nas na 30 ziaren na komórkę.
+
+
 **Cel:** szybka i na pewno poprawna giełda, bo każdy późniejszy wynik od niej zależy.
 
 **Co robi.** Dla każdej spółki prowadzi arkusz zleceń (*limit order book*):
@@ -534,6 +544,9 @@ Razem **47 krawędzi**.
 ---
 
 ### 4.4 F4 — rynek jednego aktywa
+
+> **Etap w skrócie.** *Cel:* sprawdzić maszynerię agentów na najprostszym rynku i odpowiedzieć na P1–P2. *Co zrobiliśmy:* E1–E3 (450 przebiegów), poprawka zaokrąglania, powtórzenie z pozycją docelową. *Wynik:* naśladowanie destabilizuje rynek, koncentracja kapitału ma znaczenie tylko przy słabym naśladowaniu. *Znaczenie:* etap wstępny; jego wyniki uzyskaliśmy przed zamrożeniem protokołu.
+
 
 #### Po co ten etap
 
@@ -698,6 +711,9 @@ Test w parach ($h = 0{,}6$ minus $h = 0$, te same 30 ziaren, przedział ufności
 
 ### 4.5 F5 — wyceniający według grafu na łańcuchu
 
+> **Etap w skrócie.** *Cel:* sprawdzić sedno modelu — wycenę według cen rodziców na symulowanej giełdzie — na łańcuchu ropa → COP → VLO → DAL. *Co zrobiliśmy:* E4 (540 przebiegów), kalibracja animatorów, powtórzenie z pozycją docelową, metryki fali. *Wynik:* fala przechodzi przez transakcje, błędy rynku przechodzą dalej, łańcuch załamuje się dopiero przy bardzo silnym naśladowaniu ($h = 0{,}8$). *Znaczenie:* mechanizm działa, zanim przenieśliśmy go na prawdziwy graf.
+
+
 #### Po co ten etap
 
 F4 sprawdził maszynerię na jednej akcji. W F5 pojawia się to, co jest sednem projektu: **kilka spółek połączonych grafem i agenci, którzy wyceniają spółkę na podstawie cen jej rodziców**. Testujemy to na krótkim łańcuchu **ropa → COP (wydobycie) → VLO (rafineria) → DAL (linia lotnicza)**: w 5. sesji ropa skacze o +20% lub −20% i patrzymy, jak szok przechodzi przez kolejne ogniwa.
@@ -807,6 +823,9 @@ Szczegóły: [przewodnik F5](guides/f5_graph_valuers.md), notatnik [`05_chain_wa
 ---
 
 ### 4.6 F6 — pełna sieć na danych rzeczywistych
+
+> **Etap w skrócie.** *Cel:* cały graf `real_v1` na prawdziwych sygnałach 2024–2025. *Co zrobiliśmy:* skalowanie parametrów do cen spółek, fundusze rebalansujące, limit ryzyka, pozycja docelowa, kalibracja na pilotażu, pilotażowe E5 i E7. *Wynik:* fala ropy przechodzi po prawdziwym grafie, a rynek ma własności podobne do prawdziwego. *Znaczenie:* to rynek bazowy badania głównego (rozdz. 4.9); liczby E5 i E7 w tym rozdziale są pilotażowe.
+
 
 #### Co się zmienia względem F5
 
@@ -949,6 +968,9 @@ Opis techniczny: [przewodnik F6](guides/f6_full_network.md) (po rosyjsku).
 
 ### 4.7 Czy to przypomina prawdziwy rynek? Pierwsze porównanie
 
+> **Etap w skrócie.** *Cel:* uczciwie porównać model z rzeczywistością 2024–2025. *Co zrobiliśmy:* kontrole na losowych grafach i płaskich wejściach dla każdej miary. *Wynik:* graf niesie wiedzę poza próbą, wzorzec reakcji na ropę jest podobny do rzeczywistego, agenci są wolniejsi niż rynek. *Znaczenie:* rozdziela to, co mówi o modelu, od tego, co przechodzi każdy model; pełna wersja kontroli to moduł F8 (rozdz. 4.9).
+
+
 **Zasada** (rozdz. 1). W trakcie przebiegu symulacja nie widzi żadnej prawdziwej ceny akcji z lat 2024–2025. Codziennie dostaje pięć szeregów zewnętrznych: ropę, gaz, miedź, złoto i S&P 500. Prawdziwe ceny akcji wchodzą tylko raz, jako stan początkowy z 2 stycznia 2024 r. Porównujemy wzorce, a nie ścieżki.
 
 **Co jest poza próbą, a co nie.** Wagi grafu i bety rynkowe oszacowaliśmy na latach 2021–2023, więc porównanie ścieżki $R$ z prawdziwymi stopami zwrotu 2024–2025 (wykres 15) to prawdziwy test poza próbą. Parametry symulacji dobieraliśmy jednak na tych samych 502 sesjach 2024–2025, m.in. patrząc na prawdziwą autokorelację (−0,05) i kształt reakcji. Inne ziarna nie zmieniają okresu. Dlatego miary rynkowe z wykresów 16–18 to **wyniki kalibracji**. Coś mówi tylko różnica między `real_v1` a kontrolami na tych samych ziarnach.
@@ -1048,6 +1070,9 @@ Notatnik: [`06_real_checks.ipynb`](../notebooks/06_real_checks.ipynb).
 
 ### 4.8 F9 — wizualizacja przebiegu
 
+> **Etap w skrócie.** *Cel:* zobaczyć falę i sterować rynkiem na żywo (wymóg przedmiotu). *Co zrobiliśmy:* strona odtwarzania przebiegu, tryb na żywo z przyciskami szoków i suwakiem $h$, strona porównania eksperymentów. *Wynik:* każdy przebieg to jeden plik HTML; tryb na żywo zapisuje każdą zmianę jako zdarzenie i daje się odtworzyć. *Znaczenie:* demonstracja na obronie i sprawdzanie pojedynczych przebiegów.
+
+
 Każdy zapisany przebieg można zamienić jednym poleceniem na stronę HTML, która działa w przeglądarce bez serwera i bez internetu:
 
 ```bash
@@ -1086,6 +1111,89 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 
 ---
 
+### 4.9 F7–F8 — przygotowanie badania głównego
+
+> **Etap w skrócie.** *Cel:* zamienić pilotaż w badanie, któremu można ufać: z pytaniami, miarami i regułami rozstrzygania zapisanymi przed liczeniem. *Co zrobiliśmy:* znaleźliśmy i poprawiliśmy błąd animatorów rynku, przeprojektowaliśmy E6 po pilotażu, przenieśliśmy analizę i walidację z notatników do modułów, zapisaliśmy i zamroziliśmy protokół, sprawdziliśmy cały łańcuch na przebiegu próbnym. *Wynik:* badanie główne (690 przebiegów na nowych ziarnach) liczy się jednym poleceniem. *Znaczenie:* dopiero liczby z badania głównego odpowiadają na pytania P5–P7; wcześniejsze traktujemy jako pilotaż.
+
+#### Dlaczego badanie główne, skoro E5 i E7 już były policzone
+
+Wszystko, co policzyliśmy do tej pory, powstało w trakcie budowy modelu. Na tych samych przebiegach kalibrowaliśmy parametry, szukaliśmy błędów i wybieraliśmy miary. To normalne w pilotażu, ale takie liczby nie mogą rozstrzygać hipotez: reguły analizy powstały po obejrzeniu danych, więc można by (nawet nieświadomie) dobrać je pod wynik.
+
+Dlatego rozdzieliliśmy dwa etapy, jak przewiduje propozycja (rozdz. 7.3):
+
+1. **pilotaż** — wszystkie dotychczasowe przebiegi (E1–E7 na ziarnach z `configs/*.yaml`);
+2. **protokół** — dokument [`docs/plans/main_study_protocol.md`](plans/main_study_protocol.md): pytania, hipotezy, miary główne, statystyka i **reguły, kiedy hipotezę uznajemy za potwierdzoną albo odrzuconą**. Zamroziliśmy go scaleniem PR #32 (commit `99c62a7`), zanim policzyliśmy pierwszy przebieg badania głównego;
+3. **badanie główne** — te same rynki na **nowych ziarnach 5001–5030**. Test automatyczny sprawdza, że żadne z tych ziaren nie występuje w konfiguracjach pilotażu.
+
+Nowe ziarna nie usuwają jednego ograniczenia: parametry rynku dobieraliśmy na tych samych 502 sesjach 2024–2025, na których porównujemy model z rzeczywistością. Zgodność z rynkiem (rozdz. 4.7) pozostaje więc wynikiem kalibracji; nowe ziarna chronią porównania między komórkami (P5–P7).
+
+#### Błąd animatorów rynku i jego poprawka
+
+**Co znaleźliśmy.** Badając 6 załamań E5 (rozdz. 4.6), zauważyliśmy, że animator rynku z nadmiarem akcji obniża kwotowania o stałą liczbę ticków za każdą nadmiarową akcję, **licząc od środka arkusza, w którym są już jego własne, obniżone kwotowania**. Przy następnym odświeżeniu (ok. 20 razy na sesję) mierzy więc cenę już przesuniętą przez siebie i przesuwa ją jeszcze raz. Przesunięcie sumuje się samo ze sobą: cena może zjechać o kilka procent w ciągu dnia, choć nikt nie sprzedaje.
+
+**Poprawka.** Nowy parametr `maker_anchor` z trzema wariantami. Stary (`book`) zostaje domyślny, więc wcześniejsze przebiegi i ich identyfikatory się nie zmieniają.
+
+| Wariant | Od czego animator liczy środek kwotowań |
+|---|---|
+| `book` (stary) | środek arkusza razem z własnymi kwotowaniami |
+| `others` | środek arkusza **bez** własnych kwotowań (najpierw je zdejmuje, potem patrzy) |
+| `smoothed` | własna, wygładzona średnia ceny (połowa wagi znika po 1 sesji) |
+
+**Pilotaż na ziarnach E5** (34 przebiegi: skład trendowy przy $h$ = 0,2 i 0,4 na 6 ziarnach, w tym wszystkich, które się załamały, oraz komórka główna `mixed`, $h$ = 0,2 na 5 ziarnach; [`configs/f7_maker_pilot_*.yaml`](../configs/)):
+
+| | `book` | `others` | `smoothed` | rzeczywistość |
+|---|---|---|---|---|
+| załamania w składzie trendowym (12 przebiegów wybranych pod załamania) | 6 | 2 | 0 | — |
+| autokorelacja stóp zwrotu, komórka główna | −0,048 | +0,006 | +0,52 | −0,035 |
+| kurtoza nadmiarowa, komórka główna | 5,3 | 6,1 | 2,0 | 6,9 |
+| dzienna zmienność, % | 1,79 | 1,71 | 0,41 | 2,27 |
+| zgodność z $R$ | 0,82 | 0,81 | 0,58 | — |
+
+**Decyzja: `others`.** Usuwa 4 z 6 załamań i prawie nie zmienia kalibracji. Wariant `smoothed` usuwa wszystkie załamania, ale tylko dlatego, że rynek staje się „lepki”: zmienność spada czterokrotnie, a autokorelacja rośnie do +0,5. Dwa pozostałe załamania (to samo ziarno, kwiecień 2025 r.) wynikają z tego, że **dwaj animatorzy jednej spółki** nadal przesuwają się względem siebie nawzajem: każdy patrzy na kwotowania drugiego. Opisujemy to jako ograniczenie modelu.
+
+**Czy to zmienia wcześniejsze wnioski?** Powtórzyliśmy E4 (620 przebiegów łańcucha, te same ziarna) z `others`. Wnioski się nie zmieniają: do $h = 0{,}6$ nie ma załamań przy żadnej regule, przy $h = 0{,}8$ udział załamań to 20% → 20% (`mixed`) i 30% → 20% (`trend`, różnica w parach −0,1, przedział 95% [−0,3; 0,1]). Załamania łańcucha przy silnym naśladowaniu są skutkiem naśladowania, a nie animatorów.
+
+#### E6: pilotaż zmienił plan eksperymentu
+
+**Plan z propozycji:** zmniejszyć cenę jednej spółki i patrzeć, czy ruszą się spółki z nią niepowiązane, przy portfelu wspólnym i rozdzielonym.
+
+**Co pokazał pilotaż** (18 przebiegów: wszystkie sygnały zamrożone na 2 stycznia 2024 r., w 20. sesji wycena NVDA u wszystkich wyceniających spada o 20% lub 50%):
+- NVDA spada o ok. połowę (różnica logarytmów cen z wiadomością i bez niej: od −0,64 do −0,69);
+- GOOGL i META, połączone z NVDA w grafie, spadają o 1–3%;
+- **spółki niepowiązane ruszają się o ±0,2%**, czyli w granicach szumu, a limit ryzyka nie uruchomił się ani razu.
+
+Powód jest prosty: inwestor ma 4 spółki, więc nawet spadek jednej o połowę obniża jego majątek najwyżej o 12%, a limit ryzyka działa od 20%. W tym eksperymencie żaden kanał wspólnego portfela się nie włącza, więc nie może niczego pokazać.
+
+**Nowy E6 ma dwie części:**
+- **E6a, kanały portfela na prawdziwych sygnałach.** W kwietniu 2025 r. spada cały rynek i limit ryzyka działa. Rynek E5 (skład `mixed`) liczymy z wyłączonymi kanałami, przez które wspólny portfel łączy spółki: bez limitu ryzyka, bez rebalansowania (fundusze zachowują kapitał, ale nie handlują — nowy parametr `ablation: no_rebalancing`), bez obu; przy $h$ = 0 i 0,4. Komórki „wszystkie kanały” to komórki E5.
+- **E6b, wiadomość o spółce.** Jak w pilotażu, ale z wyceną NVDA −50% i parami przebiegów z wiadomością i bez niej na tym samym ziarnie: różnica cen to czysty skutek wiadomości. Nowy parametr konfiguracji `company_shock` planuje to zdarzenie w zwykłym przebiegu wsadowym (to ta sama „wiadomość o spółce”, co przycisk w trybie na żywo).
+
+#### Nowa miara współruchu
+
+Propozycja definiuje nadmiarowy współruch jako $\operatorname{corr}(r^P_i, r^P_j) - \operatorname{corr}(r^R_i, r^R_j)$. W pilotażu ta różnica była **ujemna we wszystkich komórkach** (od −0,20 do −0,41): $R$ zawiera wspólny czynnik rynkowy (S&P 500 jest rodzicem każdej spółki), a cena symulowana ma dodatkowo własny szum, który obniża wszystkie korelacje. Taka miara mierzy głównie szum, a nie współruch.
+
+Mierzymy więc współruch **reszt**: z dziennej stopy zwrotu każdej spółki usuwamy część wyjaśnioną przez jej własne $R$ (dziś i wczoraj) i liczymy korelację tego, co zostało, w parach, których graf nie łączy (poza indeksem). Jeśli inwestorzy handlują spółkami niezależnie, ta korelacja powinna być bliska zera. W pilotażu wynosiła 0,11 w składzie `mixed` i 0,17 w `trend`, a w dniach dużych ruchów indeksu więcej: **nadmiarowy współruch w modelu jest**, a E6 ma ustalić, skąd się bierze.
+
+#### Analiza i walidacja jako moduły
+
+Dotąd tabele P5 i P7 liczyły notatniki. Teraz robią to moduły, a notatniki tylko pokazują wynik:
+- [`marketsim.analysis`](../src/marketsim/analysis/): miary przebiegu (propagacja, współruch, reguła załamania), statystyka (kontrasty parami z bootstrapem, różnica różnic, przedziały Wilsona, test Fishera), tabele P5, P6, P7 i rysunki raportu. Na przebiegach pilotażu odtwarza tabele z notatników co do bitu.
+- [`marketsim.validation`](../src/marketsim/validation/) (F8): kontrole z notatnika `06_real_checks` (graf poza próbą z 200 losowymi grafami, *event study*, fakty stylizowane, przewidywalność z jednodniowym opóźnieniem) oraz brakujące: **odtworzenie grafu z cen symulowanych**, **pasma 90% z wielu przebiegów**, **macierz korelacji 18 × 18**, **związek wolumenu ze zmiennością**.
+
+Pierwsze wyniki nowych kontroli na pilotażu: graf odtwarza się z cen symulowanych bardzo dobrze (korelacja wag 0,88); macierz korelacji symulacji jest bliższa rzeczywistej (0,44) niż macierz $R$ (0,17); w symulacji wczorajszy ruch rodzica przewiduje dzisiejszy ruch dziecka (|t| > 2 dla 54% krawędzi, w rzeczywistości dla żadnej) — to znane ograniczenie „części ruchu następnego dnia”; pasma 90% są wąskie, bo wszystkie przebiegi widzą te same sygnały, a prawdziwa cena przeważnie leży poza nimi, bo model nie zna wiadomości o spółkach.
+
+#### Czy 30 ziaren wystarczy
+
+Przed zamrożeniem protokołu policzyliśmy na pilotażu, jak duży efekt wykryje 30 ziaren przy poprawce Bonferroniego: 0,008 w korelacji reszt (przy poziomie ok. 0,11), 0,012 w części ruchu następnego dnia, 0,03 we wzmocnieniu zmienności. To wystarczy, więc liczby ziaren nie zwiększaliśmy.
+
+#### Jedno polecenie i przebieg próbny
+
+[`scripts/run_main_study.sh`](../scripts/run_main_study.sh) liczy wszystkie przebiegi, potem tabele odpowiedzi, kontrole F8, rysunki i stronę porównania eksperymentów; można go przerwać i wznowić. Tryb próbny (`SMOKE=1`) liczy jedno ziarno na komórkę: 25 przebiegów w 11 minut przeszło przez cały łańcuch bez błędów, zanim uruchomiliśmy właściwe badanie (ok. 6 h na 10 procesach).
+
+Wyniki badania głównego i rozstrzygnięcia hipotez: [raport z etapu](report/interim_report.md).
+
+---
+
 ## 5. Najważniejsze decyzje i ich uzasadnienie
 
 | # | Decyzja | Dlaczego | Co odrzuciliśmy |
@@ -1109,6 +1217,10 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 | 17 | **Kontrola na losowych grafach dla każdej miary walidacji** | odróżnia miary, które coś mówią o grafie, od takich, które przechodzi każdy model | raportowanie samych liczb bez punktu odniesienia |
 | 18 | **Przebiegi do wykresów wybierane regułą** (mediana, 90. percentyl), nie „na oko” | żeby nie pokazywać wybranych, najładniejszych przypadków | — |
 | 19 | **Zasady pomiaru zapisane przed przebiegami głównymi**, nowe ziarna w badaniu głównym | żeby nie dopasowywać metody do wyniku | — |
+| 20 | **Animator liczy środek kwotowań bez własnych kwotowań** (`maker_anchor: others`) | stary sposób sumował przesunięcie za nadmiar akcji przy każdym odświeżeniu; nowy usuwa 4 z 6 załamań pilotażu bez zmiany kalibracji | wygładzona cena animatora (rynek „lepki”: zmienność ÷4) |
+| 21 | **E6 jako wyłączniki kanałów portfela na prawdziwych sygnałach + wiadomość o spółce** | w pilotażu szok jednej spółki nie uruchamiał żadnego kanału portfela | sam szok jednej spółki przy portfelu wspólnym i rozdzielonym |
+| 22 | **Współruch mierzony korelacją reszt** | $\operatorname{corr}(r^P) - \operatorname{corr}(r^R)$ było ujemne we wszystkich komórkach, bo mierzy głównie szum | definicja z propozycji jako miara główna |
+| 23 | **Protokół zamrożony scaleniem PR przed badaniem głównym**, reguły rozstrzygania hipotez zapisane z góry | liczby pilotażu powstały razem z kalibracją i doborem miar | rozstrzyganie hipotez na pilotażu |
 
 ---
 
@@ -1116,12 +1228,11 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 
 | Kolejność | Faza | Co konkretnie | Efekt |
 |---|---|---|---|
-| 1 | F7 | zamrożenie protokołu (metryki, ziarna, reguła wyboru przebiegów); E6: czy szok ropy „przeskakuje” na JPM i spółki spoza łańcucha i którym kanałem (wspólny portfel, rebalansowanie, limity ryzyka, naśladowanie); ablacje | odpowiedź na P6 z przedziałami ufności (P5 i P7 już są) |
-| 2 | F8 | przeniesienie testów z notatnika do modułu `validation/`; fakty stylizowane **bez sygnałów zewnętrznych**; odtworzenie grafu z cen symulowanych; pasma 90% z wielu przebiegów | rozdział „Walidacja” raportu |
-| 3 | F9 | dodać E6 do strony porównania eksperymentów; odtwarzanie, tryb **na żywo** i porównanie E5 i E7 są gotowe | demonstracja na obronie |
-| 4 | F10 | raport końcowy po polsku, prezentacja | — |
+| 1 | F7–F8 | badanie główne: rozstrzygnięcia H3–H5 według protokołu, kontrole F8 na nowych ziarnach | [raport z etapu](report/interim_report.md) |
+| 2 | F9 | dodać E6 do strony porównania eksperymentów | demonstracja na obronie |
+| 3 | F10 | artykuł po angielsku (struktura IMRaD, opis modelu według protokołu ODD, każda liczba z tabel badania, każde cytowanie z DOI lub adresem), prezentacja, próba generalna | publikacja i obrona |
 
-**Kierunek, który chcemy zbadać w F7 (pytanie o ograniczoną uwagę).** W literaturze finansowej (Cohen i Frazzini, 2008) opisano, że cena odbiorcy reaguje na wiadomości o dostawcy z opóźnieniem, a wyjaśnia się to ograniczoną uwagą inwestorów. Na prawdziwym rynku nie da się sprawdzić tego mechanizmu, bo nie można „włączyć” inwestorom uwagi. W naszym modelu można: uwaga, opóźnienie, krótkowzroczność i błąd wiedzy to parametry. Zmierzymy, jak każdy z nich zmienia kompletność, opóźnienie i przestrzelenie fali. Ograniczenie, które już wiemy: w dziennych danych 2024–2025 opóźnienia między dostawcą a odbiorcą nie widać (wykres 17), więc model nie może być wolniejszy od rynku.
+**Kierunek na później, poza badaniem głównym (pytanie o ograniczoną uwagę).** W literaturze finansowej (Cohen i Frazzini, 2008) opisano, że cena odbiorcy reaguje na wiadomości o dostawcy z opóźnieniem, a wyjaśnia się to ograniczoną uwagą inwestorów. Na prawdziwym rynku nie da się sprawdzić tego mechanizmu, bo nie można „włączyć” inwestorom uwagi. W naszym modelu można: uwaga, opóźnienie, krótkowzroczność i błąd wiedzy to parametry. Zmierzymy, jak każdy z nich zmienia kompletność, opóźnienie i przestrzelenie fali. Ograniczenie, które już wiemy: w dziennych danych 2024–2025 opóźnienia między dostawcą a odbiorcą nie widać (wykres 17), więc model nie może być wolniejszy od rynku.
 
 **Ryzyka i co robimy, jeśli zabraknie czasu** (w tej kolejności): upraszczamy walidację i ablacje. Rdzenia (graf + propagacja + P5/P6) nie ruszamy.
 
@@ -1139,7 +1250,8 @@ Strona czyta **tylko** log przebiegu i graf; nie importuje kodu symulacji. Możn
 | Przewodniki techniczne (po rosyjsku) | [F4](guides/f4_simulation.md), [F5](guides/f5_graph_valuers.md), [F6](guides/f6_full_network.md), [F7](guides/f7_experiments.md), [F9](guides/f9_visualization.md) |
 | Notatniki | [`01_data_overview`](../notebooks/01_data_overview.ipynb) (wykresy 1–4), [`02_graph`](../notebooks/02_graph.ipynb), [`03_experiments`](../notebooks/03_experiments.ipynb) (wykresy 8, 8b), [`05_chain_wave`](../notebooks/05_chain_wave.ipynb) (wykresy 9–10), [`06_full_network_wave`](../notebooks/06_full_network_wave.ipynb) i [`06_real_checks`](../notebooks/06_real_checks.ipynb) (wykresy 12, 15–18), [`07_e5_propagation`](../notebooks/07_e5_propagation.ipynb) (wykres 13b), [`08_e7_network_share`](../notebooks/08_e7_network_share.ipynb) (wykres 13c) |
 | Kod | dane [`src/marketsim/data/`](../src/marketsim/data/), graf [`graph/`](../src/marketsim/graph/), giełda [`cpp/`](../cpp/) i [`market/`](../src/marketsim/market/), symulacja [`sim/`](../src/marketsim/sim/) i [`agents/`](../src/marketsim/agents/), metryki [`metrics/`](../src/marketsim/metrics/), wizualizacja [`viz/`](../src/marketsim/viz/) |
-| Testy | [`tests/`](../tests/) — ponad 330 testów, w tym testy kontraktów i porównanie Python = C++ |
+| Testy | [`tests/`](../tests/) — ponad 380 testów, w tym testy kontraktów i porównanie Python = C++ |
+| Badanie główne | protokół [`docs/plans/main_study_protocol.md`](plans/main_study_protocol.md) (po rosyjsku), konfiguracje [`configs/main/`](../configs/main/), skrypt [`scripts/run_main_study.sh`](../scripts/run_main_study.sh), analiza [`marketsim.analysis`](../src/marketsim/analysis/), walidacja [`marketsim.validation`](../src/marketsim/validation/), wyniki [`docs/report/interim_report.md`](report/interim_report.md) |
 
 **Jak odtworzyć wyniki:**
 
@@ -1152,6 +1264,7 @@ python -m marketsim.experiments.run configs/f4_e1.yaml --out runs/f4/e1 --worker
 python -m marketsim.experiments.run configs/f5_e4.yaml --out runs/f5/e4 --workers 8
 python -m marketsim.experiments.run configs/f6_e5.yaml --out runs/f6/v1/e5 --workers 10
 python -m marketsim.viz.replay runs/f5/e4/<przebieg> -o replay.html
+scripts/run_main_study.sh                    # badanie główne: przebiegi, tabele, kontrole F8, rysunki (~6 h)
 ```
 
 (Pobieranie danych z SEC EDGAR wymaga ustawienia zmiennej środowiskowej `SEC_USER_AGENT` z adresem kontaktowym.)

@@ -28,7 +28,7 @@ class Reality:
     tickers: list[str]
     levels: pd.DataFrame          # external levels of the scenario, one row per session
     real: pd.DataFrame            # real daily log returns 2024–2025: companies and the scenario's signals
-    prices: pd.DataFrame          # real adjusted closes 2024–2025 (USD), one row per session
+    prices: pd.DataFrame          # real adjusted closes 2024–2025 (USD) rescaled to the start prices of the graph
     volume: pd.DataFrame          # real traded shares, one row per session
     train: pd.DataFrame           # daily log returns 2021–2023 (the weights' period)
     beta: pd.Series               # market beta of every company on 2021–2023
@@ -56,6 +56,10 @@ def load_reality(graph: str = "real_v1", scenario: str = "real_2024_2025") -> Re
     real[signals.columns] = signals           # the scenario's own signal series (copper from LME)
     prices = api.load_stock_prices().loc[dates, tickers]
     prices.index = pd.RangeIndex(len(dates), name="session")
+    # Adjusted closes are scaled down by the dividends paid later; rescaled to start at the simulation's start
+    # price (the close of the first session in the graph), they keep their returns and share its level.
+    start = pd.Series({t: g.nodes[t].start_price for t in tickers})
+    prices = prices * (start / prices.iloc[0])
     volume = api.load_stock_volume().loc[dates, tickers]
     volume.index = prices.index
     train = returns.loc[TRAIN[0]:TRAIN[1]]

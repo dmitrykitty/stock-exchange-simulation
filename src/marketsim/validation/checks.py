@@ -230,3 +230,32 @@ def correlation_structure(reality: Reality, sims: Sims, warmup: int = 10) -> pd.
     for name, runs in sims.items():
         rows.append({"series": "sim: " + name, **pd.DataFrame([compare(r.returns) for r in runs]).mean()})
     return pd.DataFrame(rows)
+
+
+def band_paths(reality: Reality, runs: list[SimRun], level: float = 0.9) -> pd.DataFrame:
+    """Per session and company: the real close, R (from the real start price) and the median and central ``level``
+    band of the simulated closes of ``runs`` (USD), in long form for the figures."""
+    lo_q, hi_q = (1 - level) / 2, 1 - (1 - level) / 2
+    stack = np.stack([r.prices[reality.tickers].to_numpy() for r in runs])
+    start = reality.prices[reality.tickers].iloc[0].to_numpy()
+    ref = start * np.exp(np.vstack([np.zeros(len(reality.tickers)), reality.ref[reality.tickers].cumsum().to_numpy()]))
+    frames = {"real": reality.prices[reality.tickers].to_numpy(), "R": ref,
+              "sim_lo": np.nanquantile(stack, lo_q, axis=0), "sim_median": np.nanmedian(stack, axis=0),
+              "sim_hi": np.nanquantile(stack, hi_q, axis=0)}
+    n = stack.shape[1]
+    out = pd.DataFrame({"session": np.repeat(np.arange(n), len(reality.tickers)),
+                        "ticker": np.tile(reality.tickers, n)})
+    for name, values in frames.items():
+        out[name] = values[:n].ravel()
+    return out
+
+
+def correlation_pairs(reality: Reality, runs: list[SimRun], warmup: int = 10) -> pd.DataFrame:
+    """Every pair of companies: the correlation of daily returns in the real data, in R and on average over
+    ``runs`` (for the matrix figures)."""
+    t = reality.tickers
+    real = reality.real[t].iloc[warmup:].corr()
+    ref = reality.ref[t].iloc[warmup:].corr()
+    sim = sum(r.returns[t].iloc[warmup:].corr() for r in runs) / len(runs)
+    rows = [{"a": a, "b": b, "real": real.at[a, b], "R": ref.at[a, b], "sim": sim.at[a, b]} for a in t for b in t]
+    return pd.DataFrame(rows)

@@ -179,6 +179,110 @@ def validation(root: Path, out: Path) -> list[Path]:
     return paths
 
 
+def e5_cells(root: Path, out: Path) -> Path:
+    """E5: cell means (collapsed runs left out) of four metrics as heatmaps, with the collapses of every cell."""
+    plt = _plt()
+    s = pd.read_csv(root / "e5" / "summary.csv")[["run_id", "agents.composition", "agents.herding.h"]]
+    runs = s.merge(pd.read_csv(root / "e5" / "p5_metrics.csv"), on="run_id").rename(
+        columns={"agents.composition": "mix", "agents.herding.h": "h"})
+    runs["collapse"] = runs.collapse.astype(bool)
+    mixes = [m for m in ("network", "mixed", "trend") if m in set(runs.mix)]
+    hs = sorted(runs.h.unique())
+    shown = [("day1", "next-day share of a move of R"), ("vol_amp", "volatility amplification σ(P)/σ(R)"),
+             ("gap_days", "company-days with |ln P/R| > 10%"),
+             ("resid_unrelated", "residual correlation, unrelated pairs")]
+    collapsed = runs.groupby(["mix", "h"]).collapse.agg(["sum", "size"])
+    fig, axes = plt.subplots(1, len(shown), figsize=(4.2 * len(shown), 3.6))
+    for ax, (metric, title) in zip(axes, shown):
+        if metric not in runs:
+            ax.set_visible(False)
+            continue
+        table = runs.loc[~runs.collapse].pivot_table(index="mix", columns="h", values=metric).reindex(mixes)[hs]
+        im = ax.imshow(table.to_numpy(), cmap="viridis", aspect="auto")
+        for i, mix in enumerate(mixes):
+            for j, h in enumerate(hs):
+                k, n = collapsed.loc[(mix, h)]
+                note = f"\n{k}/{n} coll." if k else ""
+                ax.text(j, i, f"{table.iat[i, j]:.3g}{note}", ha="center", va="center", fontsize=8, color="white")
+        ax.set_xticks(range(len(hs)), [f"h = {h:g}" for h in hs])
+        ax.set_yticks(range(len(mixes)), mixes)
+        ax.set_title(title, fontsize=9)
+        fig.colorbar(im, ax=ax, fraction=0.046)
+    fig.suptitle("E5: cell means over the runs that did not collapse (collapses: max |ln P/R| > ln 2)")
+    fig.tight_layout()
+    return _save(fig, out / "f7_e5_cells.png")
+
+
+def validation_more(root: Path, out: Path) -> list[Path]:
+    """F8: the graph out of sample, stylised facts, correlation matrices and price bands."""
+    plt = _plt()
+    v = root / "validation"
+    paths = []
+    if (v / "out_of_sample_by_company.csv").exists():
+        per = pd.read_csv(v / "out_of_sample_by_company.csv").sort_values("R (real_v1)")
+        summary = pd.read_csv(v / "out_of_sample.csv").set_index("model")["median corr"]
+        fig, ax = plt.subplots(figsize=(12, 4))
+        x = np.arange(len(per))
+        ax.bar(x - 0.2, per["R (real_v1)"], 0.4, label="reference R of real_v1", color=ORANGE)
+        ax.bar(x + 0.2, per["beta only"], 0.4, label="market beta only", color=GREY)
+        for key, style in (("R of random graphs: mean", ":"), ("R of random graphs: 95th percentile", "--")):
+            if key in summary:
+                ax.axhline(summary[key], color=BLUE, ls=style, lw=1, label=f"{key} (median over companies)")
+        ax.set_xticks(x, per.ticker)
+        ax.set_ylabel("corr with real daily returns 2024–2025")
+        ax.set_title("The graph out of sample: weights from 2021–2023 against the real daily moves of 2024–2025")
+        ax.legend(fontsize=8)
+        fig.tight_layout()
+        paths.append(_save(fig, out / "f8_out_of_sample.png"))
+    if (v / "stylised_facts.csv").exists():
+        f = pd.read_csv(v / "stylised_facts.csv").set_index("series")
+        shown = [c for c in ("autocorr r, lag 1", "autocorr |r|, lag 1", "excess kurtosis", "corr(log volume, |r|)")
+                 if c in f]
+        fig, axes = plt.subplots(1, len(shown), figsize=(4 * len(shown), 3.8))
+        colors = [GREEN if i.startswith("real") else ORANGE if i.startswith("R ") else BLUE for i in f.index]
+        for ax, col in zip(axes, shown):
+            ax.barh(range(len(f)), f[col], color=colors)
+            ax.set_yticks(range(len(f)), [i.removeprefix("sim: ") for i in f.index], fontsize=7)
+            ax.invert_yaxis()
+            ax.axvline(0, color="k", lw=0.6)
+            ax.set_title(col, fontsize=9)
+        fig.suptitle("Stylised facts of daily returns: real stocks (green), reference R (orange), simulations (blue)")
+        fig.tight_layout()
+        paths.append(_save(fig, out / "f8_stylised_facts.png"))
+    if (v / "correlation_pairs.csv").exists():
+        c = pd.read_csv(v / "correlation_pairs.csv")
+        order = list(dict.fromkeys(c.a))
+        fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+        for ax, col, title in zip(axes, ("real", "sim", "R"), ("real 2024–2025", "simulation (main cell)",
+                                                               "reference R")):
+            m = c.pivot(index="a", columns="b", values=col).loc[order, order]
+            im = ax.imshow(m.to_numpy(), cmap="RdBu_r", vmin=-1, vmax=1)
+            ax.set_xticks(range(len(order)), order, rotation=90, fontsize=7)
+            ax.set_yticks(range(len(order)), order, fontsize=7)
+            ax.set_title(title, fontsize=10)
+        fig.colorbar(im, ax=axes, fraction=0.02)
+        fig.suptitle("Correlation of daily returns between the 18 companies")
+        paths.append(_save(fig, out / "f8_correlation.png"))
+    if (v / "band_paths.csv").exists():
+        b = pd.read_csv(v / "band_paths.csv")
+        chosen = [t for t in ("COP", "VLO", "UAL", "NVDA", "FCX", "JPM") if t in set(b.ticker)]
+        fig, axes = plt.subplots(2, 3, figsize=(15, 7))
+        for ax, t in zip(axes.flat, chosen):
+            p = b.loc[b.ticker == t]
+            ax.fill_between(p.session, p.sim_lo, p.sim_hi, color=BLUE, alpha=0.25, label="simulation, 90% band")
+            ax.plot(p.session, p.sim_median, color=BLUE, lw=1, label="simulation, median")
+            ax.plot(p.session, p.R, color=ORANGE, lw=1, ls="--", label="reference R")
+            ax.plot(p.session, p.real, color="k", lw=1, label="real close")
+            ax.set_title(t, fontsize=10)
+            ax.set_xlabel("session (trading day of 2024–2025)")
+        axes.flat[0].set_ylabel("USD")
+        axes.flat[0].legend(fontsize=7)
+        fig.suptitle("Prices 2024–2025: real close, reference R and the band of the main-cell runs")
+        fig.tight_layout()
+        paths.append(_save(fig, out / "f8_bands.png"))
+    return paths
+
+
 def _save(fig, path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, bbox_inches="tight")
@@ -198,7 +302,9 @@ def main(argv: list[str] | None = None) -> None:
         made.append(p5(args.root, args.out))
     if (args.root / "e7" / "p7_metrics.csv").exists():
         made.append(p7(args.root, args.out))
-    made += p6(args.root, args.out) + validation(args.root, args.out)
+    if (args.root / "e5" / "p5_metrics.csv").exists():
+        made.append(e5_cells(args.root, args.out))
+    made += p6(args.root, args.out) + validation(args.root, args.out) + validation_more(args.root, args.out)
     for path in made:
         print(path)
 

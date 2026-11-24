@@ -102,6 +102,8 @@ def run_checks(root: Path, workers: int = 8, n_random: int = 200) -> dict[str, p
     tables["lag_test"] = checks.lag_test(reality, sims)
     tables["graph_recovery"], tables["graph_recovery_by_edge"] = checks.graph_recovery(reality, sims)
     tables["bands"] = checks.bands(reality, sims[main])
+    tables["band_paths"] = checks.band_paths(reality, sims[main])
+    tables["correlation_pairs"] = checks.correlation_pairs(reality, sims[main])
     tables["correlation_structure"] = checks.correlation_structure(reality, sims)
     tables["groups"] = pd.DataFrame([{"group": k, "runs": len(v), "note": notes.get(k, "")} for k, v in sims.items()])
     out = root / "validation"

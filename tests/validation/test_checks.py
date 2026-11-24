@@ -74,3 +74,16 @@ def test_stylised_facts_have_one_row_per_series(reality):
     facts = checks.stylised_facts(reality, {"copy": [_sim(reality, reality.real)]}, warmup=0)
     assert list(facts["series"]) == ["real 2024-2025", "R (real_v1)", "sim: copy"]
     assert facts.set_index("series").loc["sim: copy", "corr with real returns"] == pytest.approx(1.0)
+
+
+def test_band_paths_and_correlation_pairs_have_every_session_and_pair(reality):
+    runs = [_sim(reality, reality.real, seed=k) for k in range(3)]
+    paths = checks.band_paths(reality, runs)
+    assert len(paths) == len(reality.prices) * len(reality.tickers)
+    assert (paths.sim_lo <= paths.sim_median).all() and (paths.sim_median <= paths.sim_hi).all()
+    first = paths.loc[paths.session == 0]
+    np.testing.assert_allclose(first.R, first.real)
+    pairs = checks.correlation_pairs(reality, runs, warmup=0)
+    assert len(pairs) == len(reality.tickers) ** 2
+    np.testing.assert_allclose(pairs.loc[pairs.a == pairs.b, ["real", "sim"]], 1.0)
+    np.testing.assert_allclose(pairs.real, pairs.sim)

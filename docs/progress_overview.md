@@ -1171,7 +1171,7 @@ Powód jest prosty: inwestor ma 4 spółki, więc nawet spadek jednej o połowę
 
 #### Nowa miara współruchu
 
-Propozycja definiuje nadmiarowy współruch jako $\operatorname{corr}(r^P_i, r^P_j) - \operatorname{corr}(r^R_i, r^R_j)$. W pilotażu ta różnica była **ujemna we wszystkich komórkach** (od −0,20 do −0,41): $R$ zawiera wspólny czynnik rynkowy (S&P 500 jest rodzicem każdej spółki), a cena symulowana ma dodatkowo własny szum, który obniża wszystkie korelacje. Taka miara mierzy głównie szum, a nie współruch.
+Propozycja definiuje nadmiarowy współruch jako $\mathrm{corr}(r^P_i, r^P_j) - \mathrm{corr}(r^R_i, r^R_j)$. W pilotażu ta różnica była **ujemna we wszystkich komórkach** (od −0,20 do −0,41): $R$ zawiera wspólny czynnik rynkowy (S&P 500 jest rodzicem każdej spółki), a cena symulowana ma dodatkowo własny szum, który obniża wszystkie korelacje. Taka miara mierzy głównie szum, a nie współruch.
 
 Mierzymy więc współruch **reszt**: z dziennej stopy zwrotu każdej spółki usuwamy część wyjaśnioną przez jej własne $R$ (dziś i wczoraj) i liczymy korelację tego, co zostało, w parach, których graf nie łączy (poza indeksem). Jeśli inwestorzy handlują spółkami niezależnie, ta korelacja powinna być bliska zera. W pilotażu wynosiła 0,11 w składzie `mixed` i 0,17 w `trend`, a w dniach dużych ruchów indeksu więcej: **nadmiarowy współruch w modelu jest**, a E6 ma ustalić, skąd się bierze.
 
@@ -1245,7 +1245,7 @@ Pełny opis z rysunkami i przedziałami: [raport z etapu](report/interim_report.
 | 19 | **Zasady pomiaru zapisane przed przebiegami głównymi**, nowe ziarna w badaniu głównym | żeby nie dopasowywać metody do wyniku | — |
 | 20 | **Animator liczy środek kwotowań bez własnych kwotowań** (`maker_anchor: others`) | stary sposób sumował przesunięcie za nadmiar akcji przy każdym odświeżeniu; nowy usuwa 4 z 6 załamań pilotażu bez zmiany kalibracji | wygładzona cena animatora (rynek „lepki”: zmienność ÷4) |
 | 21 | **E6 jako wyłączniki kanałów portfela na prawdziwych sygnałach + wiadomość o spółce** | w pilotażu szok jednej spółki nie uruchamiał żadnego kanału portfela | sam szok jednej spółki przy portfelu wspólnym i rozdzielonym |
-| 22 | **Współruch mierzony korelacją reszt** | $\operatorname{corr}(r^P) - \operatorname{corr}(r^R)$ było ujemne we wszystkich komórkach, bo mierzy głównie szum | definicja z propozycji jako miara główna |
+| 22 | **Współruch mierzony korelacją reszt** | $\mathrm{corr}(r^P) - \mathrm{corr}(r^R)$ było ujemne we wszystkich komórkach, bo mierzy głównie szum | definicja z propozycji jako miara główna |
 | 23 | **Protokół zamrożony scaleniem PR przed badaniem głównym**, reguły rozstrzygania hipotez zapisane z góry | liczby pilotażu powstały razem z kalibracją i doborem miar | rozstrzyganie hipotez na pilotażu |
 
 ---

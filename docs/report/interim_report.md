@@ -134,7 +134,7 @@ $$
 \ln V_{a,i}(t) = \ln V_{a,i}(0) + \sum_{j} \hat w_{a,ij}\,\big[\ln P^{\text{obs}}_{a,j}(t) - \ln P^{\text{obs}}_{a,j}(0)\big],
 $$
 
-gdzie $P^{\text{obs}}_{a,j}(t) = P_j(t - d_a)$ to cena obserwowana z opóźnieniem $d_a$ (średnio 0,05 sesji), a $\hat w_{a,ij} = w_{ij}(1 + \eta_{a,ij})$ — waga z osobistym błędem ($\sigma_\eta = 0{,}1$). Sygnał $b = \operatorname{clip}\big((V - P)/(\gamma P), -1, 1\big)$, $\gamma = 0{,}05$.
+gdzie $P^{\text{obs}}_{a,j}(t) = P_j(t - d_a)$ to cena obserwowana z opóźnieniem $d_a$ (średnio 0,05 sesji), a $\hat w_{a,ij} = w_{ij}(1 + \eta_{a,ij})$ — waga z osobistym błędem ($\sigma_\eta = 0{,}1$). Sygnał $b = \mathrm{clip}\big((V - P)/(\gamma P), -1, 1\big)$, $\gamma = 0{,}05$.
 
 **Naśladowanie.** Każdy inwestor ma 5 „znajomych”; ostateczny sygnał to $s = (1-h)\, b + h\, \bar d$, gdzie $\bar d$ to średni kierunek ostatnich zleceń znajomych w tej spółce (ważny 0,5 sesji), a $h$ — siła zachowań stadnych.
 
@@ -215,7 +215,7 @@ Wszystkie miary liczymy z cen na koniec sesji po rozgrzewce: $P$ (midpoint, przy
 
 - **Załamanie przebiegu:** $\max |\ln(P/R)| > \ln 2$. Przebieg załamany pomijamy w średnich i w parach; udział załamań jest osobnym wynikiem.
 - **Propagacja (P5, P7):** udział ruchu $R$, który dochodzi do ceny tego samego dnia (`day0`) i następnego dnia (`day1`) — regresja łączna dziennych stóp zwrotu $P$ na dzisiejszą i wczorajszą zmianę $R$; to samo dla grup spółek w odległości 1, 2 i 3 kroków od ropy; opóźnienie (przesunięcie maksymalnej korelacji wzajemnej zmian $\ln R$ i $\ln P$); wzmocnienie zmienności $\sigma(\Delta \ln P)/\sigma(\Delta \ln R)$; korelacja dziennych stóp zwrotu $P$ i $R$; liczba spółko-dni z $|\ln P/R| > 10\%$.
-- **Współruch (P6):** średnia korelacja **reszt** stóp zwrotu (stopa zwrotu $P$ minus część wyjaśniona przez własne $R$ spółki dziś i wczoraj) w parach, których graf nie łączy (poza indeksem); to samo w 10% dni o największych ruchach indeksu. Definicja z propozycji, $\operatorname{corr}(r^P) - \operatorname{corr}(r^R)$, jest liczona pomocniczo: w pilotażu była ujemna we wszystkich komórkach, bo własny szum ceny rozmywa wspólny czynnik $R$.
+- **Współruch (P6):** średnia korelacja **reszt** stóp zwrotu (stopa zwrotu $P$ minus część wyjaśniona przez własne $R$ spółki dziś i wczoraj) w parach, których graf nie łączy (poza indeksem); to samo w 10% dni o największych ruchach indeksu. Definicja z propozycji, $\mathrm{corr}(r^P) - \mathrm{corr}(r^R)$, jest liczona pomocniczo: w pilotażu była ujemna we wszystkich komórkach, bo własny szum ceny rozmywa wspólny czynnik $R$.
 - **Wiadomość o spółce (E6b):** różnica $\ln P$ z wiadomością i bez niej na tym samym ziarnie po 1, 5 i 20 sesjach — dla NVDA, dla spółek połączonych z nią w grafie (GOOGL, META) i średnio dla 15 spółek niepowiązanych.
 
 ### 5.5 Statystyka i reguły rozstrzygania
@@ -237,7 +237,7 @@ Jednostką jest przebieg. **Kontrast parowy:** średnia po ziarnach różnicy dw
 | limit ryzyka u wszystkich | u 25% inwestorów | limit u wszystkich wywoływał spiralę sprzedaży i krach |
 | animator centruje kwotowania na midpoincie z własnymi kwotowaniami | na midpoincie bez własnych kwotowań | dawny przesuw za zapas sumował się przy każdym przebudzeniu; w pilotażu na ziarnach E5 usuwa 4 z 6 załamań, nie zmieniając kalibracji komórki głównej |
 | E6: portfel wspólny / rozdzielony | E6a (wyłączniki kanałów) + E6b (wiadomość o spółce) | rozdz. 5.3 |
-| miara współruchu $\operatorname{corr}(r^P) - \operatorname{corr}(r^R)$ | korelacja reszt | rozdz. 5.4 |
+| miara współruchu $\mathrm{corr}(r^P) - \mathrm{corr}(r^R)$ | korelacja reszt | rozdz. 5.4 |
 | E1–E4 w badaniu głównym | etapy wstępne, nie powtarzane | uproszczone rynki (1 aktywo, łańcuch 3 spółek); E4 sprawdzony z nową regułą animatora: wnioski bez zmian |
 
 ---
@@ -296,7 +296,7 @@ Co jeszcze pokazuje E5:
 - bez limitu — zero;
 - bez rebalansowania — 14,7 i 10,5; przy $h$ = 0,4 to wyraźnie więcej niż ze wszystkimi kanałami (+4,1 [3,3; 4,9]).
 
-Kanały zmieniają więc zlecenia, ale nie współruch. Jedyna inna zmiana wyraźna z Bonferronim jest drobna i ma przeciwny znak: miara z propozycji, $\operatorname{corr}(r^P) - \operatorname{corr}(r^R)$, przy $h$ = 0,4 rośnie o 0,007 [0,003; 0,010] po wyłączeniu obu kanałów.
+Kanały zmieniają więc zlecenia, ale nie współruch. Jedyna inna zmiana wyraźna z Bonferronim jest drobna i ma przeciwny znak: miara z propozycji, $\mathrm{corr}(r^P) - \mathrm{corr}(r^R)$, przy $h$ = 0,4 rośnie o 0,007 [0,003; 0,010] po wyłączeniu obu kanałów.
 
 **Współruch jednak jest, tylko skąd indziej.** Tę samą statystykę policzyliśmy dla prawdziwych spółek (reszty względem $R$ grafu `real_v1`, te same 109 par niepowiązanych):
 

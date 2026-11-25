@@ -24,6 +24,10 @@ class ConfigError(ValueError):
     """The configuration does not follow contract K4."""
 
 
+def _is_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
 @dataclass(frozen=True)
 class RunConfig:
     name: str
@@ -39,6 +43,13 @@ class RunConfig:
     def validate(self) -> RunConfig:
         if self.exchange_backend not in BACKENDS:
             raise ConfigError(f"exchange_backend must be one of {BACKENDS}")
+        # bool is a subclass of int in Python: `n_sessions: true` must not pass as 1
+        if not _is_int(self.n_sessions) or not _is_int(self.warmup_sessions):
+            raise ConfigError("n_sessions and warmup_sessions must be integers")
+        if isinstance(self.sample_dt, bool) or not isinstance(self.sample_dt, (int, float)):
+            raise ConfigError("sample_dt must be a number")
+        if not isinstance(self.use_market_index, bool):
+            raise ConfigError("use_market_index must be true or false")
         if self.n_sessions <= 0 or not 0 <= self.warmup_sessions < self.n_sessions:
             raise ConfigError("need n_sessions > 0 and 0 <= warmup_sessions < n_sessions")
         if self.sample_dt <= 0:
@@ -75,7 +86,7 @@ def load_config(path: str | Path) -> ExperimentConfig:
     if unknown:
         raise ConfigError(f"unknown top-level keys {sorted(unknown)}")
     seeds = raw.get("seeds")
-    if not seeds or not all(isinstance(s, int) for s in seeds):
+    if not seeds or not all(_is_int(s) for s in seeds):
         raise ConfigError("seeds must be a non-empty list of integers")
     grid = raw.get("grid") or {}
     base = _from_dict(raw["base"])

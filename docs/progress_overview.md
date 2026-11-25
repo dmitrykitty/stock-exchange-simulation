@@ -2,7 +2,7 @@
 
 **Projekt:** Propagacja szoków surowcowych w agentowym rynku giełdowym z grafem zależności aktywów
 **Przedmiot:** Symulacja systemów dyskretnych, AGH
-**Stan na:** 26 listopada 2026 r.
+**Stan na:** 25 listopada 2026 r.
 
 Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w projekcie, jak jest zbudowany i na jakim etapie jesteśmy. Druga (rozdziały 4–6) opisuje, co zrobiliśmy w każdej fazie, wraz z wykresami, uzasadnieniem decyzji i linkami do kodu oraz notatników. Wszystkie wykresy powstały z naszych danych i logów przebiegów; pod każdym jest opis: co przedstawia, jak go czytać i co z niego wynika. Pełny opis naukowy (literatura, hipotezy, metodyka) znajduje się w [propozycji projektu](research_proposal.md).
 
@@ -24,6 +24,7 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
    - [4.7 Czy to przypomina prawdziwy rynek? Pierwsze porównanie](#47-czy-to-przypomina-prawdziwy-rynek-pierwsze-porównanie)
    - [4.8 F9 — wizualizacja przebiegu](#48-f9--wizualizacja-przebiegu)
    - [4.9 F7–F8 — przygotowanie badania głównego](#49-f7f8--przygotowanie-badania-głównego)
+   - [4.10 Badanie główne — wyniki](#410-badanie-główne--wyniki)
 5. [Najważniejsze decyzje i ich uzasadnienie](#5-najważniejsze-decyzje-i-ich-uzasadnienie)
 6. [Co dalej](#6-co-dalej)
 7. [Gdzie zajrzeć głębiej](#7-gdzie-zajrzeć-głębiej)
@@ -51,7 +52,7 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
    - grube ogony rozkładu i brak autokorelacji stóp zwrotu to cele kalibracji; grube ogony pochodzą z prawdziwych sygnałów wejściowych, a nie od agentów.
 8. **Czego nie odtwarza:** prawdziwy rynek uwzględnia ruch tego samego dnia, a u nas ok. 1/5 ruchu dochodzi dopiero następnego dnia. Zapisujemy to jako ograniczenie, a nie ukrywamy.
 9. **Jest wizualizacja:** strona HTML, która odtwarza przebieg. Widać na niej, jak fala płynie po grafie, jak zmieniają się ceny, świece i płynność arkusza (rozdz. 4.8).
-10. **Badanie główne** (rozdz. 4.9): protokół z pytaniami, miarami i regułami rozstrzygania zamroziliśmy przed liczeniem; 690 przebiegów na nowych ziarnach liczy się jednym poleceniem. Po drodze znaleźliśmy i poprawiliśmy błąd animatorów rynku (usuwa 4 z 6 załamań pilotażu) i przeprojektowaliśmy E6 po pilotażu. Wyniki i rozstrzygnięcia hipotez: [raport z etapu](report/interim_report.md). **Zostało:** raport końcowy (artykuł po angielsku) i prezentacja.
+10. **Badanie główne** (rozdz. 4.9): protokół z pytaniami, miarami i regułami rozstrzygania zamroziliśmy przed liczeniem; 690 przebiegów na nowych ziarnach liczy się jednym poleceniem. Po drodze znaleźliśmy i poprawiliśmy błąd animatorów rynku (usuwa 4 z 6 załamań pilotażu) i przeprojektowaliśmy E6 po pilotażu. **Wynik:** H3 potwierdzona (strategie trendowe i naśladowanie wzmacniają falę i przestrzelenie), H4 odrzucona (współruch spółek niepowiązanych jest, ale nie bierze się ze wspólnego portfela), H5 odrzucona z efektem przeciwnym (agenci znający pośrednie zależności spowalniają rafinerie). Szczegóły: rozdz. 4.10 i [raport z etapu](report/interim_report.md). **Zostało:** raport końcowy (artykuł po angielsku) i prezentacja.
 
 ---
 ## 1. Idea projektu w pięciu minutach
@@ -203,7 +204,7 @@ Projekt jest podzielony na fazy F0–F10. Każda ma właściciela, opis w [`docs
 | F4 | Rynek jednego aktywa, eksperymenty E1–E3 (P1, P2) | ✅ gotowe; E1–E3 policzone też z pozycją docelową, podsumowania liczone metrykami D1 (PR #23) |
 | F5 | Wyceniający według grafu na łańcuchu ropa → COP → VLO → DAL, eksperyment E4 | ✅ gotowe; E4 powtórzony z pozycją docelową (PR #20) |
 | F6 | Pełna sieć 18 spółek na rzeczywistych sygnałach 2024–2025 (kamień milowy M3) | ✅ gotowe (PR #15); kamień milowy M3 spełniony na pełnym E5 |
-| F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | ✅ pilotaż E5 i E7; protokół zamrożony (PR #32); badanie główne E5, E6, E7 na ziarnach 5001–5030 (rozdz. 4.9) |
+| F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | ✅ pilotaż E5 i E7; protokół zamrożony (PR #32); badanie główne E5, E6, E7 na ziarnach 5001–5030 policzone, werdykty H3–H5 (rozdz. 4.10) |
 | F8 | Walidacja na danych 2024–2025 | ✅ moduł `marketsim.validation` ze wszystkimi kontrolami z planu; liczby z badania głównego w [raporcie z etapu](report/interim_report.md) |
 | F9 | Wizualizacja: odtwarzanie przebiegu, tryb na żywo | ✅ odtwarzanie (PR #18), tryb na żywo (PR #21) i strona porównania eksperymentów E5 i E7 gotowe |
 | F10 | Raport końcowy i obrona | 🟡 raport z etapu po polsku; artykuł po angielsku i prezentacja przed nami |
@@ -1190,7 +1191,32 @@ Przed zamrożeniem protokołu policzyliśmy na pilotażu, jak duży efekt wykryj
 
 [`scripts/run_main_study.sh`](../scripts/run_main_study.sh) liczy wszystkie przebiegi, potem tabele odpowiedzi, kontrole F8, rysunki i stronę porównania eksperymentów; można go przerwać i wznowić. Tryb próbny (`SMOKE=1`) liczy jedno ziarno na komórkę: 25 przebiegów w 11 minut przeszło przez cały łańcuch bez błędów, zanim uruchomiliśmy właściwe badanie (ok. 6 h na 10 procesach).
 
-Wyniki badania głównego i rozstrzygnięcia hipotez: [raport z etapu](report/interim_report.md).
+Wyniki badania głównego: rozdz. 4.10 i [raport z etapu](report/interim_report.md).
+
+### 4.10 Badanie główne — wyniki
+
+> **Etap w skrócie.** *Cel:* rozstrzygnąć hipotezy H3–H5 regułami z zamrożonego protokołu. *Co zrobiliśmy:* policzyliśmy 690 przebiegów na ziarnach 5001–5030 (25 listopada 2026 r., ok. 6,5 h na 10 procesach), tabele odpowiedzi, kontrole F8 i rysunki. Po badaniu dodaliśmy jedną kontrolę: tę samą miarę współruchu policzoną dla prawdziwych spółek. *Wynik:* H3 potwierdzona, H4 i H5 odrzucone. *Znaczenie:* mamy odpowiedzi na wszystkie pytania główne i wiemy, co w modelu trzeba poprawić przed artykułem.
+
+Pełny opis z rysunkami i przedziałami: [raport z etapu](report/interim_report.md), rozdz. 6–9. Tu tylko najważniejsze.
+
+| Hipoteza | Werdykt | Najważniejsza liczba |
+|---|---|---|
+| H3: trend i naśladowanie wzmacniają falę i przestrzelenie | **potwierdzona** | wzmocnienie zmienności 1,27 (mixed, $h$ = 0) → 1,65 (trend, $h$ = 0,4); wszystkie 18 kontrastów trzech miar głównych wyraźne z Bonferronim |
+| H4: wspólny portfel tworzy nadmiarowy współruch | **odrzucona** | „bez kanałów” − „wszystkie kanały”: −0,0009 [−0,0067; 0,0052] w korelacji reszt |
+| H5: agenci sieciowi skracają opóźnienie | **odrzucona, efekt przeciwny** | reakcja rafinerii następnego dnia: −0,03 przy 0% → 0,49 przy 50% agentów sieciowych |
+
+**Co nowego względem pilotażu:**
+
+- **Załamania prawie zniknęły:** 2 na 690 przebiegów (w pilotażu 6 na 60 przebiegów trendowych z naśladowaniem). To efekt poprawki animatorów rynku z rozdz. 4.9. Pozostałe dwa nie zależą od naśladowania (test Fishera $p = 0{,}40$).
+- **Skład strategii działa mocniej niż naśladowanie**, a oba czynniki się wzmacniają: przy składzie `trend` naśladowanie dodaje 73 spółko-dni odchyleń od $R$ więcej niż przy `mixed`.
+- **Współruch spółek niepowiązanych jest, ale nie przez portfel.** Wyłączenie limitu ryzyka i rebalansowania go nie zmienia. Znika na płaskich wejściach, rośnie z udziałem strategii trendowych. Na prawdziwym rynku ta sama miara wynosi 0,00, a w symulacji 0,12: to wada modelu, nie tylko wynik.
+- **Wiadomość o spółce** (wycena NVDA −50%) przechodzi do GOOGL i META (−2 do −3%, tyle, ile wynika z wag grafu i udziału agentów sieciowych), a do pozostałych 15 spółek prawie wcale (poniżej 0,1%).
+- **Walidacja potwierdza pilotaż.** Graf poza próbą jest lepszy niż każdy z 200 losowych grafów. Wzorzec reakcji na ropę i miedź jest bliski rzeczywistemu (0,82 i 0,75; losowe grafy 0,61 / 0,48 i wartości ujemne). Z cen symulowanych odbudowujemy wagi grafu (korelacja 0,88).
+- **Niezgodności:**
+  - przewidywalne jednodniowe opóźnienia (62% krawędzi, w rzeczywistości 0%);
+  - za wysoki poziom korelacji akcji (0,53 wobec 0,27).
+
+  Obie wynikają z tego samego: agenci reagują za wolno i zbyt podobnie. To pierwsza rzecz do poprawy przed artykułem.
 
 ---
 
@@ -1228,11 +1254,11 @@ Wyniki badania głównego i rozstrzygnięcia hipotez: [raport z etapu](report/in
 
 | Kolejność | Faza | Co konkretnie | Efekt |
 |---|---|---|---|
-| 1 | F7–F8 | badanie główne: rozstrzygnięcia H3–H5 według protokołu, kontrole F8 na nowych ziarnach | [raport z etapu](report/interim_report.md) |
+| 1 | model | szybsza i bardziej zróżnicowana reakcja agentów (przewidywalne opóźnienia i za wysokie korelacje z rozdz. 4.10), sprawdzenie, czy werdykty H3–H5 się utrzymują | wiarygodniejsze liczby do artykułu |
 | 2 | F9 | dodać E6 do strony porównania eksperymentów | demonstracja na obronie |
 | 3 | F10 | artykuł po angielsku (struktura IMRaD, opis modelu według protokołu ODD, każda liczba z tabel badania, każde cytowanie z DOI lub adresem), prezentacja, próba generalna | publikacja i obrona |
 
-**Kierunek na później, poza badaniem głównym (pytanie o ograniczoną uwagę).** W literaturze finansowej (Cohen i Frazzini, 2008) opisano, że cena odbiorcy reaguje na wiadomości o dostawcy z opóźnieniem, a wyjaśnia się to ograniczoną uwagą inwestorów. Na prawdziwym rynku nie da się sprawdzić tego mechanizmu, bo nie można „włączyć” inwestorom uwagi. W naszym modelu można: uwaga, opóźnienie, krótkowzroczność i błąd wiedzy to parametry. Zmierzymy, jak każdy z nich zmienia kompletność, opóźnienie i przestrzelenie fali. Ograniczenie, które już wiemy: w dziennych danych 2024–2025 opóźnienia między dostawcą a odbiorcą nie widać (wykres 17), więc model nie może być wolniejszy od rynku.
+**Kierunek na później, poza badaniem głównym (pytanie o ograniczoną uwagę).** W literaturze finansowej (Cohen i Frazzini, 2008) opisano, że cena dostawcy reaguje z opóźnieniem na wiadomości o jego głównych odbiorcach, a wyjaśnia się to ograniczoną uwagą inwestorów. Na prawdziwym rynku nie da się sprawdzić tego mechanizmu, bo nie można „włączyć” inwestorom uwagi. W naszym modelu można: uwaga, opóźnienie, krótkowzroczność i błąd wiedzy to parametry. Zmierzymy, jak każdy z nich zmienia kompletność, opóźnienie i przestrzelenie fali. Ograniczenie, które już wiemy: w dziennych danych 2024–2025 opóźnienia między dostawcą a odbiorcą nie widać (wykres 17), więc model nie może być wolniejszy od rynku.
 
 **Ryzyka i co robimy, jeśli zabraknie czasu** (w tej kolejności): upraszczamy walidację i ablacje. Rdzenia (graf + propagacja + P5/P6) nie ruszamy.
 

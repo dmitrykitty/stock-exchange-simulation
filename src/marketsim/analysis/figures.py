@@ -92,6 +92,10 @@ def p6(root: Path, out: Path) -> list[Path]:
     if means_path.exists():
         m = pd.read_csv(means_path)
         order = ["all", "no_stoploss", "no_rebalancing", "neither"]
+        # the same statistic on the real market (validation check ``comovement``), when it was computed
+        real_path = root / "validation" / "comovement.csv"
+        real = (pd.read_csv(real_path).set_index("series").loc["real 2024-2025"] if real_path.exists()
+                else pd.Series(dtype=float))
         fig, axes = plt.subplots(1, 3, figsize=(15, 4.2))
         for ax, (metric, title) in zip(axes, [
                 ("resid_unrelated", "unrelated pairs: residual correlation"),
@@ -106,6 +110,8 @@ def p6(root: Path, out: Path) -> list[Path]:
             ax.set_xticks(range(len(order)), ["all channels", "no stop-loss", "no rebalancing", "neither"])
             ax.set_title(title, fontsize=10)
             ax.axhline(0, color="k", lw=0.6)
+            if metric in real.index:
+                ax.axhline(real[metric], color=GREEN, ls="--", lw=1.2, label="real 2024–2025")
         axes[0].legend()
         fig.suptitle("E6, real signals 2024–2025: comovement of companies the graph does not relate, beyond their "
                      "own references (means over runs, 95% intervals)")

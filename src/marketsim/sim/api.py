@@ -257,7 +257,7 @@ def run(config: RunConfig, seed: int, out_dir: Path) -> Path:
         "run_id": run_id, "log_version": LOG_VERSION, "contract_version": CONTRACT_VERSION,
         "config": asdict(config), "seed": seed, "git_commit": _git_commit(), "versions": _versions(),
         "started_at": started, "wall_time_s": time.perf_counter() - start, "assets": [settings.ticker],
-        "simulation_version": _SIMULATION_VERSION, "resolved_agents": identity_dict(settings),
+        "simulation_version": _SIMULATION_VERSION, "resolved_agents": asdict(settings),
         "initial_resources": initial_resources, "final_resources": simulation.resources(),
         "invariant_checks": simulation.invariant_checks,
         "population": {"kinds": simulation.population.kinds, "fund_ids": np.flatnonzero(simulation.population.funds).tolist()},

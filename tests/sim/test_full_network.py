@@ -344,3 +344,14 @@ def test_maker_anchor_default_keeps_identities_and_bad_values_fail():
             AgentSettings.from_dict({**base, **bad}, graph_mode=True)
     with pytest.raises(ConfigError, match="need a graph"):
         AgentSettings.from_dict({"maker_anchor": "others"})
+
+
+def test_target_investors_order_at_least_one_share_when_rho_times_wealth_is_below_the_price():
+    # The F4 fix (f4-v3): with rho x wealth below the price an investor would never trade; the cap is one share.
+    config = net_config(n_sessions=6, position_sizing="target", rho=1e-6, noise=0, trend=0)
+    checked = _validate_graph(config, 3)
+    simulation = NetworkSimulation(config, checked["settings"], 3, checked["graph"], checked["external"],
+                                   checked["external_names"], checked["reference"])
+    simulation.execute()
+    final = np.array([simulation.gateway.portfolio(a).shares_available for a in range(simulation.investors)])
+    assert (final != simulation.population.shares[:simulation.investors]).any()

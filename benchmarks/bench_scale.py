@@ -9,8 +9,10 @@ sends an order on each followed asset with probability ``--order-prob``; one mar
 layer (gateway bookkeeping + matching) at full scale.
 
 Part 2 runs the F4 single-asset simulation with ``--investors`` investors to measure the cost of one agent
-decision including the event loop, signals, herding and logging. F6 code does not exist yet, so the F6 run
-time is extrapolated from the two parts (see the printed estimate and docs/plans/phases/F3_exchange_engine.md).
+decision including the event loop, signals, herding and logging. The printed F6 estimate extrapolates from the
+two parts; it is the F3 planning estimate (docs/plans/phases/F3_exchange_engine.md) and is kept for comparison.
+The F6 network itself (``marketsim.sim.network``) exists since PR #15: its real run time is the ``wall_time_s``
+column of every experiment's ``summary.csv`` (main study: about 6.7 min per 502-session run on one process).
 """
 
 from __future__ import annotations

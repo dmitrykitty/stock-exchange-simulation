@@ -2,7 +2,7 @@
 
 Course project for "Symulacja systemów dyskretnych" (Discrete Systems Simulation), AGH.
 
-About 1000 agents trade the shares of 18 real US companies on simulated limit order books. **Nobody sets the stock prices**: they emerge from trades. During a run, the only real-world inputs are external signals: commodity prices (oil, gas, copper, gold) and the S&P 500 index. Agents know a **dependency graph** ("Delta moves 0.22% when Valero moves 1%") and update their valuations along it, so an oil shock travels from stock to stock **through trades**. We study how agent strategies, herding and capital concentration amplify, dampen or distort that wave.
+About 525 investors and 36 market makers trade the shares of 18 real US companies on simulated limit order books. **Nobody sets the stock prices**: they emerge from trades. During a run, the only real-world inputs are external signals: commodity prices (oil, gas, copper, gold) and the S&P 500 index. Agents know a **dependency graph** ("Delta moves 0.22% when Valero moves 1%") and update their valuations along it, so an oil shock travels from stock to stock **through trades**. We study how agent strategies, herding and capital concentration amplify, dampen or distort that wave.
 
 | Start here | |
 |---|---|
@@ -10,6 +10,8 @@ About 1000 agents trade the shares of 18 real US companies on simulated limit or
 | Plain-language explainer (Russian) | [docs/model/explainer.md](docs/model/explainer.md) |
 | Model description (Russian) | [docs/model/model_description.md](docs/model/model_description.md) |
 | Research proposal (Polish) | [docs/research_proposal.md](docs/research_proposal.md) |
+| Progress overview with results (Polish) | [docs/progress_overview.md](docs/progress_overview.md) |
+| Main study protocol (Russian) | [docs/plans/main_study_protocol.md](docs/plans/main_study_protocol.md) |
 | Plan, phases F0–F10, roles (Russian) | [docs/plans/overall_plan.md](docs/plans/overall_plan.md) |
 | Interfaces between parts | [docs/model/contracts.md](docs/model/contracts.md) |
 | **Repository rules** (team and AI agents) | [AGENTS.md](AGENTS.md) |
@@ -43,7 +45,7 @@ pip install -e ".[dev,data]"
 pytest
 ```
 
-Most contract tests are **skipped** for now because the implementations do not exist yet. When someone implements their part, its tests start passing (or failing). That is the intended workflow.
+All parts are implemented, so the tests should pass; a test is skipped only when the raw data it needs has not been downloaded (`data/raw/`, not in git).
 
 Check which data files exist and whether they follow their contract:
 
@@ -60,7 +62,7 @@ pip install -e cpp/
 ## Layout
 
 ```text
-docs/                 documentation (Russian; the proposal is in Polish)
+docs/                 documentation (Russian; the proposal, progress overview and reports are in Polish)
   model/              model, plain-language explainer, contracts between parts
   plans/              overall plan, per-role plans, detailed phases F0-F10
 src/marketsim/        Python package
@@ -69,7 +71,9 @@ src/marketsim/        Python package
   graph/              K2: dependency graph (api.py = format; structure.py, weights.py, reference.py = D2)
   sim/                simulation (S); log_schema.py = K3 run-log format
   experiments/        config.py = K4 experiment configuration format
-  agents/ metrics/ validation/ viz/
+  agents/ metrics/ viz/
+  analysis/           main-study tables and report figures
+  validation/         F8 checks against the real data 2024-2025
 cpp/                  C++ engine lob_core: include/ src/ bindings/ tests/
 tests/contracts/      contract tests: the executable specification
 configs/              experiment configurations (YAML, K4)
@@ -112,13 +116,23 @@ A contract is the interface through which one part of the project uses another. 
 
 ## Status
 
-The exchange, gateway and F4 single-asset simulation are implemented. Data collection and graph estimation
-remain under development. F4 runs on synthetic constant inputs and supports both exchange backends.
+Phases F1–F9 are implemented: data, the dependency graph `real_v1`, the exchange (Python and C++), the
+single-asset market (F4), graph valuers on a chain (F5), the full 18-company network on the real signals
+2024–2025 (F6), experiments E5–E7 (F7), validation against the real data (F8) and the replay page and live
+mode (F9). The main study (690 runs on fresh seeds under a frozen protocol) is computed; the report is phase F10.
+
+Run one experiment (a new output directory for each; an interrupted run continues where it stopped):
 
 ```bash
-python -m marketsim.experiments.run configs/f4_pilot.yaml --out runs/f4/pilot
+python -m marketsim.experiments.run configs/main/e5.yaml --out runs/main/e5
 ```
 
-Use a new output directory for each experiment. See [the F4 guide](docs/guides/f4_simulation.md)
-for agent parameters, reproducibility, order lifecycle logging and E1–E3 configurations.
-The original `configs/pilot.yaml` describes the F5 graph chain and is not supported by F4.
+The whole main study with its tables, validation checks and figures (about 6 h on 10 processes):
+
+```bash
+scripts/run_main_study.sh
+```
+
+Guides: [F4 single asset](docs/guides/f4_simulation.md), [F5 graph valuers](docs/guides/f5_graph_valuers.md),
+[F6 full network](docs/guides/f6_full_network.md), [F7 experiments](docs/guides/f7_experiments.md),
+[F9 visualization](docs/guides/f9_visualization.md).

@@ -105,6 +105,7 @@ def run_checks(root: Path, workers: int = 8, n_random: int = 200) -> dict[str, p
     tables["band_paths"] = checks.band_paths(reality, sims[main])
     tables["correlation_pairs"] = checks.correlation_pairs(reality, sims[main])
     tables["correlation_structure"] = checks.correlation_structure(reality, sims)
+    tables["comovement"] = checks.comovement(reality, sims)
     tables["groups"] = pd.DataFrame([{"group": k, "runs": len(v), "note": notes.get(k, "")} for k, v in sims.items()])
     out = root / "validation"
     out.mkdir(parents=True, exist_ok=True)

@@ -87,3 +87,17 @@ def test_band_paths_and_correlation_pairs_have_every_session_and_pair(reality):
     assert len(pairs) == len(reality.tickers) ** 2
     np.testing.assert_allclose(pairs.loc[pairs.a == pairs.b, ["real", "sim"]], 1.0)
     np.testing.assert_allclose(pairs.real, pairs.sim)
+
+
+def test_comovement_is_near_zero_for_independent_noise_and_high_for_a_common_one(reality):
+    rng = np.random.default_rng(5)
+    noise = reality.real.copy()
+    noise[reality.tickers] = reality.ref + rng.normal(0, 0.01, reality.ref.shape)
+    common = reality.real.copy()
+    common[reality.tickers] = reality.ref.to_numpy() + rng.normal(0, 0.01, (len(reality.ref), 1))
+    table = checks.comovement(reality, {"noise": [_sim(reality, noise)], "common": [_sim(reality, common)]},
+                              warmup=0).set_index("series")
+    assert abs(table.loc["real 2024-2025", "resid_unrelated"]) < 0.05
+    assert abs(table.loc["sim: noise", "resid_unrelated"]) < 0.05
+    assert table.loc["sim: common", "resid_unrelated"] > 0.9
+    assert table.loc["sim: common", "false_links"] == pytest.approx(1.0)

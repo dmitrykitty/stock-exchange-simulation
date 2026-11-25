@@ -13,6 +13,7 @@ import math
 import numpy as np
 import pandas as pd
 
+from marketsim.analysis.runs import STRESS_SHARE, pair_kinds, residuals
 from marketsim.validation.reality import Reality, SimRun, graph_from_structure, real_pairs
 
 Sims = dict[str, list[SimRun]]
@@ -258,4 +259,33 @@ def correlation_pairs(reality: Reality, runs: list[SimRun], warmup: int = 10) ->
     ref = reality.ref[t].iloc[warmup:].corr()
     sim = sum(r.returns[t].iloc[warmup:].corr() for r in runs) / len(runs)
     rows = [{"a": a, "b": b, "real": real.at[a, b], "R": ref.at[a, b], "sim": sim.at[a, b]} for a in t for b in t]
+    return pd.DataFrame(rows)
+
+
+# ----- 8. comovement beyond the graph ------------------------------------------------------------------------------
+def comovement(reality: Reality, sims: Sims, warmup: int = 10, stress_share: float = STRESS_SHARE) -> pd.DataFrame:
+    """The P6 statistic on the real data: the mean correlation of residual returns (a company's daily return less
+    what its own R of ``reality.graph`` explains today and yesterday) over the pairs the graph does not relate, on
+    all days and on the ``stress_share`` days with the largest real index moves, and the same for the simulations.
+    With the real numbers this tells whether the simulated comovement beyond R is in the real market too."""
+    t = reality.tickers
+    kinds = pair_kinds(reality.graph, t)
+    unrelated = [pair for pair, flag in kinds.items() if not flag]
+    linked = [pair for pair, flag in kinds.items() if flag]
+    q = reality.ref[t].iloc[warmup:]
+    market = reality.real["sp500"].iloc[warmup:].abs()
+    stress = market >= market.quantile(1 - stress_share)
+
+    def stats(frame: pd.DataFrame) -> dict:
+        u = residuals(frame[t].iloc[warmup:], q)
+        cu, cs = u.corr(), u.loc[stress].corr()
+        values = np.array([cu.loc[p] for p in unrelated])
+        return {"resid_unrelated": float(np.nanmean(values)),
+                "resid_unrelated_stress": float(np.nanmean([cs.loc[p] for p in unrelated])),
+                "resid_related": float(np.nanmean([cu.loc[p] for p in linked])),
+                "false_links": float(np.mean(values[np.isfinite(values)] > 0.1))}
+
+    rows = [{"series": "real 2024-2025", **stats(reality.real)}]
+    for name, runs in sims.items():
+        rows.append({"series": "sim: " + name, **pd.DataFrame([stats(r.returns) for r in runs]).mean()})
     return pd.DataFrame(rows)

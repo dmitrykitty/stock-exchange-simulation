@@ -2,7 +2,7 @@
 
 **Raport z etapu: badanie główne (F7–F8)** — przedmiot „Symulacja systemów dyskretnych”, AGH
 **Zespół:** _(imiona i nazwiska — 4 osoby)_
-**Wersja:** 26 listopada 2026 r.
+**Wersja:** 25 listopada 2026 r.
 
 > Raport przedstawia cel projektu, model, zamrożony protokół badania głównego i jego wyniki. Szczegółowy dziennik prac (etapy F1–F9, pilotaż, poprawki modelu) znajduje się w [`progress_overview.md`](../progress_overview.md); tutaj przytaczamy z niego tylko to, co jest potrzebne do zrozumienia wyników. Każda liczba w rozdziałach 6–7 pochodzi z tabel badania głównego (`runs/main/**.csv`); polecenia, które je tworzą, podaje rozdział 10.
 
@@ -10,7 +10,13 @@
 
 ## Streszczenie
 
-<!-- STRESZCZENIE: po badaniu głównym -->
+Badamy, jak skład strategii inwestorów, zachowania stadne i kanały wspólnego portfela wpływają na przenoszenie rzeczywistych szoków surowcowych z lat 2024–2025 w agentowym rynku 18 spółek amerykańskich. Ceny powstają w nim z transakcji w arkuszach zleceń, a graf zależności (struktura z tabel przepływów BEA, wagi z regresji 2021–2023) jest wiedzą agentów, a nie formułą cen. Protokół zamroziliśmy przed badaniem głównym: 690 przebiegów na nowych ziarnach, porównania parami na tych samych ziarnach z przedziałami bootstrap i poprawką Bonferroniego.
+
+- **H3 potwierdzona.** Więcej strategii trendowych i silniejsze naśladowanie zwiększają wzmocnienie zmienności (z 1,27 do 1,65), liczbę spółko-dni z ceną odległą o ponad 10% od trajektorii referencyjnej (z 14 do 240) i część reakcji spóźnioną o dzień (z 0,24 do 0,44). W dwóch z trzech miar oba czynniki wzmacniają się nawzajem.
+- **H4 odrzucona.** Symulowany rynek wytwarza współruch spółek, których graf nie łączy (średnia korelacja reszt 0,12 wobec 0,00 na prawdziwym rynku), ale wyłączenie limitu ryzyka i rebalansowania go nie zmienia (różnice ≤ 0,001). Współruch znika na płaskich wejściach i rośnie z udziałem strategii trendowych: bierze się ze wspólnych błędów reakcji na ruchy sygnałów, a nie z kanałów portfela.
+- **H5 odrzucona, efekt przeciwny.** Agenci znający pośrednie zależności nie przyspieszają fali, lecz przesuwają reakcję rafinerii na następny dzień (udział następnego dnia z −0,03 do 0,49 przy 50% takich agentów) i zwiększają przestrzelenie.
+
+Graf przewiduje prawdziwe dzienne ruchy 2024–2025 poza próbą lepiej niż każdy z 200 grafów losowych, a model odtwarza przekrój reakcji spółek na duże ruchy ropy i miedzi (korelacja 0,82 i 0,75; na grafach losowych 0,61 / 0,48 i wartości ujemne). Nie odtwarza braku przewidywalnych opóźnień między spółkami ani poziomu korelacji akcji (0,53 wobec 0,27).
 
 **Słowa kluczowe:** symulacja agentowa, symulacja zdarzeń dyskretnych, arkusz zleceń, graf zależności, propagacja szoków, zachowania stadne, współruch, rejestracja protokołu.
 
@@ -52,7 +58,7 @@ P5 i P6 są pytaniami głównymi. Brak efektu w badanym zakresie też jest wynik
 
 - **Modele agentowe rynku.** Lux i Marchesi (1999) pokazali, że interakcja fundamentalistów i chartystów generuje grube ogony i grupowanie zmienności; Chiarella i Iori (2002) badali agentów o różnych strategiach w arkuszu zleceń; ABIDES (Byrd i in., 2019) łączy symulację zdarzeń dyskretnych z modelem giełdy.
 - **Wiele aktywów i zarażanie.** Westerhoff (2004) oraz Chiarella, Dieci i He (2007) rozszerzają modele heterogenicznych agentów na wiele rynków; Kyle i Xiong (2001) opisują zarażanie przez efekt majątkowy wspólnych inwestorów, a Barberis, Shleifer i Wurgler (2005) — współruch przekraczający powiązania fundamentalne.
-- **Sieci gospodarcze.** Acemoglu i in. (2012) pokazują, że szoki rozchodzą się przez sieć powiązań międzygałęziowych; tabele przepływów (Miller i Blair, 2009) opisują, ile każda branża kupuje od innych.
+- **Sieci gospodarcze.** Acemoglu i in. (2012) pokazują, że szoki rozchodzą się przez sieć powiązań międzygałęziowych; tabele przepływów (Miller i Blair, 2009) opisują, ile każda branża kupuje od innych. Cohen i Frazzini (2008) pokazują, że ceny akcji reagują z opóźnieniem na wiadomości o powiązanych odbiorcach.
 - **Punkt wyjścia.** Skrzyński (2025) — wieloagentowe środowisko giełdy w JADE; cena jednego aktywa podąża za danymi historycznymi dzięki inwestorowi o nieograniczonych zasobach.
 
 | | Skrzyński (2025) | Ten projekt |
@@ -238,33 +244,279 @@ Jednostką jest przebieg. **Kontrast parowy:** średnia po ziarnach różnicy dw
 
 ## 6. Wyniki
 
-<!-- WYNIKI: po badaniu głównym. Rysunki: f7_e5_cells.png, f7_p5_contrasts.png, f7_p6_channels.png, f7_p6_shock.png, f7_p7_network_share.png; tabela werdyktów H1–H5 -->
+### 6.1 Przebiegi i załamania
+
+Badanie główne objęło 690 przebiegów: E5 — 270, E7 — 90 (+30 wspólnych z E5), E6a — 180 (+60 wspólnych z E5), E6b — 120 (60 par), kontrole F8 — 30. Policzyliśmy je 25 listopada 2026 r. w ok. 6,5 h na 10 procesach (`scripts/run_main_study.sh`, log `runs/main_study.log`).
+
+**Załamania** ($\max|\ln P/R| > \ln 2$) zdarzyły się w 2 z 690 przebiegów, oba w składzie `trend` (przy $h = 0$ i $h = 0{,}4$; w każdej z tych komórek 1/30, przedział Wilsona [0,006; 0,167]). W pozostałych komórkach E5, w całym E6a, E7 i w kontrolach nie było żadnego. Załamania nie wiążą się z naśladowaniem: `trend` z $h > 0$ — 1 z 60, reszta — 1 z 210, jednostronny test Fishera $p = 0{,}40$. W pilotażu, przed poprawką animatora rynku, było ich 6 na 60 przebiegów trendowych z $h \ge 0{,}2$. Oba przebiegi załamane pomijamy w średnich i w parach (rozdz. 5.4).
+
+### 6.2 P5: skład strategii i naśladowanie (E5, H3)
+
+![E5: średnie komórek](../figures/f7_e5_cells.png)
+
+*Rysunek 2. E5: średnie komórek (30 przebiegów, bez załamanych) dla udziału następnego dnia `day1`, wzmocnienia zmienności, liczby spółko-dni z $|\ln P/R| > 10\%$ i korelacji reszt par niepowiązanych. Konfiguracja `configs/main/e5.yaml`, ziarna 5001–5030; tabela `runs/main/e5/p5_metrics.csv`.*
+
+![E5: kontrasty parowe](../figures/f7_p5_contrasts.png)
+
+*Rysunek 3. E5: kontrasty parowe na tych samych ziarnach z przedziałami 95% (bootstrap, 5000 losowań); niebieskie — skład względem `mixed`, pomarańczowe — naśladowanie względem $h = 0$. Tabela `runs/main/e5/p5_contrasts.csv`.*
+
+Trzy miary główne H3 (rozdz. 5.5). Wszystkie 18 kontrastów w tabeli jest wyraźnych po poprawce Bonferroniego (rodzina 12 kontrastów na miarę).
+
+| Miara | mixed, $h$ = 0 | trend, $h$ = 0,4 | trend − mixed przy $h$ = 0 / 0,2 / 0,4 | $h$ = 0,4 − $h$ = 0 w mixed / network / trend | najmniejsza dolna granica 95% |
+|---|---|---|---|---|---|
+| wzmocnienie zmienności $\sigma(\Delta\ln P)/\sigma(\Delta\ln R)$ | 1,27 | 1,65 | +0,19 / +0,22 / +0,27 | +0,10 / +0,10 / +0,18 | +0,089 |
+| spółko-dni z $\lvert\ln P/R\rvert > 10\%$ | 14,1 | 240,4 | +118 / +151 / +196 | +30 / +29 / +103 | +21,6 |
+| udział ruchu $R$ dochodzący następnego dnia (`day1`) | 0,24 | 0,44 | +0,169 / +0,180 / +0,157 | +0,048 / +0,047 / +0,037 | +0,030 |
+
+**Werdykt H3: potwierdzona.** Oba czynniki wyraźnie zwiększają wszystkie trzy miary przy każdym poziomie drugiego czynnika (reguła wymagała dwóch z trzech).
+
+Co jeszcze pokazuje E5:
+
+- **Skład waży więcej niż naśladowanie.** Przejście z `mixed` do `trend` zwiększa wzmocnienie zmienności o 0,19–0,27, a $h$ = 0,4 zamiast 0 — o 0,10–0,18.
+- **Słabe naśladowanie ($h$ = 0,2) najpierw dodaje zmienności, nie opóźnienia.** W `mixed` wzmocnienie rośnie o 0,053 [0,045; 0,062], a `day1` się nie zmienia (−0,003 [−0,007; 0,001]). Spóźniona reakcja pojawia się dopiero przy $h$ = 0,4. Silne naśladowanie zmniejsza też część ruchu wchłoniętą tego samego dnia (`day0` w `mixed` −0,080 [−0,087; −0,073]) i korelację $P$ z $R$ (−0,116 [−0,122; −0,109]) oraz wydłuża opóźnienie o 0,14 sesji.
+- **Czynniki wzmacniają się nawzajem.** Różnica różnic (trend wobec mixed, $h$ = 0,4 wobec 0) wynosi +0,076 [0,051; 0,102] dla wzmocnienia zmienności i +72,7 [59,1; 86,3] spółko-dnia dla odchyleń od $R$. Dla `day1` jest lekko ujemna: −0,010 [−0,018; −0,002]. W składzie `network` interakcji nie ma (poza autokorelacją).
+- **Więcej wyceniających sieciowych (`network` − `mixed`)** nie zmienia wyraźnie zmienności. Zwiększa za to reakcję rafinerii następnego dnia o 0,12–0,21 — to samo zjawisko mierzy wprost E7 (rozdz. 6.4).
+- **Skład `trend` daje dodatnią autokorelację dziennych stóp zwrotu** (0,20–0,23; prawdziwe spółki: −0,035). Najbliżej rzeczywistości jest komórka główna `mixed`, $h$ = 0,2 (0,008).
+
+### 6.3 P6: współruch spółek niepowiązanych (E6a, E6b, H4)
+
+![E6a: kanały portfela](../figures/f7_p6_channels.png)
+
+*Rysunek 4. E6a, prawdziwe sygnały 2024–2025: średnia korelacja reszt par, których graf nie łączy (wszystkie dni i 10% dni z największym ruchem indeksu), oraz liczba sprzedaży wywołanych limitem ryzyka na przebieg, dla czterech wariantów kanałów i dwóch wartości $h$. Linia przerywana: ta sama statystyka dla prawdziwych spółek. Konfiguracje `configs/main/e6_*.yaml` i `e5.yaml`; tabele `runs/main/e6/p6_means.csv`, `runs/main/validation/comovement.csv`.*
+
+**Kanały portfela nie zmieniają współruchu.** We wszystkich ośmiu komórkach średnia korelacja reszt par niepowiązanych wynosi 0,091–0,122. Kontrast „bez obu kanałów” − „wszystkie kanały”:
+
+- przy $h$ = 0: −0,0009 [−0,0067; 0,0052];
+- przy $h$ = 0,4: −0,0003 [−0,0040; 0,0038];
+- w dniach stresu: −0,011 [−0,029; 0,006] i −0,005 [−0,018; 0,009].
+
+Żaden z 10 kontrastów kanałów nie jest wyraźnie ujemny ani dla tej miary, ani dla dni stresu. Wyłączniki przy tym działają:
+
+- limit ryzyka wywołuje średnio 13,5 sprzedaży na przebieg przy $h$ = 0 i 6,4 przy $h$ = 0,4;
+- bez limitu — zero;
+- bez rebalansowania — 14,7 i 10,5; przy $h$ = 0,4 to wyraźnie więcej niż ze wszystkimi kanałami (+4,1 [3,3; 4,9]).
+
+Kanały zmieniają więc zlecenia, ale nie współruch. Jedyna inna zmiana wyraźna z Bonferronim jest drobna i ma przeciwny znak: miara z propozycji, $\operatorname{corr}(r^P) - \operatorname{corr}(r^R)$, przy $h$ = 0,4 rośnie o 0,007 [0,003; 0,010] po wyłączeniu obu kanałów.
+
+**Współruch jednak jest, tylko skąd indziej.** Tę samą statystykę policzyliśmy dla prawdziwych spółek (reszty względem $R$ grafu `real_v1`, te same 109 par niepowiązanych):
+
+| Seria | Korelacja reszt, pary niepowiązane | To samo w dniach stresu | Pary powiązane |
+|---|---|---|---|
+| prawdziwe spółki 2024–2025 | 0,000 | 0,017 | 0,191 |
+| symulacja, komórka główna (mixed, $h$ = 0,2) | 0,121 | 0,200 | 0,136 |
+| symulacja, płaskie wejścia (te same ziarna) | 0,002 | −0,004 | 0,001 |
+
+Na prawdziwym rynku pary, których graf nie łączy, nie poruszają się razem ponad to, co wyjaśnia $R$. W symulacji poruszają się — ale tylko wtedy, gdy sygnały zewnętrzne się ruszają: na płaskich wejściach współruch znika. Silniejszy jest w dniach dużych ruchów indeksu.
+
+Analiza dodatkowa na siatce E5 (poza regułami protokołu, `runs/main/e5/p5_contrasts_extra.csv`):
+
+- **skład `trend` zwiększa współruch:** +0,062 / +0,050 / +0,040 przy $h$ = 0 / 0,2 / 0,4 względem `mixed`, w dniach stresu +0,07–0,11, wszystko wyraźne z Bonferronim;
+- **silne naśladowanie zmniejsza współruch:** o 0,025–0,046 przy $h$ = 0,4.
+
+Najprostsze wyjaśnienie: wszystkie spółki mają w grafie krawędź od indeksu, a agenci wchłaniają ten sam ruch indeksu z podobnym, niepełnym i zależnym od wielkości ruchu błędem. Strategie trendowe przenoszą ten błąd na kolejne dni (ekstrapolują pięć ostatnich sesji), więc wspólna część błędu zostaje w resztach wszystkich spółek. To interpretacja, której osobno nie testowaliśmy.
+
+![E6b: wiadomość o spółce](../figures/f7_p6_shock.png)
+
+*Rysunek 5. E6b, sygnały zamrożone na 2 stycznia 2024 r.: różnica $\ln P$ z wiadomością (wycena NVDA −50% w sesji 20) i bez niej na tym samym ziarnie, po 1, 5 i 20 sesjach; średnie z 30 par z przedziałami 95%. Konfiguracja `configs/main/e6_shock.yaml`; tabela `runs/main/e6/p6_shock_effects.csv`.*
+
+**Wiadomość o spółce zostaje w swoim sąsiedztwie grafu.**
+
+- **NVDA** przy $h$ = 0 spada już po jednej sesji o 67,3 punktu logarytmicznego [63,6; 70,9] — pełny szok to $\ln 0{,}5 = -69{,}3$.
+- **Naśladowanie spowalnia tę reakcję.** Przy $h$ = 0,6 spadek wynosi 42,5 po jednej sesji, 60,1 po pięciu i 58,4 po dwudziestu, czyli cena nie dochodzi do nowej wyceny nawet po 20 sesjach.
+- **GOOGL i META**, połączone z NVDA w grafie, tracą 2,0% / 2,9% / 2,2% po 1 / 5 / 20 sesjach. Gdyby wszyscy wyceniający stosowali pełne wagi (NVDA → GOOGL 0,057, NVDA → META 0,086), spadek wyniósłby ok. 4,8%. W składzie `mixed` połowa wyceniających patrzy na cenę NVDA, co daje ok. 2,4% — zgodnie z pomiarem.
+- **15 spółek niepowiązanych** zmienia się średnio o −0,03% / −0,06% / −0,09%. Ostatnie dwie wartości są wyraźne z Bonferronim, ale ponad 700 razy mniejsze niż ruch NVDA.
+- **Limit ryzyka nie zadziałał** z powodu wiadomości w żadnej z 60 par.
+
+**Werdykt H4: odrzucona w badanym zakresie.** Wszystkie kontrasty kanałów są niewyraźne. **Odpowiedź na P6:** współruch spółek niepowiązanych w symulacji powstaje, i to silniejszy niż w rzeczywistości, ale nie przez wspólny portfel i rebalansowanie. Zastrzeżenie: portfele obejmują 4 spółki, limit ryzyka ma 25% inwestorów, funduszy jest 25, więc kanał majątkowy jest słaby z konstrukcji (rozdz. 5.3, 8).
+
+### 6.4 P7: udział wyceniających sieciowych (E7, H5)
+
+![E7: udział wyceniających sieciowych](../figures/f7_p7_network_share.png)
+
+*Rysunek 6. E7: udział wyceniających sieciowych wśród 300 wyceniających ($h$ = 0,2); średnie komórek z przedziałami 95%. Punkt 30% to komórka główna E5. Konfiguracje `configs/main/e7_network{0,25,50}.yaml`; tabele `runs/main/e7/p7_metrics.csv`, `p7_contrasts.csv`.*
+
+| Miara (rafinerie VLO, MPC — 2 kroki od ropy) | 0% | 25% | 30% | 50% | 50% − 0% |
+|---|---|---|---|---|---|
+| udział ruchu $R$ następnego dnia (`day1_d2`) | −0,03 | 0,27 | 0,31 | 0,49 | **+0,515** [0,480; 0,550] |
+| udział ruchu $R$ w dwóch dniach (`pass2_d2`) | 1,19 | 1,32 | 1,34 | 1,44 | +0,248 [0,220; 0,276] |
+| korelacja $P$ z $R$ | 0,85 | 0,76 | 0,74 | 0,64 | −0,204 [−0,224; −0,184] |
+| *wszystkie spółki:* `day1` | 0,20 | 0,23 | 0,23 | 0,26 | +0,055 [0,047; 0,062] |
+| *wszystkie spółki:* wzmocnienie zmienności | 1,34 | 1,33 | 1,33 | 1,33 | −0,011 [−0,024; 0,001] |
+
+Kontrasty 50% − 0% w pierwszych czterech wierszach są wyraźne z Bonferronim, a zależność od udziału jest monotoniczna. **Werdykt H5: odrzucona.** Więcej wyceniających sieciowych wyraźnie **zwiększa** spóźnioną reakcję rafinerii, zamiast ją skracać.
+
+Mechanizm widać w wagach grafu:
+
+- Wyceniający krótkowzroczny wycenia VLO bezpośrednio z ropy (waga bezpośrednia 0,43), więc reaguje tego samego dnia.
+- Wyceniający sieciowy wycenia VLO z cen COP i EOG **na symulowanej giełdzie** (COP → VLO 0,54; ropa → VLO tylko 0,05). Czeka więc, aż te ceny się zmienią, i dokłada drugą, spóźnioną falę.
+- Obie fale się sumują, więc przestrzelenie w dwóch dniach rośnie z 1,19 do 1,44.
+
+**Odpowiedź na P7:** na grafie `real_v1` fala przechodzi nawet bez wyceniających sieciowych, bo wagi bezpośrednie już zawierają ścieżkę pośrednią. Wiedza o pośrednich zależnościach, czytana z cen innych spółek, dodaje opóźnienie i przestrzelenie zamiast przyspieszenia. Zgadza się to z pilotażem E7.
+
+### 6.5 Werdykty
+
+| Hipoteza | Werdykt | Podstawa |
+|---|---|---|
+| H1: naśladowanie zwiększa obsunięcia i czas z pustą stroną arkusza | potwierdzona (etap wstępny) | E1, 1 aktywo, pozycja docelowa: $h$ = 0,6 − 0 daje +2,0–3,4 p.p. obsunięcia i +15–19 p.p. czasu z pustą stroną; przedziały powyżej zera ([`progress_overview.md`](../progress_overview.md), rozdz. 4.4) |
+| H2: koncentracja kapitału zwiększa wpływ pojedynczych uczestników | częściowo (etap wstępny) | koncentracja zwiększa obsunięcie tylko przy słabym naśladowaniu (stara reguła, $h$ = 0: 0,21% → 0,76%); przy silnym naśladowaniu nie ma efektu przy żadnej regule |
+| **H3**: trend i naśladowanie wzmacniają falę i przestrzelenie | **potwierdzona** | rozdz. 6.2: 3 z 3 miar, oba czynniki, wszystkie poziomy |
+| **H4**: kanały portfela tworzą nadmiarowy współruch | **odrzucona** (w badanym zakresie) | rozdz. 6.3: kontrasty kanałów niewyraźne; współruch istnieje, ale pochodzi z innego źródła |
+| H5: agenci sieciowi skracają opóźnienie | **odrzucona** (efekt przeciwny) | rozdz. 6.4: `day1_d2` 50% − 0% = +0,515 [0,480; 0,550] |
 
 ---
 
 ## 7. Walidacja: co model odtwarza, a czego nie
 
-<!-- WALIDACJA: po badaniu głównym. Rysunki: f8_out_of_sample.png, f8_event_study.png, f8_stylised_facts.png, f8_graph_recovery.png, f8_correlation.png, f8_bands.png -->
+Tylko sprawdzian 7.1 jest niezależny od kalibracji: wagi grafu pochodzą z lat 2021–2023, a porównujemy je z latami 2024–2025. Pozostałe porównania z rynkiem są wynikami kalibracji (rozdz. 5.1). Każde porównanie ma kontrolę, bez której nie da się go zinterpretować:
+
+- **dla wartości liczonych z $R$:** $R$ 200 grafów losowych: krawędzie `real_v1` z losowo zamienionymi rodzicami i dziećmi (każda spółka zachowuje liczbę rodziców, każdy rodzic — liczbę dzieci), wagi oszacowane na nowo na latach 2021–2023;
+- **dla symulacji:** komórka główna (mixed, $h$ = 0,2) na dwóch grafach losowych i na płaskich wejściach (sygnały zewnętrzne stałe), na ziarnach 5001–5010.
+
+Jeśli kontrola odtwarza statystykę równie dobrze jak model, statystyka nic nie mówi o modelu. Wszystkie liczby: `runs/main/validation/*.csv`, polecenie `python -m marketsim.validation.run checks`.
+
+### 7.1 Graf poza próbą
+
+![Graf poza próbą](../figures/f8_out_of_sample.png)
+
+*Rysunek 7. Korelacja dziennej stopy zwrotu $R$ (wagi 2021–2023, prawdziwe sygnały 2024–2025) z prawdziwą stopą zwrotu każdej spółki w latach 2024–2025, obok samej bety rynkowej. Linie: średnia i 95. percentyl dla 200 grafów losowych. Tabele `out_of_sample.csv`, `out_of_sample_by_company.csv`.*
+
+- **Mediana po spółkach:** korelacja $R$ z prawdziwą stopą zwrotu wynosi 0,595, sama beta rynkowa — 0,526.
+- **Grafy losowe:** średnio 0,563, 95. percentyl 0,590. Żaden z 200 nie dorównuje `real_v1`.
+- **Gdzie graf zyskuje:** na spółkach surowcowych, np. COP 0,67 wobec 0,42 dla bety, EOG 0,66 wobec 0,40, NEM 0,66 wobec 0,23, VLO 0,53 wobec 0,41.
+- **Gdzie nie zyskuje:** dla spółek technologicznych i JPM $R$ zawiera tylko ruch indeksu, więc równa się becie.
+- **DUK:** korelacja jest bliska zeru dla obu modeli (−0,02), bo w latach 2024–2025 ta spółka energetyczna nie podążała ani za indeksem, ani za gazem.
+
+### 7.2 Reakcja na duże ruchy surowców
+
+![Reakcja na duże ruchy ropy](../figures/f8_event_study.png)
+
+*Rysunek 8. Dni 5% największych ruchów ropy: średnia reakcja każdej spółki ponad betę rynkową, ze znakiem ruchu ropy. Czarne punkty: prawdziwe spółki z przedziałem 95%. Tabele `events_wti_1d.csv`, `events_wti_2d.csv`, `events_copper_2d.csv` i `*_by_company.csv`.*
+
+Statystyka: korelacja między spółkami średniej reakcji modelu i prawdziwej reakcji.
+
+| Zdarzenia | $R$ | symulacja | symulacja, grafy losowe | płaskie wejścia | $R$ grafów losowych: średnia (udział ≥ `real_v1`) |
+|---|---|---|---|---|---|
+| ropa, 1 dzień | 0,87 | 0,82 | 0,61 / 0,48 | 0,19 | 0,76 (15,5%) |
+| ropa, 2 dni | 0,84 | 0,80 | 0,70 / 0,44 | 0,37 | 0,67 (0,5%) |
+| miedź, 2 dni | 0,79 | 0,75 | −0,07 / −0,19 | −0,04 | 0,15 (0%) |
+
+**Model odtwarza, które spółki reagują na surowce i jak mocno.** Stosunek wielkości reakcji do prawdziwej wynosi 0,93 dla ropy w 1 dzień i 1,19 w 2 dni. Przewaga nad grafami losowymi jest wyraźna dla miedzi i dla dwudniowej reakcji na ropę. Przy ropie w ciągu 1 dnia 15,5% grafów losowych daje $R$ co najmniej tak dobre jak `real_v1`. Znak reakcji spółek o słabej reakcji symulacja trafia rzadziej niż $R$ (61% wobec 89% spółek).
+
+### 7.3 Własności statystyczne stóp zwrotu
+
+![Własności statystyczne](../figures/f8_stylised_facts.png)
+
+*Rysunek 9. Własności dziennych stóp zwrotu: mediana po spółkach, dla symulacji średnia z przebiegów, po rozgrzewce. Tabela `stylised_facts.csv`.*
+
+| | prawdziwe 2024–2025 | $R$ | symulacja | płaskie wejścia |
+|---|---|---|---|---|
+| autokorelacja $r$, opóźnienie 1 | −0,035 | −0,060 | 0,016 | −0,524 |
+| autokorelacja $\lvert r\rvert$, opóźnienie 1 | 0,097 | 0,228 | 0,156 | 0,317 |
+| kurtoza nadwyżkowa | 6,9 | 15,6 | 5,8 | 1,1 |
+| odchylenie dzienne, % | 2,27 | 1,29 | 1,72 | 0,63 |
+| korelacja $\ln$ wolumenu z $\lvert r\rvert$ | 0,50 | — | 0,46 | 0,39 |
+| korelacja z prawdziwą stopą zwrotu | 1 | 0,595 | 0,456 | −0,002 |
+
+Symulacja ma grube ogony, grupowanie zmienności i związek wolumenu z wielkością ruchu bliskie rzeczywistym. Te same własności dają jednak symulacje na grafach losowych (kurtoza 5,6 i 5,8), więc **nie sprawdzają grafu**. Pochodzą z prawdziwych sygnałów i z mechaniki rynku. Na płaskich wejściach kurtoza spada do 1,1, a autokorelacja −0,52 to odbijanie ceny między stronami arkusza.
+
+### 7.4 Graf odbudowany z symulowanych cen
+
+![Graf odbudowany z cen](../figures/f8_graph_recovery.png)
+
+*Rysunek 10. Wagi krawędzi `real_v1` oszacowane na nowo tą samą regresją: z prawdziwych cen 2024–2025 i z cen symulowanych (średnia z przebiegów komórki głównej), obok wag, których używają agenci. Tabele `graph_recovery.csv`, `graph_recovery_by_edge.csv`.*
+
+Korelacja wag odbudowanych z wagami agentów:
+
+- **symulacja:** 0,88;
+- **prawdziwe ceny 2024–2025:** 0,91;
+- **symulacje na grafach losowych:** 0,23 i 0,31;
+- **płaskie wejścia:** −0,04.
+
+Krawędź uznajemy za odzyskaną, gdy ma ten sam znak i $|t| > 2$. Z symulacji odzyskujemy tak 69% krawędzi, z prawdziwych cen 41%: w symulacji nie ma wiadomości o spółkach, które w rzeczywistości zagłuszają zależności. **Rynek przenosi więc strukturę grafu do cen**, a nie tylko do wycen agentów.
+
+### 7.5 Przewidywalne opóźnienia
+
+Test: czy wczorajsza stopa zwrotu rodzica przewiduje dzisiejszą stopę zwrotu dziecka. Udział krawędzi z $|t| > 2$ (tabela `lag_test.csv`):
+
+| | udział krawędzi z $\lvert t\rvert > 2$ | mediana $t$ |
+|---|---|---|
+| prawdziwe 2024–2025 | 0% | −0,36 |
+| symulacja | 62% | 2,93 |
+| symulacje na grafach losowych | 49% i 45% | — |
+| płaskie wejścia | 10% | — |
+
+To **najwyraźniejsza niezgodność modelu z rynkiem.** W symulacji część fali dochodzi następnego dnia i da się ją przewidzieć, w rzeczywistości nie. Cohen i Frazzini (2008) znajdują takie opóźnienia między dostawcami a odbiorcami w danych miesięcznych, ale w dziennych danych naszych 18 dużych spółek ich nie widać.
+
+### 7.6 Struktura korelacji
+
+![Macierze korelacji](../figures/f8_correlation.png)
+
+*Rysunek 11. Korelacje dziennych stóp zwrotu 18 spółek: prawdziwe, w symulacji (średnia z przebiegów komórki głównej) i w $R$. Tabele `correlation_structure.csv`, `correlation_pairs.csv`.*
+
+**Wzór korelacji symulacja odtwarza lepiej niż $R$.** Korelacja 153 elementów macierzy symulowanej z prawdziwą wynosi 0,42, dla $R$ — 0,17, dla symulacji na grafach losowych — 0,27 i 0,25.
+
+**Poziom korelacji jest jednak za wysoki:** średnio 0,53 wobec 0,27 w rzeczywistości ($R$: 0,76). Spółki w symulacji poruszają się razem bardziej niż prawdziwe. Ta sama niezgodność widoczna jest w resztach (rozdz. 6.3, tabela `comovement.csv`): pary niepowiązane mają w symulacji korelację reszt 0,12, w rzeczywistości 0,00. Pary powiązane mają odwrotnie: 0,14 w symulacji i 0,19 w rzeczywistości, bo prawdziwe spółki jednej branży łączy więcej niż krawędzie grafu.
+
+### 7.7 Pasma cen
+
+![Pasma cen](../figures/f8_bands.png)
+
+*Rysunek 12. Ceny sześciu spółek w latach 2024–2025: prawdziwe zamknięcie (przeskalowane do ceny startowej symulacji), $R$ oraz mediana i pasmo 90% przebiegów komórki głównej. Tabele `bands.csv`, `band_paths.csv`.*
+
+**Pasmo przebiegów jest wąskie, a prawdziwa cena prawie zawsze leży poza nim.**
+
+- Szerokość pasma to 2–5% (iloraz górnej i dolnej granicy 1,02–1,05).
+- Prawdziwa cena mieści się w paśmie w 0–9% sesji i w żadnej spółce na końcu okresu.
+- Przebiegi różnią się między sobą niewiele i trzymają się blisko $R$.
+- Odległość od rzeczywistości jest więc odległością $R$ od rzeczywistości, wynikającą głównie z braku wiadomości o spółkach (rozdz. 8).
+
+Model nie prognozuje ścieżek konkretnych spółek i nie do tego służy.
+
+### 7.8 Podsumowanie walidacji
+
+| Model odtwarza | Model nie odtwarza |
+|---|---|
+| zależności grafu poza próbą lepiej niż każdy z 200 grafów losowych (7.1) | ścieżek cen konkretnych spółek (7.7) |
+| przekrój reakcji spółek na duże ruchy ropy i miedzi (7.2) | braku przewidywalnych opóźnień między spółkami (7.5) |
+| grube ogony, grupowanie zmienności, związek wolumenu z ruchem (7.3; bez wartości dla grafu) | poziomu korelacji akcji i braku współruchu par niepowiązanych (7.6, 6.3) |
+| strukturę grafu w cenach (7.4) | autokorelacji stóp zwrotu w składzie `trend` (6.2) |
 
 ---
 
 ## 8. Dyskusja i ograniczenia
 
-<!-- DYSKUSJA: po badaniu głównym -->
+### 8.1 Co wynika z badania
 
-**Ograniczenia znane przed badaniem głównym:**
+**O tym, jak szok przechodzi przez rynek, decydują przede wszystkim strategie inwestorów, a dopiero potem naśladowanie.** Udział strategii trendowych zmienia wzmocnienie zmienności i odchylenia od $R$ mniej więcej dwa razy mocniej niż naśladowanie na badanym zakresie. Oba czynniki się wzmacniają (rozdz. 6.2). Jakościowo zgadza się to z modelami fundamentalistów i chartystów (Lux i Marchesi, 1999; Chiarella i Iori, 2002). Nowe jest to, że efekt mierzymy na fali rzeczywistego szoku wzdłuż grafu, a nie na jednym aktywie, i parami na tych samych ziarnach.
 
-- **Brak wiadomości o samych spółkach.** Ok. 60% dziennego ruchu prawdziwej akcji to wiadomości o spółce (wyniki, decyzje zarządu); model ich nie ma i nie powinien mieć. Nie prognozujemy więc ścieżek konkretnych spółek, porównujemy wzorce.
-- **Kalibracja na okresie porównania** (rozdz. 5.1).
-- **Opóźnienie o dzień.** Inwestor decyduje średnio dwa razy na sesję, więc część ruchu $R$ dochodzi do ceny dopiero następnego dnia; w prawdziwych danych 2024–2025 opóźnienia między dostawcą a odbiorcą nie widać.
-- **Dwóch animatorów jednej spółki** nadal przesuwa kwotowania względem siebie nawzajem; w pilotażu po poprawce zostały 2 załamania z 12 wybranych przebiegów trendowych, oba na tym samym ziarnie w kwietniu 2025 r.
-- **Stałe wagi grafu** z lat 2021–2023, jedna spółka = jedna branża, tylko dane z USA, bez krótkiej sprzedaży i kredytu.
+**Nadmiarowy współruch nie potrzebuje wspólnego portfela.** Kyle i Xiong (2001) wyprowadzają zarażanie z efektu majątkowego wspólnych inwestorów. W naszym rynku ten kanał istnieje (limit ryzyka działa kilkanaście razy na przebieg), ale nie zmienia współruchu. Ten powstaje z tego, jak agenci wchłaniają wspólne ruchy sygnałów, i rośnie z udziałem strategii trendowych (rozdz. 6.3). To wynik dla naszej konstrukcji, w której kanał majątkowy jest słaby (portfele z 4 spółek, limit u 25% inwestorów), a nie ogólne twierdzenie o rynkach. Wynik ma też drugą stronę: współruch, którego prawdziwy rynek nie ma, jest **błędem modelu**. Wyjaśnia go to samo co za wysoki poziom korelacji (rozdz. 7.6).
+
+**Wiedza o sieci, czytana z cen, spowalnia falę.** Wyceniający sieciowy zna pośrednią ścieżkę ropa → COP → VLO, ale poznaje ją przez cenę COP na tym samym, niedoskonałym rynku. Na grafie, w którym wagi bezpośrednie już zawierają tę ścieżkę, dokłada więc spóźnioną drugą falę i przestrzelenie (rozdz. 6.4). Tak samo powstają przewidywalne opóźnienia z rozdz. 7.5, których prawdziwy rynek dzienny nie ma. Mechanizm przypomina opóźnione reakcje na powiązania między dostawcami i odbiorcami opisane przez Cohena i Frazziniego (2008), ale w naszym modelu jest za silny.
+
+### 8.2 Ograniczenia
+
+- **Brak wiadomości o samych spółkach.** Ok. 60% dziennego ruchu prawdziwej akcji to wiadomości o spółce (wyniki, decyzje zarządu). Model ich nie ma i nie powinien mieć. Dlatego pasma przebiegów są wąskie i nie obejmują prawdziwych cen (rozdz. 7.7): nie prognozujemy ścieżek konkretnych spółek, porównujemy wzorce.
+- **Rynek reaguje za wolno i zbyt jednolicie.** Inwestor decyduje średnio dwa razy na sesję, więc część ruchu $R$ dochodzi do ceny dopiero następnego dnia. W symulacji 62% krawędzi ma przewidywalne opóźnienie (w rzeczywistości 0%), korelacje akcji są dwa razy wyższe niż prawdziwe, a pary niepowiązane poruszają się razem. Efekty z rozdz. 6 są porównaniami wewnątrz modelu z tą wadą, a nie ilościowymi przewidywaniami dla rynku.
+- **Kalibracja na okresie porównania** (rozdz. 5.1). Niezależny jest tylko sprawdzian grafu poza próbą (rozdz. 7.1).
+- **Słaby kanał majątkowy z konstrukcji:** 4 spółki w portfelu, limit ryzyka u 25% inwestorów, 25 funduszy, brak kredytu i krótkiej sprzedaży. Odrzucenie H4 dotyczy tego zakresu.
+- **H1 i H2 tylko z etapu wstępnego** (1 aktywo, 30 sesji, ziarna pilotażu); w badaniu głównym ich nie powtarzaliśmy.
+- **Dwóch animatorów jednej spółki** nadal przesuwa kwotowania względem siebie nawzajem. W badaniu głównym zostały 2 załamania na 690 przebiegów, oba w składzie `trend`.
+- **Jedna historia i jeden graf:** lata 2024–2025, stałe wagi grafu z lat 2021–2023, jedna spółka = jedna branża, tylko dane z USA.
 
 ---
 
 ## 9. Wnioski
 
-<!-- WNIOSKI: po badaniu głównym -->
+1. **P5 / H3 (potwierdzona).** Więcej strategii trendowych i silniejsze naśladowanie wyraźnie zwiększają przestrzelenie, odchylenia od trajektorii referencyjnej i spóźnioną reakcję na rzeczywiste szoki surowcowe. Skład strategii działa mocniej niż naśladowanie, a oba czynniki się wzmacniają.
+2. **P6 / H4 (odrzucona).** Symulowany rynek wytwarza współruch spółek niepowiązanych w grafie, ale nie przez wspólny portfel i rebalansowanie: wyłączenie tych kanałów go nie zmienia. Współruch pojawia się tylko przy ruchu sygnałów i rośnie z udziałem strategii trendowych. Prawdziwy rynek tego współruchu nie ma, więc jest to zarazem błąd modelu. Wiadomość o pojedynczej spółce nie wychodzi poza jej sąsiedztwo w grafie.
+3. **P7 / H5 (odrzucona, efekt przeciwny).** Fala przechodzi bez agentów znających pośrednie zależności. Ich udział przesuwa reakcję rafinerii na następny dzień i zwiększa przestrzelenie.
+4. **Walidacja.** Graf przewiduje prawdziwe ruchy 2024–2025 poza próbą lepiej niż wszystkie 200 grafów losowych, a model odtwarza przekrój reakcji spółek na ropę i miedź. Za wolna i zbyt jednolita reakcja rynku (przewidywalne opóźnienia, za wysokie korelacje) jest główną wadą do usunięcia.
+
+**Dalsze kroki** (wersja angielska, artykuł):
+
+- szybsza i bardziej zróżnicowana reakcja agentów (częstsze decyzje, rozrzut opóźnień) i sprawdzenie, czy wnioski P5–P7 się utrzymują, gdy test opóźnień i poziom korelacji są bliższe rzeczywistym;
+- E6 z silniejszym kanałem majątkowym (większe portfele, dźwignia);
+- powtórzenie na innym okresie i grafie.
 
 ---
 
@@ -278,7 +530,15 @@ python -m marketsim.data.fetch && python -m marketsim.data.clean && python -m ma
 scripts/run_main_study.sh        # wszystkie przebiegi, tabele, kontrole F8, rysunki (~6 h na 10 procesach)
 ```
 
-Tabele: `runs/main/e5/p5_*.csv`, `runs/main/e6/p6_*.csv`, `runs/main/e7/p7_*.csv`, `runs/main/validation/*.csv`. Rysunki: `python -m marketsim.analysis.figures`.
+Tabele: `runs/main/e5/p5_*.csv` (w tym analiza dodatkowa `p5_contrasts_extra.csv`), `runs/main/e6/p6_*.csv`, `runs/main/e7/p7_*.csv`, `runs/main/validation/*.csv` (w tym `comovement.csv`). Tabele i rysunki z gotowych przebiegów:
+
+```bash
+python -m marketsim.analysis.study --root runs/main
+python -m marketsim.validation.run checks --root runs/main
+python -m marketsim.analysis.figures --root runs/main --out docs/figures
+```
+
+Tabele `p5_contrasts_extra.csv` i `comovement.csv` dodaliśmy po badaniu głównym (analiza dodatkowa, rozdz. 6.3); kod, który je liczy, nie zmienia żadnej innej tabeli.
 
 ---
 
@@ -294,4 +554,5 @@ Tabele: `runs/main/e5/p5_*.csv`, `runs/main/e6/p6_*.csv`, `runs/main/e7/p7_*.csv
 8. Barberis, N., Shleifer, A., Wurgler, J. (2005). Comovement. *Journal of Financial Economics*, 75(2), 283–317. https://doi.org/10.1016/j.jfineco.2004.04.003
 9. Acemoglu, D., Carvalho, V. M., Ozdaglar, A., Tahbaz-Salehi, A. (2012). The Network Origins of Aggregate Fluctuations. *Econometrica*, 80(5), 1977–2016. https://doi.org/10.3982/ECTA9623
 10. Miller, R. E., Blair, P. D. (2009). *Input-Output Analysis: Foundations and Extensions* (2nd ed.). Cambridge University Press. https://doi.org/10.1017/CBO9780511626982
-11. Źródła danych: FRED https://fred.stlouisfed.org/ · BEA Input-Output Accounts https://www.bea.gov/industry/input-output-accounts-data · SEC EDGAR https://www.sec.gov/search-filings/edgar-application-programming-interfaces · Kenneth French Data Library https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html · Yahoo Finance https://finance.yahoo.com/
+11. Cohen, L., Frazzini, A. (2008). Economic Links and Predictable Returns. *Journal of Finance*, 63(4), 1977–2011. https://doi.org/10.1111/j.1540-6261.2008.01379.x
+12. Źródła danych: FRED https://fred.stlouisfed.org/ · BEA Input-Output Accounts https://www.bea.gov/industry/input-output-accounts-data · SEC EDGAR https://www.sec.gov/search-filings/edgar-application-programming-interfaces · Kenneth French Data Library https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html · Yahoo Finance https://finance.yahoo.com/

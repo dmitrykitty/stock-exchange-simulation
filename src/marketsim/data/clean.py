@@ -1,6 +1,7 @@
 """Cleaning: data/raw/ -> data/processed/ following marketsim.data.schemas (owners: D1, D2).
 
-Skeleton. Each function builds one table and writes it with ``api.write_table``, which validates the schema.
+Each function builds one table and writes it with ``api.write_table``, which validates the schema (the
+auxiliary tables use the schemas in ``extra_tables.py``).
 Cleaning rules: docs/plans/phases/F1_data_collection.md.
 
 Stability rule: the output tables are the contract (names, columns, types in schemas.py). How you build them
@@ -25,6 +26,7 @@ import pandas as pd
 from marketsim import paths
 from marketsim.data import api
 from marketsim.data import schemas as S
+from marketsim.data.extra_tables import OUTLIER_EXPLANATIONS, OUTLIERS_REPORT
 
 PERIOD_START = "2021-01-01"
 PERIOD_END = "2025-12-31"
@@ -335,15 +337,14 @@ def _build_outliers_report(returns: pd.DataFrame) -> Path:
                 }
             )
     out_df = pd.DataFrame(rows, columns=["date", "series", "log_return", "pct_change"])
-    explanations = pd.read_csv(paths.mapping_dir() / "outlier_explanations.csv", dtype=str)
+    explanations = api.read_table(OUTLIER_EXPLANATIONS).astype(object)
     out_df = out_df.merge(explanations, on=["date", "series"], how="left", validate="many_to_one")
     out_df["explanation"] = out_df["explanation"].fillna("unexplained")
     out_df["source_url"] = out_df["source_url"].fillna("")
+    out_df = out_df.astype({"log_return": float, "pct_change": float})
     if not out_df.empty:
         out_df = out_df.sort_values(["date", "series"]).reset_index(drop=True)
-    out_path = paths.processed_dir() / "outliers_report.csv"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_df.to_csv(out_path, index=False)
+    out_path = api.write_table(out_df, OUTLIERS_REPORT)
     explained = out_df["explanation"].ne("unexplained")
     print(f"[clean] outliers: {int(explained.sum())}/{len(out_df)} have sourced explanations")
     if not explained.all():

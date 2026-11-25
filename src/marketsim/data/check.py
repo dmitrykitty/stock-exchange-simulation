@@ -13,8 +13,10 @@ import pandas as pd
 
 from marketsim.data import api
 from marketsim.data import schemas as S
+from marketsim.data.extra_tables import EXTRA_TABLES
 
 IO_YEARS = (2022, 2023)
+EXTRA_PRICE_COLUMNS = ("copper_lme_usd_per_lb",)
 
 
 def _describe(df: pd.DataFrame) -> str:
@@ -39,6 +41,20 @@ def cross_checks(loaded: dict[str, pd.DataFrame]) -> list[str]:
                      "stocks_volume", "returns_daily", "ff49_vw_daily"):
             if name in loaded and not loaded[name].index.equals(cal.index):
                 problems.append(f"{name}: dates differ from the master calendar")
+    daily = loaded.get("commodities_daily")
+    if daily is not None:
+        # added after the schema was frozen (allow_extra), so the schema does not check it: same rules as the
+        # listed prices (float, no gaps, > 0)
+        for column in EXTRA_PRICE_COLUMNS:
+            if column not in daily:
+                problems.append(f"commodities_daily: column {column} missing")
+            elif daily[column].dtype.kind != "f" or daily[column].isna().any() or (daily[column] <= 0).any():
+                problems.append(f"commodities_daily: {column} must be a float price > 0 without gaps")
+    for name, df in loaded.items():
+        if name.startswith("external_"):
+            levels = df.drop(columns="date", errors="ignore")
+            if (levels <= 0).any().any():
+                problems.append(f"{name}: signal levels must be > 0")
     if "ff49_vw_daily" in loaded and loaded["ff49_vw_daily"].shape[1] != 49:
         problems.append("ff49_vw_daily: expected 49 columns")
     for year in IO_YEARS:
@@ -56,6 +72,12 @@ def cross_checks(loaded: dict[str, pd.DataFrame]) -> list[str]:
     return problems
 
 
+def external_scenarios() -> list[str]:
+    """Names of the scenario files ``external_<scenario>.parquet`` present next to the processed tables."""
+    folder = api.table_path(S.EXTERNAL, scenario="x").parent
+    return sorted(p.stem.removeprefix("external_") for p in folder.glob("external_*.parquet"))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--strict", action="store_true", help="treat a missing file as an error")
@@ -65,6 +87,9 @@ def main(argv: list[str] | None = None) -> int:
     for year in IO_YEARS:
         jobs += [(f"io_matrix_{year}", S.IO_MATRIX, {"year": year}),
                  (f"io_industries_{year}", S.IO_INDUSTRIES, {"year": year})]
+    # the external-signal scenarios (contract K2) are not in ALL_DATA_TABLES: one file per scenario
+    jobs += [(f"external_{scenario}", S.EXTERNAL, {"scenario": scenario}) for scenario in external_scenarios()]
+    jobs += [(spec.name, spec, {}) for spec in EXTRA_TABLES]
 
     loaded: dict[str, pd.DataFrame] = {}
     missing = invalid = 0

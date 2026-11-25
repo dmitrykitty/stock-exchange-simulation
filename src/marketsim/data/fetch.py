@@ -1,7 +1,7 @@
 """Download raw data into data/raw/ (owners: D1 for time series, D2 for BEA and EDGAR).
 
-Skeleton: the functions are specified, the implementation follows docs/plans/phases/F1_data_collection.md
-(working code snippets and expected numbers are there). Rules:
+The implementation follows docs/plans/phases/F1_data_collection.md (sources and expected numbers are there).
+Rules:
 - a file lands in data/raw/ exactly as the server sent it and is never edited by hand;
 - every downloaded file is recorded in data/raw/manifest.json: url, download date, size, sha256;
 - a second run does not re-download existing files (``--force`` does).
@@ -14,7 +14,6 @@ Run: ``python -m marketsim.data.fetch [--force] [--only fred,yahoo,...]``
 from __future__ import annotations
 
 import argparse
-import csv
 import hashlib
 import json
 import os
@@ -28,6 +27,7 @@ from pathlib import Path
 import requests
 
 from marketsim import paths
+from marketsim.data import api
 
 START, END = "2021-01-01", "2026-01-01"  # END is exclusive in yfinance
 
@@ -102,19 +102,6 @@ def _download_file(url: str, dest: Path, force: bool = False, headers: dict[str,
     dest.write_bytes(data)
     _record_manifest(dest, url)
     return dest
-
-
-def _load_company_tickers() -> list[str]:
-    """Read the 18 company tickers from data/mapping/companies.csv."""
-    comp_csv = paths.mapping_dir() / "companies.csv"
-    if not comp_csv.exists():
-        return [
-            "COP", "EOG", "VLO", "MPC", "NEE", "DUK", "DAL", "UAL", "ODFL",
-            "FCX", "NEM", "NUE", "AA", "NVDA", "AMD", "GOOGL", "META", "JPM",
-        ]
-    with open(comp_csv, mode="r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        return [row["ticker"].strip() for row in reader if row.get("ticker")]
 
 
 def fetch_fred(series_id: str, force: bool = False) -> Path:
@@ -319,7 +306,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         selected = list(all_sources)
 
-    company_tickers = _load_company_tickers()
+    company_tickers = api.tickers()  # data/mapping/companies.csv, validated against its schema
 
     if "fred" in selected:
         for sid in (*FRED_DAILY, *FRED_MONTHLY):

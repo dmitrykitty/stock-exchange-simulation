@@ -17,6 +17,8 @@ from marketsim.analysis.runs import STRESS_SHARE, pair_kinds, residuals
 from marketsim.validation.reality import Reality, SimRun, graph_from_structure, real_pairs
 
 Sims = dict[str, list[SimRun]]
+# R without the company-to-company edges: is the gain of the graph in them or in the direct exposures?
+DIRECT = "R (direct exposures)"
 
 
 # ----- 1. the graph out of sample ----------------------------------------------------------------------------------
@@ -27,14 +29,17 @@ def _fit(reality: Reality, pred: pd.DataFrame) -> pd.Series:
 
 
 def out_of_sample(reality: Reality, random_refs: list[pd.DataFrame]) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Does the graph, estimated on 2021–2023, predict the real daily moves of 2024–2025? Per company: the
-    correlation of R and of beta-only with the real return; summary: medians and the share of random graphs whose R
-    does at least as well as real_v1."""
-    per = pd.DataFrame({"R (real_v1)": _fit(reality, reality.ref), "beta only": _fit(reality, reality.beta_only)})
+    """Does the graph, estimated on 2021–2023, explain the real daily moves of 2024–2025 (R uses the same-day
+    signals)? Per company: the correlation of R, of R with the direct exposures only and of beta-only with the real
+    return; summary: medians and the share of random graphs whose R does at least as well as real_v1."""
+    direct = reality.reference_returns(reality.graph, mode="direct")
+    per = pd.DataFrame({"R (real_v1)": _fit(reality, reality.ref), "beta only": _fit(reality, reality.beta_only),
+                        DIRECT: _fit(reality, direct)})
     random_median = np.array([_fit(reality, r).median() for r in random_refs])
     summary = pd.DataFrame([
         {"model": "R (real_v1)", "median corr": per["R (real_v1)"].median()},
         {"model": "beta only", "median corr": per["beta only"].median()},
+        {"model": DIRECT, "median corr": per[DIRECT].median()},
         {"model": "R of random graphs: mean", "median corr": random_median.mean()},
         {"model": "R of random graphs: 95th percentile", "median corr": np.quantile(random_median, 0.95)},
         {"model": "share of random graphs >= real_v1",
@@ -92,7 +97,9 @@ def event_study(reality: Reality, sims: Sims, random_refs: list[pd.DataFrame], c
                      .mean(axis=0) for _ in range(2000)])
     lo, hi = np.quantile(boot, 0.025, axis=0), np.quantile(boot, 0.975, axis=0)
     means = {"R (real_v1)": _responses(reality, reality.ref, events, days, abnormal).mean(axis=0),
-             "beta only": _responses(reality, reality.beta_only, events, days, abnormal).mean(axis=0)}
+             "beta only": _responses(reality, reality.beta_only, events, days, abnormal).mean(axis=0),
+             DIRECT: _responses(reality, reality.reference_returns(reality.graph, mode="direct"), events, days,
+                                abnormal).mean(axis=0)}
     for name, runs in sims.items():
         means["sim: " + name] = np.mean([_responses(reality, r.returns, events, days, abnormal).mean(axis=0)
                                          for r in runs], axis=0)

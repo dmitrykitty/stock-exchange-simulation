@@ -398,8 +398,7 @@ w~tabelach kosztów bieżących) i~18 krawędzi od S\&P~500. Graf między spół
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.92\textwidth]{f2_graph_real_v1.png}
-\caption{Graf \code{real\_v1}. Liczba przy grocie: waga pełna; linia przerywana: $|t| < 2$. Źródło:
-\code{data/graph/real\_v1}, notatnik \code{02\_graph.ipynb}.}\label{fig:graf}
+\caption{Graf \code{real\_v1}. Liczba przy grocie: waga pełna; linia przerywana: $|t| < 2$.}\label{fig:graf}
 \end{figure}
 
 % =================================================================================================================
@@ -407,9 +406,9 @@ w~tabelach kosztów bieżących) i~18 krawędzi od S\&P~500. Graf między spół
 
 \subsection{Pilotaż i~badanie główne}
 Oddzielamy pilotaż od badania głównego, jak w~prerejestracji badań~\cite{nosek2018}. Wszystko, co policzyliśmy
-przed zamrożeniem protokołu (E1--E7 na ziarnach z~\code{configs/*.yaml}), traktujemy jako
+przed zamrożeniem protokołu (E1--E7 na ziarnach pilotażu), traktujemy jako
 \emph{pilotaż}: na nim kalibrowaliśmy model, znaleźliśmy i~poprawiliśmy błędy oraz wybraliśmy miary. Protokół
-badania głównego (\code{docs/plans/main\_study\_protocol.md}) zamroziliśmy w~repozytorium (commit \code{99c62a7})
+badania głównego zamroziliśmy w~repozytorium (commit \code{99c62a7})
 \emph{przed} uruchomieniem badania głównego na nowych ziarnach 5001--5030 (kontrole: 5001--5010); test automatyczny
 sprawdza, że nie występują one w~żadnej konfiguracji pilotażu.
 
@@ -419,8 +418,7 @@ są więc wynikami kalibracji; nowe ziarna chronią \emph{porównania między ko
 
 \subsection{Rynek bazowy}
 Rynek bazowy to graf \code{real\_v1}, prawdziwe sygnały 2024--2025 (502 sesje), rozgrzewka 10 sesji,
-525 inwestorów (rozdz.~\ref{sec:agenci}), 2 animatorów na spółkę i~silnik C++ (konfiguracja
-\code{configs/main/e5.yaml}).
+525 inwestorów (rozdz.~\ref{sec:agenci}), 2 animatorów na spółkę i~silnik C++.
 
 \subsection{Eksperymenty}\label{sec:eksperymenty}
 
@@ -456,21 +454,20 @@ i~rebalansowania (fundusze zachowują kapitał, ale nie handlują). Szok spółk
 
 \subsection{Miary}\label{sec:miary}
 Miary liczymy po rozgrzewce z~cen na koniec sesji: $P$ (midpoint, przy pustej stronie arkusza --- ostatnia
-transakcja) i~$R$; wyjątkiem są opóźnienie i~$A_\sigma$, liczone na siatce co 0,25 sesji. W~nawiasach podajemy nazwy kolumn w~tabelach wyników.
+transakcja) i~$R$; wyjątkiem są opóźnienie i~$A_\sigma$, liczone na siatce co 0,25 sesji. 
 \begin{itemize}
   \item \textbf{Załamanie przebiegu:} $\max_t |\ln(P/R)| > \ln 2$. Przebieg załamany pomijamy w~średnich
   i~w~parach; udział załamań jest osobnym wynikiem. Reguły nie stosujemy w~E6b, gdzie wiadomość celowo oddala $P$
   od $R$.
   \item \textbf{Propagacja (P5, P7).} Regresja łączna dziennych stóp zwrotu $P$ na dzisiejszą i~wczorajszą
-  zmianę $\ln R$ daje część ruchu $R$, która dochodzi do ceny tego samego dnia, $\pi_0$ (\code{day0}), i~następnego
-  dnia, $\pi_1$ (\code{day1}); $\pi_1^{(k)}$ i~$\Pi^{(k)} = \pi_0^{(k)} + \pi_1^{(k)}$ to te same wielkości dla
-  spółek w~odległości $k$ kroków od ropy ($k = 2$: rafinerie; \code{day1\_d2}, \code{pass2\_d2}). Ponadto:
-  opóźnienie (przesunięcie maksymalnej korelacji wzajemnej zmian $\ln R$ i~$\ln P$; \code{lag}), wzmocnienie
-  zmienności $A_\sigma = \sigma(\Delta \ln P)/\sigma(\Delta \ln R)$ (\code{vol\_amp}), korelacja dziennych stóp
-  zwrotu $P$ i~$R$ (\code{corr\_R}) oraz liczba spółko-dni z~$|\ln P/R| > 10\%$, $N_{10}$ (\code{gap\_days}).
+  zmianę $\ln R$ daje część ruchu $R$, która dochodzi do ceny tego samego dnia, $\pi_0$, i~następnego
+  dnia, $\pi_1$; $\pi_1^{(k)}$ i~$\Pi^{(k)} = \pi_0^{(k)} + \pi_1^{(k)}$ to te same wielkości dla
+  spółek w~odległości $k$ kroków od ropy ($k = 2$: rafinerie). Ponadto:
+  opóźnienie (przesunięcie maksymalnej korelacji wzajemnej zmian $\ln R$ i~$\ln P$), wzmocnienie
+  zmienności $A_\sigma = \sigma(\Delta \ln P)/\sigma(\Delta \ln R)$, korelacja dziennych stóp
+  zwrotu $P$ i~$R$ oraz liczba spółko-dni z~$|\ln P/R| > 10\%$, $N_{10}$.
   \item \textbf{Współruch (P6):} średnia korelacja \emph{reszt} stóp zwrotu (stopa zwrotu $P$ minus część
-  wyjaśniona przez własne $R$ spółki dziś i~wczoraj) w~parach, których graf nie łączy (poza indeksem), $\rho_u$
-  (\code{resid\_unrelated}); to samo w~10\% dni o~największych ruchach indeksu, $\rho_u^{\mathrm{s}}$. Definicja
+  wyjaśniona przez własne $R$ spółki dziś i~wczoraj) w~parach, których graf nie łączy (poza indeksem), $\rho_u$; to samo w~10\% dni o~największych ruchach indeksu, $\rho_u^{\mathrm{s}}$. Definicja
   z~wniosku, $\operatorname{corr}(r^P) - \operatorname{corr}(r^R)$, jest liczona pomocniczo: w~pilotażu była
   ujemna we wszystkich komórkach, bo własny szum ceny rozmywa wspólny czynnik $R$.
   \item \textbf{Wiadomość o~spółce (E6b):} różnica $\ln P$ z~wiadomością i~bez niej na tym samym ziarnie na
@@ -539,10 +536,10 @@ E1--E4 w~badaniu głównym & etapy wstępne, niepowtarzane & uproszczone rynki (
 
 \subsection{Przebiegi i~załamania}
 Badanie główne objęło 690 przebiegów (tab.~\ref{tab:eksperymenty}), policzonych 25 listopada 2026~r. w~ok.~6,5~h
-na 10 procesach (\code{scripts/run\_main\_study.sh}).
+na 10 procesach.
 
 Regułę załamania przekracza z~założenia 32 z~60 przebiegów E6b z~wiadomością (23 przy $h = 0$, 9 przy
-$h = 0{,}6$; \code{runs/main/e6/p6\_shock\_extra.csv}): wiadomość obniża wycenę NVDA o~połowę, a~$R$ jej nie
+$h = 0{,}6$): wiadomość obniża wycenę NVDA o~połowę, a~$R$ jej nie
 zawiera. To nie są awarie, więc E6b pomijamy w~liczeniu załamań. W~pozostałych 570 przebiegach doszło do 2 awarii,
 obu w~składzie \cell{trend} (przy $h = 0$ i~$h = 0{,}4$; w~każdej z~tych komórek 1/30, przedział Wilsona
 [0,006; 0,167]). Według dzienników przebiegów są to: DAL (ziarno 5028), który spadł do 17,85~USD przy $R$ równym
@@ -558,8 +555,7 @@ E5 --- 1 z~210, jednostronny test Fishera $p = 0{,}40$. W~pilotażu, przed popra
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=\textwidth]{f7_e5_cells.png}
-\caption{E5: średnie komórek (30 przebiegów bez załamanych) dla $\pi_1$, $A_\sigma$, $N_{10}$ i~$\rho_u$.
-Konfiguracja \code{configs/main/e5.yaml}, ziarna 5001--5030; tabela \code{runs/main/e5/p5\_metrics.csv}.}
+\caption{E5: średnie komórek (30 przebiegów bez załamanych) dla $\pi_1$, $A_\sigma$, $N_{10}$ i~$\rho_u$. Ziarna 5001--5030.}
 \label{fig:e5}
 \end{figure}
 
@@ -567,8 +563,7 @@ Konfiguracja \code{configs/main/e5.yaml}, ziarna 5001--5030; tabela \code{runs/m
 \centering
 \includegraphics[width=\textwidth]{f7_p5_contrasts.png}
 \caption{E5: kontrasty parowe na tych samych ziarnach z~przedziałami 95\% (bootstrap, 5000 losowań); niebieskie
---- skład względem \cell{mixed}, pomarańczowe --- naśladowanie względem $h = 0$. Tabela
-\code{runs/main/e5/p5\_contrasts.csv}.}\label{fig:p5}
+--- skład względem \cell{mixed}, pomarańczowe --- naśladowanie względem $h = 0$.}\label{fig:p5}
 \end{figure}
 
 Tabela~\ref{tab:h3} zestawia trzy miary główne H3. Wszystkie 18 kontrastów w~tabeli jest wyraźnych po poprawce
@@ -625,9 +620,7 @@ Co jeszcze pokazuje E5:
 \includegraphics[width=\textwidth]{f7_p6_channels.png}
 \caption{E6a, prawdziwe sygnały 2024--2025: $\rho_u$ (wszystkie dni), $\rho_u^{\mathrm{s}}$ (10\% dni z~największym
 ruchem indeksu) i~liczba sprzedaży wywołanych limitem ryzyka na przebieg, dla czterech wariantów kanałów i~dwóch
-wartości $h$. Linia przerywana: ta sama statystyka dla prawdziwych spółek. Konfiguracje
-\code{configs/main/e6\_*.yaml} i~\code{e5.yaml}; tabele \code{runs/main/e6/p6\_means.csv},
-\code{runs/main/validation/comovement.csv}.}\label{fig:e6a}
+wartości $h$. Linia przerywana: ta sama statystyka dla prawdziwych spółek.}\label{fig:e6a}
 \end{figure}
 
 \paragraph{Limit ryzyka i~rebalansowanie nie zmieniają współruchu.} We wszystkich ośmiu komórkach $\rho_u$ wynosi 0,091--0,122.
@@ -647,7 +640,7 @@ wyłączeniu obu kanałów.
 
 \begin{table}[!htbp]
 \centering\small
-\caption{Korelacja reszt: rynek prawdziwy i~symulowany. Tabela \code{runs/main/validation/comovement.csv}.}
+\caption{Korelacja reszt: rynek prawdziwy i~symulowany.}
 \label{tab:wspolruch}
 \begin{tabularx}{\textwidth}{@{}Y c c c c@{}}
 \toprule
@@ -665,8 +658,7 @@ Na prawdziwym rynku średnia korelacja reszt par, których graf nie łączy, jes
 rozrzut: u~34 ze 109 par przekracza 0,1, a~u~innych jest ujemna. W~symulacji średnia wynosi 0,12, a~korelację
 powyżej 0,1 ma ponad połowa par. Model zawyża więc i~przeciętny współruch, i~częstość dodatnich powiązań. Współruch
 w~symulacji pojawia się tylko wtedy, gdy sygnały zewnętrzne się ruszają: na płaskich wejściach współruch znika; silniejszy
-jest w~dniach dużych ruchów indeksu. Analiza dodatkowa na siatce E5 (poza regułami protokołu,
-\code{runs/main/e5/p5\_contrasts\_extra.csv}) pokazuje, że skład \cell{trend} zwiększa $\rho_u$ względem
+jest w~dniach dużych ruchów indeksu. Analiza dodatkowa na siatce E5 (poza regułami protokołu) pokazuje, że skład \cell{trend} zwiększa $\rho_u$ względem
 \cell{mixed} o~0,062 / 0,050 / 0,040 przy $h = 0 / 0{,}2 / 0{,}4$ (w~dniach stresu o~0,07--0,11; wszystko wyraźne
 z~Bonferronim), a~silne naśladowanie ($h = 0{,}4$) zmniejsza $\rho_u$ o~0,025--0,046.
 
@@ -680,8 +672,7 @@ której osobno nie testowaliśmy.
 \includegraphics[width=\textwidth]{f7_p6_shock.png}
 \caption{E6b, sygnały zamrożone na 2 stycznia 2024~r.: różnica $\ln P$ z~wiadomością (wycena NVDA $-50\%$ na
 początku sesji 20) i~bez niej na tym samym ziarnie, na zamknięciu sesji $k = 1, 5, 20$ po sesji z~wiadomością;
-średnie z~30 par z~przedziałami 95\%.
-Konfiguracja \code{configs/main/e6\_shock.yaml}; tabela \code{runs/main/e6/p6\_shock\_effects.csv}.}
+średnie z~30 par z~przedziałami 95\%.}
 \label{fig:e6b}
 \end{figure}
 
@@ -689,8 +680,7 @@ Konfiguracja \code{configs/main/e6\_shock.yaml}; tabela \code{runs/main/e6/p6\_s
 \begin{itemize}
   \item \textbf{NVDA potrzebuje około dwóch sesji.} Przy $h = 0$ na zamknięciu sesji z~wiadomością ($k = 0$)
   spada o~21,9 punktu logarytmicznego [18,7; 25,2], czyli o~32\% pełnego szoku ($100 \ln 0{,}5 = -69{,}3$), a~na
-  zamknięciu następnej sesji ($k = 1$) o~67,3 [63,6; 70,9], czyli o~97\% (\code{p6\_shock\_extra.csv},
-  \code{p6\_shock\_effects.csv}).
+  zamknięciu następnej sesji ($k = 1$) o~67,3 [63,6; 70,9], czyli o~97\%.
   \item \textbf{Naśladowanie spowalnia tę reakcję.} Przy $h = 0{,}6$ spadek wynosi 13,3 przy $k = 0$ (19\%), 42,5
   przy $k = 1$, 60,1 przy $k = 5$ i~58,4 przy $k = 20$: cena nie dochodzi do nowej wyceny nawet po 20 sesjach.
   \item \textbf{GOOGL i~META}, połączone z~NVDA w~grafie, tracą 0,3\% przy $k = 0$ oraz 2,0\% / 2,9\% / 2,2\% przy
@@ -715,8 +705,7 @@ jest 25, więc kanał majątkowy jest słaby z~konstrukcji (rozdz.~\ref{sec:ogra
 \centering
 \includegraphics[width=\textwidth]{f7_p7_network_share.png}
 \caption{E7: udział wyceniających sieciowych wśród 500 inwestorów (0, 125, 150 i~250 z~300 wyceniających;
-$h = 0{,}2$); średnie komórek z~przedziałami 95\%. Punkt 30\% to komórka główna E5. Konfiguracje \code{configs/main/e7\_network\{0,25,50\}.yaml}; tabele
-\code{runs/main/e7/p7\_metrics.csv}, \code{p7\_contrasts.csv}.}\label{fig:e7}
+$h = 0{,}2$); średnie komórek z~przedziałami 95\%. Punkt 30\% to komórka główna E5.}\label{fig:e7}
 \end{figure}
 
 \begin{table}[!htbp]
@@ -743,8 +732,7 @@ krótkowzroczny wycenia VLO bezpośrednio z~ropy (waga bezpośrednia 0,43), wię
 sieciowy wycenia VLO z~cen COP i~EOG \emph{na symulowanej giełdzie} (COP $\to$ VLO 0,54; ropa $\to$ VLO tylko 0,05):
 czeka, aż te ceny się zmienią, i~dokłada drugą, spóźnioną falę. Obie fale się sumują, więc przestrzelenie w~dwóch
 dniach rośnie z~1,19 do 1,44. Efekt nie wymaga przewagi sieciowych: gdy wiedzę o~grafie ma połowa wyceniających
-(komórka 30\%, 150 z~300), $\pi_1^{(2)}$ jest wyższe niż przy 0\% o~0,332 [0,298; 0,365] (analiza dodatkowa,
-\code{runs/main/e7/p7\_contrasts\_extra.csv}).
+(komórka 30\%, 150 z~300), $\pi_1^{(2)}$ jest wyższe niż przy 0\% o~0,332 [0,298; 0,365] (analiza dodatkowa).
 
 Odpowiedź na P7: na grafie \code{real\_v1} fala przechodzi nawet bez wyceniających sieciowych, bo wagi bezpośrednie
 już zawierają ścieżkę pośrednią. Wiedza o~pośrednich zależnościach, czytana z~cen innych spółek, dodaje opóźnienie
@@ -795,8 +783,7 @@ porównanie ma kontrolę, bez której nie da się go zinterpretować:
   \item dla symulacji: komórka główna (\cell{mixed}, $h = 0{,}2$) na dwóch grafach losowych i~na płaskich wejściach
   (stałe sygnały zewnętrzne), na ziarnach 5001--5010.
 \end{itemize}
-Jeśli kontrola odtwarza statystykę równie dobrze jak model, statystyka nic nie mówi o~modelu. Wszystkie liczby
-pochodzą z~\code{runs/main/validation/*.csv}.
+Jeśli kontrola odtwarza statystykę równie dobrze jak model, statystyka nic nie mówi o~modelu.
 
 \subsection{Graf poza próbą}\label{sec:poza-proba}
 
@@ -805,7 +792,7 @@ pochodzą z~\code{runs/main/validation/*.csv}.
 \includegraphics[width=\textwidth]{f8_out_of_sample.png}
 \caption{Korelacja dziennej stopy zwrotu $R$ (wagi 2021--2023, prawdziwe sygnały 2024--2025) z~prawdziwą stopą
 zwrotu każdej spółki w~latach 2024--2025, obok $R$ z~samymi bezpośrednimi ekspozycjami (bez krawędzi między
-spółkami) i~samej bety rynkowej. Linie: średnia i~95.~percentyl dla 200 grafów losowych. Tabele \code{out\_of\_sample.csv}, \code{out\_of\_sample\_by\_company.csv}.}\label{fig:oos}
+spółkami) i~samej bety rynkowej. Linie: średnia i~95.~percentyl dla 200 grafów losowych.}\label{fig:oos}
 \end{figure}
 
 Mediana po spółkach korelacji $R$ z~prawdziwą stopą zwrotu wynosi 0,595, a~samej bety rynkowej 0,526. Grafy
@@ -827,7 +814,7 @@ indeksem, ani za gazem.
 \centering
 \includegraphics[width=\textwidth]{f8_event_study.png}
 \caption{Dni 5\% największych ruchów ropy: średnia reakcja każdej spółki ponad betę rynkową, ze znakiem ruchu ropy.
-Czarne punkty: prawdziwe spółki z~przedziałem 95\%. Tabele \code{events\_*.csv}.}\label{fig:events}
+Czarne punkty: prawdziwe spółki z~przedziałem 95\%.}\label{fig:events}
 \end{figure}
 
 \begin{table}[!htbp]
@@ -858,8 +845,7 @@ trafia rzadziej niż $R$ (61\% wobec 89\% spółek).
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=\textwidth]{f8_stylised_facts.png}
-\caption{Własności dziennych stóp zwrotu: mediana po spółkach, dla symulacji średnia z~przebiegów, po rozgrzewce.
-Tabela \code{stylised\_facts.csv}.}\label{fig:facts}
+\caption{Własności dziennych stóp zwrotu: mediana po spółkach, dla symulacji średnia z~przebiegów, po rozgrzewce.}\label{fig:facts}
 \end{figure}
 
 \begin{table}[!htbp]
@@ -890,8 +876,7 @@ a~autokorelacja $-0{,}52$ to odbijanie ceny między stronami arkusza.
 \centering
 \includegraphics[width=\textwidth]{f8_graph_recovery.png}
 \caption{Wagi krawędzi \code{real\_v1} oszacowane na nowo tą samą regresją: z~prawdziwych cen 2024--2025 i~z~cen
-symulowanych (średnia z~przebiegów komórki głównej), obok wag, których używają agenci. Tabele
-\code{graph\_recovery.csv}, \code{graph\_recovery\_by\_edge.csv}.}\label{fig:recovery}
+symulowanych (średnia z~przebiegów komórki głównej), obok wag, których używają agenci.}\label{fig:recovery}
 \end{figure}
 
 Korelacja wag odbudowanych z~wagami agentów wynosi 0,88 dla symulacji, 0,91 dla prawdziwych cen 2024--2025, 0,23
@@ -906,7 +891,7 @@ Test sprawdza, czy wczorajsza stopa zwrotu rodzica przewiduje dzisiejszą stopę
 
 \begin{table}[!htbp]
 \centering\small
-\caption{Test opóźnień: udział krawędzi z~$|t| > 2$. Tabela \code{lag\_test.csv}.}\label{tab:lag}
+\caption{Test opóźnień: udział krawędzi z~$|t| > 2$.}\label{tab:lag}
 \begin{tabular}{@{}l c c@{}}
 \toprule
  & udział krawędzi z~$|t| > 2$ & mediana $t$ \\
@@ -929,7 +914,7 @@ a~odbiorcami w~danych miesięcznych, ale w~dziennych danych naszych 18 dużych s
 \centering
 \includegraphics[width=\textwidth]{f8_correlation.png}
 \caption{Korelacje dziennych stóp zwrotu 18 spółek: prawdziwe, w~symulacji (średnia z~przebiegów komórki głównej)
-i~w~$R$. Tabele \code{correlation\_structure.csv}, \code{correlation\_pairs.csv}.}\label{fig:corr}
+i~w~$R$.}\label{fig:corr}
 \end{figure}
 
 Wzór korelacji symulacja odtwarza lepiej niż $R$: korelacja 153 elementów macierzy symulowanej z~prawdziwą wynosi
@@ -945,8 +930,7 @@ niż krawędzie grafu.
 \centering
 \includegraphics[width=\textwidth]{f8_bands.png}
 \caption{Ceny sześciu spółek w~latach 2024--2025: prawdziwe zamknięcie (przeskalowane do ceny startowej
-symulacji), $R$ oraz mediana i~pasmo 90\% przebiegów komórki głównej. Tabele \code{bands.csv},
-\code{band\_paths.csv}.}\label{fig:bands}
+symulacji), $R$ oraz mediana i~pasmo 90\% przebiegów komórki głównej.}\label{fig:bands}
 \end{figure}
 
 Pasmo przebiegów jest wąskie (2--5\%; iloraz górnej i~dolnej granicy 1,02--1,05), a~prawdziwa cena mieści się

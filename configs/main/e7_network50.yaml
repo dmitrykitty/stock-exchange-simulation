@@ -1,4 +1,4 @@
-# Main study (docs/plans/main_study_protocol.md). E7: 50% of the 300 valuers are network valuers, h = 0.2, 30 runs.
+# Main study (docs/plans/main_study_protocol.md). E7: 50% of the 500 investors (250 of the 300 valuers) are network valuers, h = 0.2, 30 runs.
 base:
   name: main_e7_network50
   exchange_backend: cpp

@@ -79,7 +79,8 @@ def p7(root: Path, out: Path) -> Path:
         ax.set_xticks(sorted(runs.share.unique()), [f"{s}%" + ("\n(E5)" if s == 30 else "")
                                                     for s in sorted(runs.share.unique())])
         ax.set_title(title, fontsize=10)
-    fig.suptitle("E7: share of network valuers among the 300 valuers (h = 0.2), cell means with 95% intervals")
+    fig.suptitle("E7: share of network valuers among the 500 investors (300 valuers, h = 0.2), cell means with 95% "
+                 "intervals")
     fig.tight_layout()
     return _save(fig, out / "f7_p7_network_share.png")
 
@@ -229,14 +230,20 @@ def validation_more(root: Path, out: Path) -> list[Path]:
         summary = pd.read_csv(v / "out_of_sample.csv").set_index("model")["median corr"]
         fig, ax = plt.subplots(figsize=(12, 4))
         x = np.arange(len(per))
-        ax.bar(x - 0.2, per["R (real_v1)"], 0.4, label="reference R of real_v1", color=ORANGE)
-        ax.bar(x + 0.2, per["beta only"], 0.4, label="market beta only", color=GREY)
+        bars = [("R (real_v1)", "reference R of real_v1", ORANGE),
+                ("R (direct exposures)", "R with direct exposures only (no company-to-company edges)", GREEN),
+                ("beta only", "market beta only", GREY)]
+        bars = [b for b in bars if b[0] in per]
+        width = 0.8 / len(bars)
+        for k, (column, label, color) in enumerate(bars):
+            ax.bar(x + (k - (len(bars) - 1) / 2) * width, per[column], width, label=label, color=color)
         for key, style in (("R of random graphs: mean", ":"), ("R of random graphs: 95th percentile", "--")):
             if key in summary:
                 ax.axhline(summary[key], color=BLUE, ls=style, lw=1, label=f"{key} (median over companies)")
         ax.set_xticks(x, per.ticker)
         ax.set_ylabel("corr with real daily returns 2024–2025")
-        ax.set_title("The graph out of sample: weights from 2021–2023 against the real daily moves of 2024–2025")
+        ax.set_title("The graph out of sample: weights from 2021–2023 against the real daily moves of 2024–2025 "
+                     "(same-day signals)")
         ax.legend(fontsize=8)
         fig.tight_layout()
         paths.append(_save(fig, out / "f8_out_of_sample.png"))

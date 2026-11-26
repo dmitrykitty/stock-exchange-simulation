@@ -18,6 +18,7 @@ E5 cells at h = 0 and 0.4 are the "all channels" cells of E6. Every table is wri
 from __future__ import annotations
 
 import argparse
+import json
 from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
@@ -25,8 +26,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from marketsim.analysis.runs import run_metrics, shock_response
+from marketsim.analysis.runs import COLLAPSE_GAP, GROUPS, daily, run_metrics, shock_groups, shock_response
 from marketsim.analysis.stats import did, fisher_greater, one_sample, paired, wilson
+from marketsim.graph.api import load_graph
+from marketsim.metrics import as_of, price_series
+from marketsim.sim.log_schema import RunLog, load_run
 
 MIXES = ("mixed", "network", "trend")
 P5_METRICS = ("day0", "day1", "day1_d1", "day1_d2", "day1_d3", "lag", "vol_amp", "corr_R", "gap_days", "acf1")
@@ -138,9 +142,60 @@ def e7(root: Path, workers: int = 1, seed: int = 2027) -> dict[str, pd.DataFrame
                                **paired(cell[a], cell[b], m, rng, family=len(pairs))}
                               for m in P7_METRICS for a, b in pairs])
     collapses = _collapses(runs, ["share"])
+    # Secondary, outside the protocol (own random stream): the shares above are of all 500 investors; half of the
+    # 300 valuers is the E5 mixed cell (30% of the investors), so 30% − 0% is "half the valuers know the graph".
+    extra_rng = np.random.default_rng(seed + 1)
+    extra = pd.DataFrame([{"metric": m, "contrast": "30% − 0%", "network share of valuers": "50% − 0%",
+                           **paired(cell[30], cell[0], m, extra_rng)}
+                          for m in P7_METRICS if 30 in cell and 0 in cell])
     contrasts.to_csv(d / "p7_contrasts.csv", index=False)
     collapses.to_csv(d / "p7_collapses.csv", index=False)
-    return {"runs": runs, "p7_contrasts": contrasts, "p7_collapses": collapses}
+    extra.to_csv(d / "p7_contrasts_extra.csv", index=False)
+    tables = {"runs": runs, "p7_contrasts": contrasts, "p7_collapses": collapses, "p7_contrasts_extra": extra}
+    if 0 in cell and 50 in cell:
+        wti_runs = _metrics(runs.loc[runs.share.isin([0, 50])], d / "p7_wti_metrics.csv", workers, _wti_response)
+        base, high = (wti_runs.loc[wti_runs.share == share] for share in (0, 50))
+        # Reproduce the supplementary analysis with its own seed and draw count.
+        wti_rng = np.random.default_rng(42)
+        wti = pd.DataFrame([
+            {"metric": metric, "mean_0": base.loc[~base.collapse, metric].mean(),
+             "mean_250": high.loc[~high.collapse, metric].mean(),
+             **paired(high, base, metric, wti_rng, draws=10_000)}
+            for metric in ("wti_lag", "wti")
+        ])
+        wti.to_csv(d / "p7_wti.csv", index=False)
+        tables["p7_wti"] = wti
+    return tables
+
+
+def _wti_response(run_dir: str) -> dict:
+    """Mean of the two refinery slopes on logged same-day and previous-day external returns."""
+    path = Path(run_dir)
+    meta = json.loads((path / "meta.json").read_text())
+    out = {"run_id": path.name, "wti": np.nan, "wti_lag": np.nan}
+    if not set(GROUPS["d2"]).issubset(meta["assets"]):
+        return out
+    events = pd.read_parquet(path / "events.parquet", columns=["payload"], filters=[("kind", "==", "session_start")])
+    signals = ["wti", "henry_hub", "copper", "gold", "sp500"]
+    levels = pd.DataFrame(events.payload.map(json.loads).tolist()).set_index("session").sort_index()
+    returns = np.log(levels.reindex(columns=signals, index=range(meta["config"]["n_sessions"]))).diff()
+    start = meta["config"]["warmup_sessions"] + 2
+    x = pd.concat([returns, returns.shift().add_suffix("_lag")], axis=1).iloc[start:].assign(intercept=1)
+    if len(x) < len(x.columns) or not np.isfinite(x).all().all() or np.linalg.matrix_rank(x) < len(x.columns):
+        return out
+
+    assets = [meta["assets"].index(ticker) for ticker in GROUPS["d2"]]
+    tables = {name: pd.read_parquet(path / f"{name}.parquet", filters=[("asset", "in", assets)])
+              for name in ("book", "trades")}
+    log = RunLog(path, meta, tables)
+    ends = np.arange(meta["config"]["n_sessions"]) + 1 - 1e-9
+    prices = pd.DataFrame({asset: as_of(price_series(log, asset), ends) for asset in assets})
+    y = np.log(prices).diff().iloc[start:]
+    valid = np.isfinite(y).all(axis=1)
+    if valid.sum() >= len(x.columns) and np.linalg.matrix_rank(x.loc[valid]) == len(x.columns):
+        slopes = pd.Series(np.linalg.lstsq(x.loc[valid], y.loc[valid], rcond=None)[0].mean(axis=1), index=x.columns)
+        out.update(wti=slopes["wti"], wti_lag=slopes["wti_lag"])
+    return out
 
 
 # ----- E6 (P6) -----------------------------------------------------------------------------------------------------
@@ -213,7 +268,42 @@ def e6_shock(root: Path, workers: int = 1, seed: int = 2029) -> dict[str, pd.Dat
                             if (c, hs[-1]) in cell and (c, hs[0]) in cell and len(hs) > 1])
     effects.to_csv(d.parent / "p6_shock_effects.csv", index=False)
     herding.to_csv(d.parent / "p6_shock_herding.csv", index=False)
-    return {"runs": runs, "p6_shock_effects": effects, "p6_shock_herding": herding}
+    # Secondary, outside the protocol (own random stream): the horizon k above is the close k sessions after the
+    # close of the session the news happens in; this adds that first close (k = 0) and counts the runs that cross
+    # the collapse rule, which a news shock crosses by design (R does not contain the news).
+    if workers > 1:
+        with ProcessPoolExecutor(workers) as pool:
+            first = pd.DataFrame(list(pool.map(_first_close, pairs, chunksize=1)))
+    else:
+        first = pd.DataFrame([_first_close(p) for p in pairs])
+    first = shocked[["run_id", "seed", "change", "h"]].merge(first, on="run_id", validate="one_to_one")
+    extra_rng = np.random.default_rng(seed + 1)
+    cells = {key: g for key, g in first.groupby(["change", "h"])}
+    extra = pd.DataFrame(
+        [{"change": c, "h": h, "metric": m, **one_sample(g, m, extra_rng, family=len(cells))}
+         for (c, h), g in cells.items() for m in ("target_0", "linked_0", "unrelated_0")]
+        + [{"change": c, "h": h, "metric": "collapse rule crossed", "pairs": len(g), "mean": float(g.crossed.mean()),
+            "count": int(g.crossed.sum())} for (c, h), g in cells.items()])
+    extra.to_csv(d.parent / "p6_shock_extra.csv", index=False)
+    return {"runs": runs, "p6_shock_effects": effects, "p6_shock_herding": herding, "p6_shock_extra": extra}
+
+
+def _first_close(pair: tuple[str, str]) -> dict:
+    """Response at the close of the session the news happens in, and whether the shocked run crosses the collapse
+    rule max |ln P/R| > ln 2 after the warm-up."""
+    shocked, base = load_run(pair[0]), load_run(pair[1])
+    shock = shocked.meta["resolved_agents"]["company_shock"]
+    p1, r1 = daily(shocked)
+    p0, _ = daily(base)
+    diff = np.log(p1) - np.log(p0)
+    groups = shock_groups(load_graph(shocked.meta["config"]["graph"]), list(p1.columns), shock["asset"])
+    k = int(np.floor(shock["time"]))
+    out = {"run_id": Path(pair[0]).name}
+    for name, members in groups.items():
+        out[f"{name}_0"] = float(diff[members].iloc[k].mean()) if members else float("nan")
+    gap = np.log(p1 / r1).iloc[shocked.meta["config"]["warmup_sessions"]:]
+    out["crossed"] = bool(gap.abs().to_numpy().max() > COLLAPSE_GAP)
+    return out
 
 
 STEPS = {"e5": e5, "e7": e7, "e6_channels": e6_channels, "e6_shock": e6_shock}

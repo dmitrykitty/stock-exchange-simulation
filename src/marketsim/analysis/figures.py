@@ -14,7 +14,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from marketsim.analysis.stats import one_sample
+
 BLUE, ORANGE, GREEN, GREY, RED = "#1f77b4", "#ff7f0e", "#2ca02c", "#7f7f7f", "#d62728"
+
+
+def _decimal(value: float, _position: int | None = None) -> str:
+    return f"{value:g}".replace(".", ",")
 
 
 def _plt():
@@ -40,17 +46,16 @@ def p5(root: Path, out: Path) -> Path:
     """Paired contrasts of E5: investor mix against mixed (blue), herding against h = 0 (orange)."""
     plt = _plt()
     c = pd.read_csv(root / "e5" / "p5_contrasts.csv")
-    shown = [("day1", "next-day share of a move of R"), ("lag", "lag of P behind R, sessions"),
-             ("vol_amp", "volatility amplification σ(P)/σ(R)"), ("corr_R", "correlation of daily returns with R"),
-             ("gap_days", "company-days with |ln P/R| > 10%"), ("day1_d2", "next-day share, refiners (2 links)")]
+    shown = [("day1", "Reakcja w następnej sesji"), ("lag", "Opóźnienie ceny względem $R$ (sesje)"),
+             ("vol_amp", "Wzmocnienie zmienności"), ("corr_R", "Korelacja stóp zwrotu z $R$"),
+             ("gap_days", "Liczba odchyleń od $R$"), ("day1_d2", "Reakcja rafinerii w następnej sesji")]
     fig, axes = plt.subplots(2, 3, figsize=(15, 7.5))
     for ax, (metric, title) in zip(axes.flat, shown):
         part = c.loc[c.metric == metric].reset_index(drop=True)
-        _forest(ax, part, [f"{a} ({b})" for a, b in zip(part.contrast, part["at"])],
+        _forest(ax, part, [f"{a} ({b})".replace(".", ",") for a, b in zip(part.contrast, part["at"])],
                 [BLUE if f == "mix" else ORANGE for f in part.factor])
         ax.set_title(title, fontsize=10)
-    fig.suptitle("E5: paired contrasts on the same seeds, 95% bootstrap intervals; "
-                 "blue: investor mix against mixed, orange: herding against h = 0")
+        ax.xaxis.set_major_formatter(_decimal)
     fig.tight_layout()
     return _save(fig, out / "f7_p5_contrasts.png")
 
@@ -68,18 +73,27 @@ def p7(root: Path, out: Path) -> Path:
     e5 = e5.loc[(e5["agents.composition"] == "mixed") & (e5["agents.herding.h"] == 0.2), ["run_id"]].assign(share=30)
     runs = pd.concat(shares + [e5]).merge(runs, on="run_id")
     runs = runs.loc[~runs.collapse.astype(bool)]
-    shown = [("pass2_d2", "refiners: share of R passed in 2 days"), ("day1_d2", "refiners: next-day share"),
-             ("corr_d2", "refiners: correlation with R"), ("corr_tech", "GOOGL, META: correlation with R"),
-             ("vol_amp", "volatility amplification"), ("gap_days", "company-days with |ln P/R| > 10%")]
-    fig, axes = plt.subplots(2, 3, figsize=(14, 7))
-    for ax, (metric, title) in zip(axes.flat, shown):
-        g = runs.groupby("share")[metric]
-        m, se = g.mean(), g.sem()
-        ax.errorbar(m.index, m, yerr=1.96 * se, fmt="o-", capsize=3, color=BLUE)
-        ax.set_xticks(sorted(runs.share.unique()), [f"{s}%" + ("\n(E5)" if s == 30 else "")
-                                                    for s in sorted(runs.share.unique())])
-        ax.set_title(title, fontsize=10)
-    fig.suptitle("E7: share of network valuers among the 300 valuers (h = 0.2), cell means with 95% intervals")
+    cells = dict(tuple(runs.groupby("share")))
+    rng = np.random.default_rng(2027)
+    fig, ax = plt.subplots(figsize=(8.4, 3.5))
+    positions = np.arange(len(cells))
+    for metric, offset, label, color in [
+        ("day0_d2", -0.18, "W tej samej sesji", BLUE),
+        ("day1_d2", 0.18, "W następnej sesji", ORANGE),
+    ]:
+        intervals = pd.DataFrame([one_sample(cell, metric, rng) for cell in cells.values()])
+        means = intervals["mean"]
+        errors = [means - intervals.ci_low, intervals.ci_high - means]
+        bars = ax.bar(positions + offset, means, width=0.34, color=color, label=label, yerr=errors, capsize=3)
+        labels = [f"{value:.2f}".replace(".", ",") for value in means]
+        ax.bar_label(bars, labels=labels, padding=3)
+    ax.axhline(0, color=GREY, linewidth=0.8)
+    ax.set_xticks(positions, [str(share * 5) for share in cells])
+    ax.set_xlabel("Liczba wyceniających obserwujących kursy dostawców (spośród 300)")
+    ax.set_ylabel("Zmiana kursu rafinerii (%)")
+    ax.yaxis.set_major_formatter(_decimal)
+    ax.margins(y=0.2)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.19), ncol=2, frameon=False)
     fig.tight_layout()
     return _save(fig, out / "f7_p7_network_share.png")
 
@@ -96,52 +110,54 @@ def p6(root: Path, out: Path) -> list[Path]:
         real_path = root / "validation" / "comovement.csv"
         real = (pd.read_csv(real_path).set_index("series").loc["real 2024-2025"] if real_path.exists()
                 else pd.Series(dtype=float))
-        fig, axes = plt.subplots(1, 3, figsize=(15, 4.2))
+        fig, axes = plt.subplots(1, 3, figsize=(10.4, 3.3), layout="constrained")
         for ax, (metric, title) in zip(axes, [
-                ("resid_unrelated", "unrelated pairs: residual correlation"),
-                ("resid_unrelated_stress", "the same on the 10% largest market days"),
-                ("risk_triggers", "stop-loss sales per run")]):
+                ("resid_unrelated", "Wszystkie sesje"),
+                ("resid_unrelated_stress", "Największe zmiany indeksu"),
+                ("risk_triggers", "Uruchomienia limitu ryzyka")]):
             part = m.loc[m.metric == metric]
             for k, (h, color) in enumerate(zip(sorted(part.h.unique()), (BLUE, ORANGE))):
                 p = part.loc[part.h == h].set_index("channels").reindex(order)
                 x = np.arange(len(order)) + (k - 0.5) * 0.25
                 ax.errorbar(x, p["mean"], yerr=[p["mean"] - p.ci_low, p.ci_high - p["mean"]], fmt="o", capsize=3,
-                            color=color, label=f"h = {h:g}")
-            ax.set_xticks(range(len(order)), ["all channels", "no stop-loss", "no rebalancing", "neither"])
-            ax.set_title(title, fontsize=10)
+                            color=color, label=f"$h$ = {_decimal(h)}")
+            ax.set_xticks(range(len(order)), ["Obie\nreguły", "Bez\nlimitu", "Bez rebalan-\nsowania", "Bez obu\nreguł"])
+            ax.set_title(title, fontsize=11)
+            ax.yaxis.set_major_formatter(_decimal)
             ax.axhline(0, color="k", lw=0.6)
             if metric in real.index:
-                ax.axhline(real[metric], color=GREEN, ls="--", lw=1.2, label="real 2024–2025")
-        axes[0].legend()
-        fig.suptitle("E6, real signals 2024–2025: comovement of companies the graph does not relate, beyond their "
-                     "own references (means over runs, 95% intervals)")
-        fig.tight_layout()
+                ax.axhline(real[metric], color=GREEN, ls="--", lw=1.2, label="Rynek rzeczywisty")
+        axes[0].set_ylabel("Średnia korelacja reszt")
+        axes[2].set_ylabel("Średnia liczba na przebieg")
+        handles, labels = axes[0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc="outside upper center", ncols=len(labels), frameon=False)
         paths.append(_save(fig, out / "f7_p6_channels.png"))
     effects_path = root / "e6" / "p6_shock_effects.csv"
     if effects_path.exists():
         e = pd.read_csv(effects_path)
+        extra_path = effects_path.with_name("p6_shock_extra.csv")
+        if extra_path.exists():
+            extra = pd.read_csv(extra_path)
+            e = pd.concat([e, extra.loc[extra.metric.str.endswith("_0")]], ignore_index=True)
         change = e.change.min()  # the largest fall, when several shock sizes were run
         e = e.loc[e.change == change]
         horizons = sorted({int(x.rsplit("_", 1)[1]) for x in e.metric if x.rsplit("_", 1)[-1].isdigit()})
-        fig, axes = plt.subplots(1, 3, figsize=(15, 4.2))
+        fig, axes = plt.subplots(1, 3, figsize=(10.4, 3.3), layout="constrained")
         for ax, group, title in zip(axes, ("target", "linked", "unrelated"),
-                                    ("NVDA itself", "GOOGL, META (linked by the graph)",
-                                     "the 15 companies the graph does not relate")):
+                                    ("NVDA", "GOOGL i META", "15 spółek niepowiązanych")):
             for h, color in zip(sorted(e.h.unique()), (BLUE, ORANGE)):
                 p = e.loc[(e.h == h) & e.metric.isin([f"{group}_{k}" for k in horizons])].copy()
                 p["k"] = p.metric.str.rsplit("_", n=1).str[1].astype(int)
                 p = p.sort_values("k")
                 ax.errorbar(p.k, 100 * p["mean"], yerr=[100 * (p["mean"] - p.ci_low), 100 * (p.ci_high - p["mean"])],
-                            fmt="o-", capsize=3, color=color, label=f"h = {h:g}")
+                            fmt="o-", capsize=3, color=color, label=f"$h$ = {_decimal(h)}")
             ax.axhline(0, color="k", lw=0.6)
             ax.set_xticks(horizons)
-            ax.set_xlabel("sessions after the news")
-            ax.set_ylabel("ln P with − without the news, %")
-            ax.set_title(title, fontsize=10)
-        axes[0].legend()
-        fig.suptitle(f"E6, frozen signals: company valuations {100 * change:+.0f}% at the news, against the same "
-                     "seed without the news (means over the pairs, 95% intervals)")
-        fig.tight_layout()
+            ax.yaxis.set_major_formatter(_decimal)
+            ax.set_title(title, fontsize=11)
+        axes[0].set_ylabel("Różnica logarytmów cen × 100")
+        axes[1].set_xlabel("Liczba sesji od wiadomości")
+        axes[0].legend(frameon=False)
         paths.append(_save(fig, out / "f7_p6_shock.png"))
     return paths
 
@@ -157,13 +173,16 @@ def validation(root: Path, out: Path) -> list[Path]:
         fig, ax = plt.subplots(figsize=(14, 4.2))
         x = np.arange(len(d))
         ax.errorbar(x, d.real, yerr=[d.real - d["real lo"], d["real hi"] - d.real], fmt="ko", capsize=3,
-                    label="real, 95% interval")
-        ax.plot(x, d["R (real_v1)"], "s", color=ORANGE, label="reference R")
+                    label="Rynek rzeczywisty (przedział 95%)")
+        ax.plot(x, d["R (real_v1)"], "s", color=ORANGE, label="Trajektoria referencyjna $R$")
+        labels = {"sim: mixed, h=0.2": "Symulacja na badanym grafie", "sim: random graph 1": "Graf losowy 1",
+                  "sim: random graph 2": "Graf losowy 2", "sim: flat inputs": "Stałe sygnały"}
         for name, marker in zip(sim[:4], ("^", "x", "+", ".")):
-            ax.plot(x, d[name], marker, label=name.removeprefix("sim: "), alpha=0.8)
+            ax.plot(x, d[name], marker, label=labels.get(name, name.removeprefix("sim: ")), alpha=0.8)
         ax.axhline(0, color=GREY, lw=0.8)
         ax.set_xticks(x, d.ticker)
-        ax.set_title("Days of the 5% largest oil moves: mean response above the market beta, signed by the move")
+        ax.set_ylabel("Średnia reakcja ponad wpływ indeksu")
+        ax.yaxis.set_major_formatter(_decimal)
         ax.legend(fontsize=8)
         fig.tight_layout()
         paths.append(_save(fig, out / "f8_event_study.png"))
@@ -172,21 +191,22 @@ def validation(root: Path, out: Path) -> list[Path]:
         main = next(c for c in e.columns if c.startswith("sim: "))
         fig, ax = plt.subplots(figsize=(14, 4))
         x = np.arange(len(e))
-        ax.bar(x - 0.27, e["planted (2021-2023)"], 0.27, label="weights the agents use (2021–2023)", color=GREY)
-        ax.bar(x, e["real 2024-2025"], 0.27, label="re-estimated on real 2024–2025", color=BLUE)
-        ax.bar(x + 0.27, e[main], 0.27, label=f"re-estimated on simulated prices ({main.removeprefix('sim: ')})",
+        ax.bar(x - 0.27, e["planted (2021-2023)"], 0.27, label="Wagi agentów (2021–2023)", color=GREY)
+        ax.bar(x, e["real 2024-2025"], 0.27, label="Oszacowane z cen rzeczywistych", color=BLUE)
+        ax.bar(x + 0.27, e[main], 0.27, label="Oszacowane z cen symulowanych",
                color=ORANGE)
         ax.set_xticks(x, e.edge, rotation=75, fontsize=7)
         ax.axhline(0, color="k", lw=0.6)
         ax.legend(fontsize=8)
-        ax.set_title("The graph rebuilt from prices: weight of every edge")
+        ax.set_ylabel("Waga powiązania")
+        ax.yaxis.set_major_formatter(_decimal)
         fig.tight_layout()
         paths.append(_save(fig, out / "f8_graph_recovery.png"))
     return paths
 
 
 def e5_cells(root: Path, out: Path) -> Path:
-    """E5: cell means (collapsed runs left out) of four metrics as heatmaps, with the collapses of every cell."""
+    """E5: cell means for large price gaps and next-session response, excluding collapsed runs."""
     plt = _plt()
     s = pd.read_csv(root / "e5" / "summary.csv")[["run_id", "agents.composition", "agents.herding.h"]]
     runs = s.merge(pd.read_csv(root / "e5" / "p5_metrics.csv"), on="run_id").rename(
@@ -194,28 +214,29 @@ def e5_cells(root: Path, out: Path) -> Path:
     runs["collapse"] = runs.collapse.astype(bool)
     mixes = [m for m in ("network", "mixed", "trend") if m in set(runs.mix)]
     hs = sorted(runs.h.unique())
-    shown = [("day1", "next-day share of a move of R"), ("vol_amp", "volatility amplification σ(P)/σ(R)"),
-             ("gap_days", "company-days with |ln P/R| > 10%"),
-             ("resid_unrelated", "residual correlation, unrelated pairs")]
+    shown = [("gap_days", r"Duże odchylenia od $R$ ($N_{10}$)", 1),
+             ("day1", r"Reakcja w następnej sesji ($\pi_1$)", 2)]
     collapsed = runs.groupby(["mix", "h"]).collapse.agg(["sum", "size"])
-    fig, axes = plt.subplots(1, len(shown), figsize=(4.2 * len(shown), 3.6))
-    for ax, (metric, title) in zip(axes, shown):
+    fig, axes = plt.subplots(1, 2, figsize=(8.4, 2.45), layout="constrained")
+    for ax, (metric, title, digits) in zip(axes, shown):
         if metric not in runs:
             ax.set_visible(False)
             continue
         table = runs.loc[~runs.collapse].pivot_table(index="mix", columns="h", values=metric).reindex(mixes)[hs]
-        im = ax.imshow(table.to_numpy(), cmap="viridis", aspect="auto")
+        im = ax.imshow(table.to_numpy(), cmap="Blues", aspect="auto")
         for i, mix in enumerate(mixes):
             for j, h in enumerate(hs):
                 k, n = collapsed.loc[(mix, h)]
-                note = f"\n{k}/{n} coll." if k else ""
-                ax.text(j, i, f"{table.iat[i, j]:.3g}{note}", ha="center", va="center", fontsize=8, color="white")
-        ax.set_xticks(range(len(hs)), [f"h = {h:g}" for h in hs])
-        ax.set_yticks(range(len(mixes)), mixes)
-        ax.set_title(title, fontsize=9)
-        fig.colorbar(im, ax=ax, fraction=0.046)
-    fig.suptitle("E5: cell means over the runs that did not collapse (collapses: max |ln P/R| > ln 2)")
-    fig.tight_layout()
+                value = table.iat[i, j]
+                note = f"\n({k}/{n})" if k else ""
+                label = f"{value:.{digits}f}".replace(".", ",")
+                color = "white" if im.norm(value) > 0.65 else "#10233b"
+                ax.text(j, i, label + note, ha="center", va="center", fontsize=11, color=color)
+        ax.set_xticks(range(len(hs)), [f"$h$ = {_decimal(h)}" for h in hs], fontsize=10)
+        ax.set_yticks(range(len(mixes)), mixes, fontstyle="italic", fontsize=10)
+        ax.tick_params(length=0)
+        ax.set_title(title, fontsize=11)
+        fig.colorbar(im, ax=ax, fraction=0.05, format=_decimal)
     return _save(fig, out / "f7_e5_cells.png")
 
 
@@ -227,18 +248,24 @@ def validation_more(root: Path, out: Path) -> list[Path]:
     if (v / "out_of_sample_by_company.csv").exists():
         per = pd.read_csv(v / "out_of_sample_by_company.csv").sort_values("R (real_v1)")
         summary = pd.read_csv(v / "out_of_sample.csv").set_index("model")["median corr"]
-        fig, ax = plt.subplots(figsize=(12, 4))
+        fig, ax = plt.subplots(figsize=(10.0, 4.0), layout="constrained")
         x = np.arange(len(per))
-        ax.bar(x - 0.2, per["R (real_v1)"], 0.4, label="reference R of real_v1", color=ORANGE)
-        ax.bar(x + 0.2, per["beta only"], 0.4, label="market beta only", color=GREY)
-        for key, style in (("R of random graphs: mean", ":"), ("R of random graphs: 95th percentile", "--")):
+        bars = [("R (real_v1)", "Pełny graf", ORANGE),
+                ("R (direct exposures)", "Ekspozycje bezpośrednie", GREEN),
+                ("beta only", "Beta rynkowa", GREY)]
+        bars = [b for b in bars if b[0] in per]
+        width = 0.8 / len(bars)
+        for k, (column, label, color) in enumerate(bars):
+            ax.bar(x + (k - (len(bars) - 1) / 2) * width, per[column], width, label=label, color=color)
+        for key, style, label in (("R of random graphs: mean", ":", "Średnia grafów losowych"),
+                                  ("R of random graphs: 95th percentile", "--", "95. percentyl grafów losowych")):
             if key in summary:
-                ax.axhline(summary[key], color=BLUE, ls=style, lw=1, label=f"{key} (median over companies)")
+                ax.axhline(summary[key], color=BLUE, ls=style, lw=1, label=label)
         ax.set_xticks(x, per.ticker)
-        ax.set_ylabel("corr with real daily returns 2024–2025")
-        ax.set_title("The graph out of sample: weights from 2021–2023 against the real daily moves of 2024–2025")
-        ax.legend(fontsize=8)
-        fig.tight_layout()
+        ax.set_ylabel("Korelacja dziennych stóp zwrotu\nz danymi rzeczywistymi")
+        ax.yaxis.set_major_formatter(_decimal)
+        handles, labels = ax.get_legend_handles_labels()
+        fig.legend(handles, labels, loc="outside upper center", ncols=3, frameon=False)
         paths.append(_save(fig, out / "f8_out_of_sample.png"))
     if (v / "stylised_facts.csv").exists():
         f = pd.read_csv(v / "stylised_facts.csv").set_index("series")
@@ -259,32 +286,37 @@ def validation_more(root: Path, out: Path) -> list[Path]:
         c = pd.read_csv(v / "correlation_pairs.csv")
         order = list(dict.fromkeys(c.a))
         fig, axes = plt.subplots(1, 3, figsize=(16, 5))
-        for ax, col, title in zip(axes, ("real", "sim", "R"), ("real 2024–2025", "simulation (main cell)",
-                                                               "reference R")):
+        for ax, col, title in zip(axes, ("real", "sim", "R"), ("Rynek rzeczywisty 2024–2025", "Symulacja bazowa",
+                                                               "Trajektoria referencyjna $R$")):
             m = c.pivot(index="a", columns="b", values=col).loc[order, order]
             im = ax.imshow(m.to_numpy(), cmap="RdBu_r", vmin=-1, vmax=1)
             ax.set_xticks(range(len(order)), order, rotation=90, fontsize=7)
             ax.set_yticks(range(len(order)), order, fontsize=7)
             ax.set_title(title, fontsize=10)
-        fig.colorbar(im, ax=axes, fraction=0.02)
-        fig.suptitle("Correlation of daily returns between the 18 companies")
+        fig.colorbar(im, ax=axes, fraction=0.02, format=_decimal)
         paths.append(_save(fig, out / "f8_correlation.png"))
-    if (v / "band_paths.csv").exists():
+    if (v / "band_paths.csv").exists() and (v / "bands.csv").exists():
         b = pd.read_csv(v / "band_paths.csv")
-        chosen = [t for t in ("COP", "VLO", "UAL", "NVDA", "FCX", "JPM") if t in set(b.ticker)]
-        fig, axes = plt.subplots(2, 3, figsize=(15, 7))
-        for ax, t in zip(axes.flat, chosen):
-            p = b.loc[b.ticker == t]
-            ax.fill_between(p.session, p.sim_lo, p.sim_hi, color=BLUE, alpha=0.25, label="simulation, 90% band")
-            ax.plot(p.session, p.sim_median, color=BLUE, lw=1, label="simulation, median")
-            ax.plot(p.session, p.R, color=ORANGE, lw=1, ls="--", label="reference R")
-            ax.plot(p.session, p.real, color="k", lw=1, label="real close")
-            ax.set_title(t, fontsize=10)
-            ax.set_xlabel("session (trading day of 2024–2025)")
-        axes.flat[0].set_ylabel("USD")
-        axes.flat[0].legend(fontsize=7)
-        fig.suptitle("Prices 2024–2025: real close, reference R and the band of the main-cell runs")
-        fig.tight_layout()
+        coverage = pd.read_csv(v / "bands.csv").sort_values(["inside band", "ticker"])
+        example = "VLO" if "VLO" in set(b.ticker) else coverage.iloc[-1].ticker
+        p = b.loc[b.ticker == example].sort_values("session")
+        fig, (price, share) = plt.subplots(2, 1, figsize=(9, 4.5), height_ratios=(1.5, 1), layout="constrained")
+        price.fill_between(p.session, p.sim_lo, p.sim_hi, color=BLUE, alpha=0.28, label="Pasmo 90% symulacji")
+        price.plot(p.session, p.sim_median, color=BLUE, lw=1, label="Mediana symulacji")
+        price.plot(p.session, p.real, color="k", lw=1, label="Rzeczywisty kurs zamknięcia")
+        price.set_ylabel("Kurs (USD)")
+        price.set_xlabel("Sesja")
+        price.set_title(f"{example} w latach 2024–2025", loc="left", fontsize=10)
+        price.yaxis.set_major_formatter(_decimal)
+        price.legend(loc="best", frameon=False)
+
+        share.bar(coverage.ticker, 100 * coverage["inside band"],
+                  color=[BLUE if ticker == example else "#9da9b4" for ticker in coverage.ticker])
+        share.set_ylabel("Odsetek sesji (%)")
+        share.set_title("Rzeczywisty kurs w paśmie symulacji", loc="left", fontsize=10)
+        share.set_ylim(bottom=0)
+        share.yaxis.set_major_formatter(_decimal)
+        share.tick_params(axis="x", labelsize=8)
         paths.append(_save(fig, out / "f8_bands.png"))
     return paths
 

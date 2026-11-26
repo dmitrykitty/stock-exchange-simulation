@@ -101,3 +101,11 @@ def test_comovement_is_near_zero_for_independent_noise_and_high_for_a_common_one
     assert abs(table.loc["sim: noise", "resid_unrelated"]) < 0.05
     assert table.loc["sim: common", "resid_unrelated"] > 0.9
     assert table.loc["sim: common", "false_links"] == pytest.approx(1.0)
+
+
+def test_out_of_sample_reports_r_without_company_edges(reality):
+    per, summary = checks.out_of_sample(reality, [reality.beta_only])
+    assert checks.DIRECT in per.columns
+    assert checks.DIRECT in set(summary.model)
+    # the synthetic real returns follow the full R, so the full R fits at least as well as the direct one
+    assert per["R (real_v1)"].median() >= per[checks.DIRECT].median() - 1e-12

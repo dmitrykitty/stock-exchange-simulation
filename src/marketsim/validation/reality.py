@@ -35,9 +35,10 @@ class Reality:
     ref: pd.DataFrame             # daily log returns of the reference R of ``graph`` on the real signals
     beta_only: pd.DataFrame       # beta x the real index return: the simplest benchmark
 
-    def reference_returns(self, graph: DependencyGraph) -> pd.DataFrame:
-        """Daily log returns of the reference path of another graph on the same real signals."""
-        out = np.log(reference_path(graph, self.levels, mode="full")).diff().iloc[1:]
+    def reference_returns(self, graph: DependencyGraph, mode: str = "full") -> pd.DataFrame:
+        """Daily log returns of the reference path of a graph on the same real signals; ``mode="direct"`` keeps
+        only every company's direct exposures to the external signals and the index (no company-to-company edges)."""
+        out = np.log(reference_path(graph, self.levels, mode=mode)).diff().iloc[1:]
         out.index = self.real.index
         return out[self.tickers]
 

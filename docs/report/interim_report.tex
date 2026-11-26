@@ -46,28 +46,17 @@
 \maketitle
 
 \begin{abstract}
-\noindent Gdy zmienia się cena ropy, na giełdzie zmieniają się ceny wydobywców, rafinerii i linii lotniczych, ale
-inwestorzy reagują z~opóźnieniem, z~niepełną wiedzą i~naśladują innych. Badamy te mechanizmy w~agentowym modelu
-giełdy zbudowanym jako symulacja zdarzeń dyskretnych. Ceny 18 spółek amerykańskich powstają w~nim z~transakcji
-525 inwestorów w~arkuszach zleceń, a~jedynym wejściem z~rzeczywistości są dzienne ceny surowców i~indeksu
-S\&P~500 z~lat 2024--2025. Inwestorzy wyceniają spółki według grafu zależności: jego strukturę wzięliśmy z~tabel
-przepływów międzygałęziowych BEA, a~wagi z~regresji stóp zwrotu z~lat 2021--2023. Pytamy, (i)~jak udział
-strategii trendowych i~siła naśladowania zmieniają przejście szoku przez graf, (ii)~czy wspólny portfel inwestora
-(limit ryzyka, rebalansowanie) sprawia, że razem poruszają się spółki, których nic nie łączy, oraz (iii)~czy
-inwestorzy znający pośrednie zależności przyspieszają reakcję rynku. Reguły rozstrzygania zapisaliśmy przed
-badaniem głównym (690 przebiegów na nowych ziarnach losowych, porównania parami). Wszystkie przebiegi dotyczą
-jednej historii rynku 2024--2025, na której model był też kalibrowany: ziarna losowe dają różne realizacje tej samej
-historii, a~nie niezależne historie.
-
-Skład z~większym udziałem strategii trendowych i~silniejsze naśladowanie wyraźnie wzmacniają zmienność
-i~przestrzelenie cen oraz opóźniają reakcję; skład działa przy tym mocniej niż naśladowanie. Spółki niepowiązane
-w~grafie poruszają się w~modelu razem, ale wyłączenie limitu ryzyka i~rebalansowania tego nie zmienia; współruch
-pojawia się tylko przy ruchu sygnałów zewnętrznych i~rośnie z~udziałem strategii trendowych. Inwestorzy znający pośrednie zależności nie przyspieszają fali, lecz przesuwają część reakcji
-rafinerii na następny dzień. Graf objaśnia prawdziwe dzienne ruchy cen z~lat 2024--2025, spoza okresu
-szacowania wag, lepiej niż każdy z~200 grafów losowych, ale tę przewagę dają bezpośrednie ekspozycje spółek na
-surowce i~indeks, a~nie krawędzie między spółkami. Model odtwarza, które spółki i~jak silnie reagują na ropę
-i~miedź, lecz reaguje wolniej i~bardziej jednolicie niż prawdziwy rynek: wiadomość o~spółce wchłania w~ciągu
-około dwóch sesji, a~korelacje akcji są dwa razy wyższe niż w~rzeczywistości.
+\noindent Zmiany cen ropy przenoszą się na giełdzie wzdłuż łańcuchów zależności między spółkami, ale inwestorzy
+reagują z~opóźnieniem i~naśladują innych. Badamy ten proces w~agentowym modelu giełdy zbudowanym jako symulacja
+zdarzeń dyskretnych: ceny 18 spółek amerykańskich powstają z~transakcji 525 inwestorów w~arkuszach zleceń,
+a~jedynym wejściem z~rzeczywistości są dzienne ceny surowców i~indeksu S\&P~500 z~lat 2024--2025. Inwestorzy
+wyceniają spółki według grafu zależności zbudowanego z~tabel przepływów międzygałęziowych i~regresji stóp zwrotu.
+W~badaniu z~regułami rozstrzygania zapisanymi przed obliczeniami (690 przebiegów, porównania parami) większy udział
+strategii trendowych i~silniejsze naśladowanie wzmacniają zmienność i~przestrzelenie cen. Spółki niepowiązane
+w~grafie poruszają się razem, ale nie z~powodu limitu ryzyka ani rebalansowania portfeli. Inwestorzy znający
+pośrednie zależności nie przyspieszają reakcji, lecz przesuwają jej część na następny dzień. Ekspozycje spółek na
+surowce objaśniają rzeczywiste ruchy cen spoza okresu szacowania lepiej niż grafy losowe; model reaguje jednak
+wolniej i~bardziej jednolicie niż prawdziwy rynek, a~wszystkie wyniki dotyczą jednej historii rynku.
 
 \medskip\noindent\textbf{Słowa kluczowe:} symulacja agentowa, symulacja zdarzeń dyskretnych, arkusz zleceń,
 graf zależności, propagacja szoków, zachowania stadne, współruch.

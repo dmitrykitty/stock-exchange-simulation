@@ -50,7 +50,7 @@ Dodatkowy kontrast dla 150 agentów wyniósł 0,332 [0,298; 0,365].
 Tymczasem poza okresem estymacji wag zarówno pełny graf, jak i~same bezpośrednie ekspozycje na surowce i~indeks
 dały medianę korelacji z~rzeczywistymi stopami zwrotu równą 0,595. Związki między spółkami zmieniają zatem czas reakcji
 w~symulacji, a~ich dodatkowy wkład w~dopasowanie dziennych stóp zwrotu do danych pozostaje niewykazany.
-\medskip\noindent\textbf{Słowa kluczowe:} model agentowy, arkusz zleceń, dyfuzja informacji, ceny surowców, współruch akcji.
+\par\medskip\noindent\textbf{Słowa kluczowe:} model agentowy, arkusz zleceń, dyfuzja informacji, ceny surowców, współruch akcji.
 \end{abstract}
 
 \section{Wprowadzenie}\label{sec:wprowadzenie}
@@ -115,10 +115,6 @@ a~do inicjalizacji ceny zamknięcia skorygowanej o~splity. Wartość zewnętrzna
 odpowiedniej sesji modelu; agent uzyskuje do niej dostęp zgodnie ze swoim opóźnieniem obserwacji.
 To umowna synchronizacja dziennych danych, która nie odwzorowuje godzin publikacji poszczególnych notowań.
 
-\textbf{Spółki (kod BEA):} wydobycie ropy i~gazu (211) COP, EOG; rafinacja (324) VLO, MPC; energetyka (22) NEE,
-DUK; transport lotniczy (481) DAL, UAL; transport drogowy (484) ODFL; górnictwo metali (212) FCX, NEM; hutnictwo
-(331) NUE, AA; półprzewodniki (334) NVDA, AMD; usługi internetowe (514) GOOGL, META; bankowość JPM.
-
 Tabele BEA opisują zakupy między branżami. Do oceny wybraliśmy 54 pary spółek, dla których zakupy
 od branży dostawcy stanowiły co najmniej 2\% wartości produkcji branży odbiorcy. Następnie sprawdziliśmy,
 czy profil działalności obu spółek uzasadnia przeniesienie zależności branżowej na daną parę.
@@ -135,7 +131,7 @@ Te powiązania przyjęliśmy jako założenie eksperymentu z~wiadomością o~NVD
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.92\textwidth,trim=0 0 0 25bp,clip]{f2_graph_real_v1.png}
-\caption{Powiązania między sygnałami zewnętrznymi a~spółkami oraz między spółkami. Liczby przy strzałkach oznaczają wagi w~modelu pełnym, a~linie przerywane oznaczają wagi o~$|t|<2$. Nasycenie zieleni odpowiada wrażliwości na indeks S\&P~500.}\label{fig:graf}
+\caption{Powiązania między sygnałami zewnętrznymi a~spółkami oraz między spółkami. Liczby przy strzałkach oznaczają wagi w~modelu pełnym, a~linie przerywane oznaczają wagi o~$|t|<2$. Jedna zielona strzałka od indeksu S\&P~500 oznacza bezpośrednie powiązanie indeksu z~każdą z~18 spółek. Nasycenie zieleni wskazuje wrażliwość danej spółki na zmiany indeksu.}\label{fig:graf}
 \end{figure}
 
 \subsection{Graf zależności}\label{sec:graf}

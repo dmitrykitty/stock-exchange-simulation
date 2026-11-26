@@ -52,7 +52,7 @@ Dokument ma dwie części. Pierwsza (rozdziały 1–3) wyjaśnia, o co chodzi w 
    - grube ogony rozkładu i brak autokorelacji stóp zwrotu to cele kalibracji; grube ogony pochodzą z prawdziwych sygnałów wejściowych, a nie od agentów.
 8. **Czego nie odtwarza:** prawdziwy rynek uwzględnia ruch tego samego dnia, a u nas ok. 1/5 ruchu dochodzi dopiero następnego dnia. Zapisujemy to jako ograniczenie, a nie ukrywamy.
 9. **Jest wizualizacja:** strona HTML, która odtwarza przebieg. Widać na niej, jak fala płynie po grafie, jak zmieniają się ceny, świece i płynność arkusza (rozdz. 4.8).
-10. **Badanie główne** (rozdz. 4.9): protokół z pytaniami, miarami i regułami rozstrzygania zamroziliśmy przed liczeniem; 690 przebiegów na nowych ziarnach liczy się jednym poleceniem. Po drodze znaleźliśmy i poprawiliśmy błąd animatorów rynku (usuwa 4 z 6 załamań pilotażu) i przeprojektowaliśmy E6 po pilotażu. **Wynik:** H3 potwierdzona (strategie trendowe i naśladowanie wzmacniają falę i przestrzelenie), H4 odrzucona (współruch spółek niepowiązanych jest, ale nie bierze się ze wspólnego portfela), H5 odrzucona z efektem przeciwnym (agenci znający pośrednie zależności spowalniają rafinerie). Szczegóły: rozdz. 4.10 i [raport z etapu](report/interim_report.md). **Zostało:** raport końcowy (artykuł po angielsku) i prezentacja.
+10. **Badanie główne** (rozdz. 4.9): protokół z pytaniami, miarami i regułami rozstrzygania zamroziliśmy przed liczeniem; 690 przebiegów na nowych ziarnach liczy się jednym poleceniem. Po drodze znaleźliśmy i poprawiliśmy błąd animatorów rynku (usuwa 4 z 6 załamań pilotażu) i przeprojektowaliśmy E6 po pilotażu. **Wynik:** H3 potwierdzona (strategie trendowe i naśladowanie wzmacniają falę i przestrzelenie), H4 odrzucona (współruch spółek niepowiązanych jest, ale nie bierze się ze wspólnego portfela), H5 odrzucona z efektem przeciwnym (agenci znający pośrednie zależności spowalniają rafinerie). Szczegóły: rozdz. 4.10 i [raport z etapu](report/interim_report.pdf). **Zostało:** raport końcowy (artykuł po angielsku) i prezentacja.
 
 ---
 ## 1. Idea projektu w pięciu minutach
@@ -205,7 +205,7 @@ Projekt jest podzielony na fazy F0–F10. Każda ma właściciela, opis w [`docs
 | F5 | Wyceniający według grafu na łańcuchu ropa → COP → VLO → DAL, eksperyment E4 | ✅ gotowe; E4 powtórzony z pozycją docelową (PR #20) |
 | F6 | Pełna sieć 18 spółek na rzeczywistych sygnałach 2024–2025 (kamień milowy M3) | ✅ gotowe (PR #15); kamień milowy M3 spełniony na pełnym E5 |
 | F7 | Eksperymenty E5 (propagacja), E6 (współruch), E7 (udział sieciowych) | ✅ pilotaż E5 i E7; protokół zamrożony (PR #32); badanie główne E5, E6, E7 na ziarnach 5001–5030 policzone, werdykty H3–H5 (rozdz. 4.10) |
-| F8 | Walidacja na danych 2024–2025 | ✅ moduł `marketsim.validation` ze wszystkimi kontrolami z planu; liczby z badania głównego w [raporcie z etapu](report/interim_report.md) |
+| F8 | Walidacja na danych 2024–2025 | ✅ moduł `marketsim.validation` ze wszystkimi kontrolami z planu; liczby z badania głównego w [raporcie z etapu](report/interim_report.pdf) |
 | F9 | Wizualizacja: odtwarzanie przebiegu, tryb na żywo | ✅ odtwarzanie (PR #18), tryb na żywo (PR #21) i strona porównania eksperymentów E5 i E7 gotowe |
 | F10 | Raport końcowy i obrona | 🟡 raport z etapu po polsku; artykuł po angielsku i prezentacja przed nami |
 
@@ -1191,13 +1191,13 @@ Przed zamrożeniem protokołu policzyliśmy na pilotażu, jak duży efekt wykryj
 
 [`scripts/run_main_study.sh`](../scripts/run_main_study.sh) liczy wszystkie przebiegi, potem tabele odpowiedzi, kontrole F8, rysunki i stronę porównania eksperymentów; można go przerwać i wznowić. Tryb próbny (`SMOKE=1`) liczy jedno ziarno na komórkę: 25 przebiegów w 11 minut przeszło przez cały łańcuch bez błędów, zanim uruchomiliśmy właściwe badanie (ok. 6 h na 10 procesach).
 
-Wyniki badania głównego: rozdz. 4.10 i [raport z etapu](report/interim_report.md).
+Wyniki badania głównego: rozdz. 4.10 i [raport z etapu](report/interim_report.pdf).
 
 ### 4.10 Badanie główne — wyniki
 
 > **Etap w skrócie.** *Cel:* rozstrzygnąć hipotezy H3–H5 regułami z zamrożonego protokołu. *Co zrobiliśmy:* policzyliśmy 690 przebiegów na ziarnach 5001–5030 (25 listopada 2026 r., ok. 6,5 h na 10 procesach), tabele odpowiedzi, kontrole F8 i rysunki. Po badaniu dodaliśmy jedną kontrolę: tę samą miarę współruchu policzoną dla prawdziwych spółek. *Wynik:* H3 potwierdzona, H4 i H5 odrzucone. *Znaczenie:* mamy odpowiedzi na wszystkie pytania główne i wiemy, co w modelu trzeba poprawić przed artykułem.
 
-Pełny opis z rysunkami i przedziałami: [raport z etapu](report/interim_report.md), rozdz. 6–9. Tu tylko najważniejsze.
+Pełny opis z rysunkami i przedziałami: [raport z etapu](report/interim_report.pdf), rozdz. 6–9. Tu tylko najważniejsze.
 
 | Hipoteza | Werdykt | Najważniejsza liczba |
 |---|---|---|
@@ -1277,7 +1277,7 @@ Pełny opis z rysunkami i przedziałami: [raport z etapu](report/interim_report.
 | Notatniki | [`01_data_overview`](../notebooks/01_data_overview.ipynb) (wykresy 1–4), [`02_graph`](../notebooks/02_graph.ipynb), [`03_experiments`](../notebooks/03_experiments.ipynb) (wykresy 8, 8b), [`05_chain_wave`](../notebooks/05_chain_wave.ipynb) (wykresy 9–10), [`06_full_network_wave`](../notebooks/06_full_network_wave.ipynb) i [`06_real_checks`](../notebooks/06_real_checks.ipynb) (wykresy 12, 15–18), [`07_e5_propagation`](../notebooks/07_e5_propagation.ipynb) (wykres 13b), [`08_e7_network_share`](../notebooks/08_e7_network_share.ipynb) (wykres 13c) |
 | Kod | dane [`src/marketsim/data/`](../src/marketsim/data/), graf [`graph/`](../src/marketsim/graph/), giełda [`cpp/`](../cpp/) i [`market/`](../src/marketsim/market/), symulacja [`sim/`](../src/marketsim/sim/) i [`agents/`](../src/marketsim/agents/), metryki [`metrics/`](../src/marketsim/metrics/), wizualizacja [`viz/`](../src/marketsim/viz/) |
 | Testy | [`tests/`](../tests/) — ponad 380 testów, w tym testy kontraktów i porównanie Python = C++ |
-| Badanie główne | protokół [`docs/plans/main_study_protocol.md`](plans/main_study_protocol.md) (po rosyjsku), konfiguracje [`configs/main/`](../configs/main/), skrypt [`scripts/run_main_study.sh`](../scripts/run_main_study.sh), analiza [`marketsim.analysis`](../src/marketsim/analysis/), walidacja [`marketsim.validation`](../src/marketsim/validation/), wyniki [`docs/report/interim_report.md`](report/interim_report.md) |
+| Badanie główne | protokół [`docs/plans/main_study_protocol.md`](plans/main_study_protocol.md) (po rosyjsku), konfiguracje [`configs/main/`](../configs/main/), skrypt [`scripts/run_main_study.sh`](../scripts/run_main_study.sh), analiza [`marketsim.analysis`](../src/marketsim/analysis/), walidacja [`marketsim.validation`](../src/marketsim/validation/), wyniki [`docs/report/interim_report.pdf`](report/interim_report.pdf) |
 
 **Jak odtworzyć wyniki:**
 

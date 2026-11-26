@@ -13,6 +13,7 @@ import math
 import numpy as np
 import pandas as pd
 
+from marketsim.analysis.runs import STRESS_SHARE, pair_kinds, residuals
 from marketsim.validation.reality import Reality, SimRun, graph_from_structure, real_pairs
 
 Sims = dict[str, list[SimRun]]
@@ -229,4 +230,62 @@ def correlation_structure(reality: Reality, sims: Sims, warmup: int = 10) -> pd.
     rows = [{"series": "R (real_v1)", **compare(reality.ref)}]
     for name, runs in sims.items():
         rows.append({"series": "sim: " + name, **pd.DataFrame([compare(r.returns) for r in runs]).mean()})
+    return pd.DataFrame(rows)
+
+
+def band_paths(reality: Reality, runs: list[SimRun], level: float = 0.9) -> pd.DataFrame:
+    """Per session and company: the real close, R (from the real start price) and the median and central ``level``
+    band of the simulated closes of ``runs`` (USD), in long form for the figures."""
+    lo_q, hi_q = (1 - level) / 2, 1 - (1 - level) / 2
+    stack = np.stack([r.prices[reality.tickers].to_numpy() for r in runs])
+    start = reality.prices[reality.tickers].iloc[0].to_numpy()
+    ref = start * np.exp(np.vstack([np.zeros(len(reality.tickers)), reality.ref[reality.tickers].cumsum().to_numpy()]))
+    frames = {"real": reality.prices[reality.tickers].to_numpy(), "R": ref,
+              "sim_lo": np.nanquantile(stack, lo_q, axis=0), "sim_median": np.nanmedian(stack, axis=0),
+              "sim_hi": np.nanquantile(stack, hi_q, axis=0)}
+    n = stack.shape[1]
+    out = pd.DataFrame({"session": np.repeat(np.arange(n), len(reality.tickers)),
+                        "ticker": np.tile(reality.tickers, n)})
+    for name, values in frames.items():
+        out[name] = values[:n].ravel()
+    return out
+
+
+def correlation_pairs(reality: Reality, runs: list[SimRun], warmup: int = 10) -> pd.DataFrame:
+    """Every pair of companies: the correlation of daily returns in the real data, in R and on average over
+    ``runs`` (for the matrix figures)."""
+    t = reality.tickers
+    real = reality.real[t].iloc[warmup:].corr()
+    ref = reality.ref[t].iloc[warmup:].corr()
+    sim = sum(r.returns[t].iloc[warmup:].corr() for r in runs) / len(runs)
+    rows = [{"a": a, "b": b, "real": real.at[a, b], "R": ref.at[a, b], "sim": sim.at[a, b]} for a in t for b in t]
+    return pd.DataFrame(rows)
+
+
+# ----- 8. comovement beyond the graph ------------------------------------------------------------------------------
+def comovement(reality: Reality, sims: Sims, warmup: int = 10, stress_share: float = STRESS_SHARE) -> pd.DataFrame:
+    """The P6 statistic on the real data: the mean correlation of residual returns (a company's daily return less
+    what its own R of ``reality.graph`` explains today and yesterday) over the pairs the graph does not relate, on
+    all days and on the ``stress_share`` days with the largest real index moves, and the same for the simulations.
+    With the real numbers this tells whether the simulated comovement beyond R is in the real market too."""
+    t = reality.tickers
+    kinds = pair_kinds(reality.graph, t)
+    unrelated = [pair for pair, flag in kinds.items() if not flag]
+    linked = [pair for pair, flag in kinds.items() if flag]
+    q = reality.ref[t].iloc[warmup:]
+    market = reality.real["sp500"].iloc[warmup:].abs()
+    stress = market >= market.quantile(1 - stress_share)
+
+    def stats(frame: pd.DataFrame) -> dict:
+        u = residuals(frame[t].iloc[warmup:], q)
+        cu, cs = u.corr(), u.loc[stress].corr()
+        values = np.array([cu.loc[p] for p in unrelated])
+        return {"resid_unrelated": float(np.nanmean(values)),
+                "resid_unrelated_stress": float(np.nanmean([cs.loc[p] for p in unrelated])),
+                "resid_related": float(np.nanmean([cu.loc[p] for p in linked])),
+                "false_links": float(np.mean(values[np.isfinite(values)] > 0.1))}
+
+    rows = [{"series": "real 2024-2025", **stats(reality.real)}]
+    for name, runs in sims.items():
+        rows.append({"series": "sim: " + name, **pd.DataFrame([stats(r.returns) for r in runs]).mean()})
     return pd.DataFrame(rows)

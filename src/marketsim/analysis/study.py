@@ -30,6 +30,9 @@ from marketsim.analysis.stats import did, fisher_greater, one_sample, paired, wi
 
 MIXES = ("mixed", "network", "trend")
 P5_METRICS = ("day0", "day1", "day1_d1", "day1_d2", "day1_d3", "lag", "vol_amp", "corr_R", "gap_days", "acf1")
+# secondary E5 metrics outside the protocol's decision rules (P6 on the E5 grid); own random stream, so adding
+# them leaves every protocol table unchanged
+P5_EXTRA_METRICS = ("resid_unrelated", "resid_unrelated_stress", "false_links")
 P6_METRICS = ("resid_unrelated", "resid_unrelated_stress", "resid_related", "false_links", "excess_unrelated",
               "risk_triggers", "corr_R")
 P7_METRICS = ("day0", "day1", "pass2_d1", "pass2_d2", "pass2_d3", "day1_d2", "corr_d2", "pass2_tech", "corr_tech",
@@ -102,8 +105,14 @@ def e5(root: Path, workers: int = 1, seed: int = 2026) -> dict[str, pd.DataFrame
     b, n2 = int(runs.loc[~group, "collapse"].sum()), int((~group).sum())
     test = pd.DataFrame([{"group": "trend, h > 0", "collapsed": a, "runs": n1, "rest_collapsed": b, "rest_runs": n2,
                           "fisher_p_one_sided": fisher_greater(a, n1, b, n2) if n1 and n2 else np.nan}])
+    extra_rng = np.random.default_rng(seed + 1)
+    extra = pd.DataFrame([
+        {"metric": metric, "factor": factor, "contrast": name, "at": at,
+         **paired(cell[a], cell[b], metric, extra_rng, family=len(plan))}
+        for metric in P5_EXTRA_METRICS if metric in runs
+        for factor, name, at, a, b in plan if a in cell and b in cell])
     tables = {"p5_contrasts": contrasts, "p5_interaction": interaction, "p5_collapses": collapses,
-              "p5_collapse_test": test}
+              "p5_collapse_test": test, "p5_contrasts_extra": extra}
     for name, table in tables.items():
         table.to_csv(d / f"{name}.csv", index=False)
     return {"runs": runs, **tables}

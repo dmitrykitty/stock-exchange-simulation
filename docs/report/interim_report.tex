@@ -82,7 +82,7 @@ W~protokole pytaniami głównymi były skład strategii i~naśladowanie (E5) ora
 Najpierw przedstawiamy wynik uzupełniającego eksperymentu E7, ponieważ daje on najczytelniejsze porównanie dwóch sposobów wyceny.
 Kolejność prezentacji nie zmienia statusu hipotez ani reguł ich oceny.
 
-\section{Dane i~graf \code{real\_v1}}\label{sec:dane}
+\section{Dane i~dobór powiązań między spółkami}\label{sec:dane}
 
 \begin{table}[!htbp]
 \centering\small
@@ -119,21 +119,23 @@ To umowna synchronizacja dziennych danych, która nie odwzorowuje godzin publika
 DUK; transport lotniczy (481) DAL, UAL; transport drogowy (484) ODFL; górnictwo metali (212) FCX, NEM; hutnictwo
 (331) NUE, AA; półprzewodniki (334) NVDA, AMD; usługi internetowe (514) GOOGL, META; bankowość JPM.
 
-\textbf{Graf \code{real\_v1}} ma 47 krawędzi: 15 krawędzi surowiec $\to$ spółka, 10 krawędzi spółka $\to$ spółka
-z~tabel BEA (z~54 kandydatów przy progu 2\% kosztów; każdą przejrzeliśmy ręcznie i~zapisaliśmy uzasadnienie),
-4~krawędzie dodane ręcznie (chipy NVDA, AMD $\to$ GOOGL, META: zakup serwerów to inwestycja, niewidoczna
-w~tabelach kosztów bieżących) i~18 krawędzi od S\&P~500. Graf między spółkami jest acykliczny
-(rys.~\ref{fig:graf}).
+Tabele BEA opisują zakupy między branżami. Do oceny wybraliśmy 54 pary spółek, dla których zakupy
+od branży dostawcy stanowiły co najmniej 2\% wartości produkcji branży odbiorcy. Następnie sprawdziliśmy,
+czy profil działalności obu spółek uzasadnia przeniesienie zależności branżowej na daną parę.
+Zachowaliśmy w~ten sposób cztery powiązania wydobywców z~rafineriami, cztery powiązania rafinerii
+z~liniami lotniczymi i~dwa z~przewoźnikiem drogowym (rys.~\ref{fig:graf}).
+W~pierwszej grupie uzasadnieniem jest zakup ropy do przerobu, w~dwóch pozostałych --- zakup paliwa.
+Sam próg obejmował również pary takie jak producenci stali i~aluminium: BEA zalicza ich do jednej branży,
+choć wykorzystują inne surowce. Takie pary pominięto. Graf opisuje ekspozycje branżowe bez informacji o~kontraktach poszczególnych firm.
 
-Spośród 54 kandydatów 10 zaakceptowano, 32 odrzucono, a~12 uznano za wątpliwe i~pominięto.
-Pomijano m.in. konkurentów z~tej samej branży i~powiązania kosztowe o~małym znaczeniu dla działalności spółki.
-Dokumentacja doboru nie pozwala ustalić, czy osoby oceniające krawędzie miały dostęp do stóp zwrotu z~lat 2024--2025.
-Cztery krawędzie technologiczne są założeniami modelu. Reakcja odbiorców NVDA w~E6b sprawdza konsekwencje tych założeń.
+Osobno uwzględniliśmy cztery powiązania producentów układów obliczeniowych z~operatorami centrów danych.
+Zakup serwerów jest wydatkiem inwestycyjnym, którego tabela bieżących nakładów nie ujmuje.
+Te powiązania przyjęliśmy jako założenie eksperymentu z~wiadomością o~NVDA.
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.92\textwidth]{f2_graph_real_v1.png}
-\caption{Graf \code{real\_v1}. Liczba przy grocie: waga pełna; linia przerywana: $|t| < 2$.}\label{fig:graf}
+\includegraphics[width=0.92\textwidth,trim=0 0 0 25bp,clip]{f2_graph_real_v1.png}
+\caption{Powiązania między sygnałami zewnętrznymi a~spółkami oraz między spółkami. Liczby przy strzałkach oznaczają wagi w~modelu pełnym, a~linie przerywane oznaczają wagi o~$|t|<2$. Nasycenie zieleni odpowiada wrażliwości na indeks S\&P~500.}\label{fig:graf}
 \end{figure}
 
 \subsection{Graf zależności}\label{sec:graf}
@@ -178,7 +180,7 @@ testami). Rysunek~\ref{fig:model} pokazuje przepływ danych.
           label={[font=\sffamily\small\bfseries]above:Dane rzeczywiste}] {};
   \end{scope}
   % model
-  \node[core] (G)  at (5.0, 4.0)  {graf zależności\\\texttt{real\_v1} (wiedza agentów)};
+  \node[core] (G)  at (5.0, 4.0)  {powiązania znane\\inwestorom};
   \node[core] (A)  at (5.0, 1.8)  {525 inwestorów:\\wyceniający, trendowi,\\szumowi, fundusze;\\naśladowanie};
   \node[core] (M)  at (5.0, -1.2) {animatorzy rynku\\(2 na spółkę)};
   \node[core] (EX) at (10.6, 1.8) {giełda: 18 arkuszy\\zleceń + bramka (C++)};
@@ -304,7 +306,7 @@ Nowe ziarna nie usuwają jednego ograniczenia: parametry rynku kalibrowaliśmy n
 są więc wynikami kalibracji; nowe ziarna chronią \emph{porównania między komórkami} (rozdz.~\ref{sec:wyniki}).
 
 \subsection{Rynek bazowy}
-Rynek bazowy to graf \code{real\_v1}, prawdziwe sygnały 2024--2025 (502 sesje), rozgrzewka 10 sesji,
+Wariant bazowy obejmuje graf z~rys.~\ref{fig:graf}, prawdziwe sygnały 2024--2025 (502 sesje), rozgrzewka 10 sesji,
 525 inwestorów (rozdz.~\ref{sec:agenci}), 2 animatorów na spółkę i~silnik C++.
 
 \subsection{Eksperymenty}\label{sec:eksperymenty}
@@ -494,7 +496,7 @@ $\operatorname{corr}(r^P) - \operatorname{corr}(r^R)$, przy $h = 0{,}4$ rośnie 
 wyłączeniu obu kanałów.
 
 \paragraph{Porównanie z~rynkiem.} Tę samą statystykę policzyliśmy dla prawdziwych spółek
-(reszty względem $R$ grafu \code{real\_v1}, te same 109 par niepowiązanych; tab.~\ref{tab:wspolruch}).
+(reszty względem $R$ badanego grafu, te same 109 par niepowiązanych; tab.~\ref{tab:wspolruch}).
 
 \begin{table}[!htbp]
 \centering\small
@@ -576,7 +578,7 @@ dnia, więc sprawdzamy, czy wagi objaśniają ruchy spoza okresu ich szacowania.
 (rozdz.~\ref{sec:plan}). Ponieważ te same własności statystyczne odtwarza wiele modeli~\cite{fagiolo2007}, każde
 porównanie ma kontrolę, bez której nie da się go zinterpretować:
 \begin{itemize}
-  \item dla wartości liczonych z~$R$: $R$ 200 grafów losowych, czyli krawędzi \code{real\_v1} z~losowo zamienionymi
+  \item dla wartości liczonych z~$R$: $R$ 200 grafów losowych, czyli krawędzi badanego grafu z~losowo zamienionymi
   rodzicami i~dziećmi (każda spółka zachowuje liczbę rodziców, każdy rodzic --- liczbę dzieci) i~wagami
   oszacowanymi na nowo na latach 2021--2023;
   \item dla symulacji: komórka główna (\cell{mixed}, $h = 0{,}2$) na dwóch grafach losowych i~na płaskich wejściach
@@ -595,7 +597,7 @@ spółkami) i~samej bety rynkowej. Linie: średnia i~95.~percentyl dla 200 graf�
 \end{figure}
 
 Mediana po spółkach korelacji $R$ z~prawdziwą stopą zwrotu wynosi 0,595, a~samej bety rynkowej 0,526. Grafy
-losowe dają średnio 0,563 (95.~percentyl 0,590) i~żaden z~200 nie dorównuje \code{real\_v1}. Taką samą medianę,
+losowe dają średnio 0,563 (95.~percentyl 0,590) i~żaden z~200 nie osiąga mediany badanego grafu. Taką samą medianę,
 0,595, daje jednak $R$ z~samymi bezpośrednimi ekspozycjami spółek na surowce i~indeks, bez krawędzi między
 spółkami; dla poszczególnych spółek różnice nie przekraczają 0,001. Przewagę nad grafami losowymi daje więc
 właściwy dobór ekspozycji na surowce (grafy losowe przestawiają także krawędzie surowiec $\to$ spółka), a~nie
@@ -622,7 +624,7 @@ Czarne punkty przedstawiają reakcje rzeczywiste. Przedziały 95\% uzyskano z~20
 \begin{tabularx}{\textwidth}{@{}l c c c c c Y@{}}
 \toprule
 Zdarzenia & $R$ & \makecell{$R$, tylko\\bezpośr.} & \makecell{symu-\\lacja} & \makecell{symulacja,\\grafy losowe}
-  & \makecell{płaskie\\wejścia} & $R$ grafów losowych: średnia (udział $\ge$ \code{real\_v1}) \\
+  & \makecell{płaskie\\wejścia} & $R$ grafów losowych: średnia (odsetek wyników co najmniej tak wysokich jak dla badanego grafu) \\
 \midrule
 ropa, 1 dzień & 0,87 & 0,87 & 0,82 & 0,61 / 0,48 & 0,19 & 0,76 (15,5\%) \\
 ropa, 2 dni & 0,84 & 0,84 & 0,80 & 0,70 / 0,44 & 0,37 & 0,67 (0,5\%) \\
@@ -634,7 +636,7 @@ miedź, 2 dni & 0,79 & 0,79 & 0,75 & $-0{,}07$ / $-0{,}19$ & $-0{,}04$ & 0,15 (0
 Dla każdego surowca i~horyzontu wybrano 24 daty po rozgrzewce, według malejącej bezwzględnej zmiany ceny. Okna dwusesyjne nie nakładają się. Od stóp zwrotu odejmujemy iloczyn bieżącej stopy zwrotu indeksu i~bety oszacowanej przed 2024~r., sumujemy odpowiedź w~oknie i~orientujemy ją według znaku ruchu surowca. Model odtwarza, które spółki reagują na surowce i~jak mocno (tab.~\ref{tab:events}); stosunek wielkości reakcji
 do prawdziwej wynosi 0,93 dla ropy w~1 dzień i~1,19 w~2 dni. Przewaga nad grafami losowymi jest wyraźna dla
 miedzi i~dla dwudniowej reakcji na ropę; dla ropy w~1 dzień 15,5\% grafów losowych daje $R$ co najmniej tak dobre
-jak \code{real\_v1}. $R$ z~samymi bezpośrednimi ekspozycjami daje te same korelacje (0,8748 wobec 0,8745 dla ropy
+jak badany graf. $R$ z~samymi bezpośrednimi ekspozycjami daje te same korelacje (0,8748 wobec 0,8745 dla ropy
 w~1 dzień), więc i~tu dopasowanie pochodzi z~ekspozycji na surowce. Znak reakcji spółek o~słabej reakcji symulacja
 trafia rzadziej niż $R$ (61\% wobec 89\% spółek).
 
@@ -667,7 +669,7 @@ a~autokorelacja $-0{,}52$ to odbijanie ceny między stronami arkusza.
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=\textwidth]{f8_graph_recovery.png}
-\caption{Wagi krawędzi \code{real\_v1} oszacowane na nowo tą samą regresją: z~prawdziwych cen 2024--2025 i~z~cen
+\caption{Wagi powiązań między aktywami oszacowane na nowo tą samą regresją: z~prawdziwych cen 2024--2025 i~z~cen
 symulowanych (średnia z~przebiegów komórki głównej), obok wag, których używają agenci.}\label{fig:recovery}
 \end{figure}
 

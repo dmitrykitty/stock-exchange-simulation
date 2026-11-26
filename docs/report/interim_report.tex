@@ -109,9 +109,13 @@ z~2 stycznia 2024~r.; w~trakcie przebiegu z~danych historycznych aktualizuje si�
 Spółki dobrano celowo, aby objąć wydobycie, przetwórstwo, odbiorców surowców i~sektory porównawcze.
 Warunkiem była dostępność dziennych cen przez cały okres. Uzasadnienia wyboru dokumentują działalność spółek,
 klasyfikację SIC/BEA i~ich ekspozycje z~lat 2021--2023. Wymóg kompletności szeregu obejmował także lata porównania.
-Kalendarzem są sesje rynku akcji. Dzienne szeregi zewnętrzne dopasowano do tych dat, uzupełniając krótkie luki
-ostatnią dostępną obserwacją (limit trzech kolejnych kroków). Do stóp zwrotu akcji użyto cen skorygowanych,
-a~do inicjalizacji ceny zamknięcia skorygowanej o~splity. Wartość zewnętrzna przypisana do dnia zmienia się na początku
+Dla każdego dnia, w~którym handlowano akcjami, zestawiliśmy ceny surowców i~wartość indeksu S\&P~500.
+Jeśli tego dnia brakowało notowania, przyjmowaliśmy ostatnią znaną wartość danego szeregu, najwyżej przez trzy kolejne sesje.
+Dzienne stopy zwrotu akcji obliczyliśmy z~cen uwzględniających podziały akcji i~wypłaty dywidend.
+Jako cenę początkową każdej akcji w~symulacji przyjęliśmy jej kurs zamknięcia z~2 stycznia 2024~r.,
+skorygowany wyłącznie o~podziały akcji.
+
+Wartość zewnętrzna przypisana do dnia zmienia się na początku
 odpowiedniej sesji modelu; agent uzyskuje do niej dostęp zgodnie ze swoim opóźnieniem obserwacji.
 To umowna synchronizacja dziennych danych, która nie odwzorowuje godzin publikacji poszczególnych notowań.
 

@@ -145,9 +145,14 @@ regresją dziennych logarytmicznych stóp zwrotu z~lat 2021--2023 (752 dni) z~in
 \begin{equation}
   r_{i,t} = \alpha_i + \sum_{j \in \mathcal P_i\setminus\{\mathrm{indeks}\}} w_{ij}\, r_{j,t} + \beta_i\, r^{\mathrm{S\&P500}}_t + u_{i,t}.
 \end{equation}
-Zbiór $\mathcal P_i$ obejmuje rodziców spółki $i$. Szacujemy dwa zestawy wag: \emph{bezpośrednie} (tylko sygnały zewnętrzne i~indeks) i~\emph{pełne} (także
-spółki-rodzice). Przykład: ropa $\to$ VLO ma wagę bezpośrednią 0,43, ale po dodaniu wydobywców jako rodziców
-współczynnik WTI maleje do 0,054 (COP $\to$ VLO 0,54, EOG $\to$ VLO 0,18, ropa $\to$ VLO 0,05).
+Dla każdej spółki szacujemy dwa zestawy wag, różniące się zbiorem rodziców $\mathcal P_i$. Wagi
+\emph{bezpośrednie} pochodzą z~regresji, w~której rodzicami spółki są tylko sygnały zewnętrzne i~indeks; wagi
+\emph{pełne} --- z~regresji, w~której rodzicami są także jej spółki-dostawcy. Pierwszych używają wyceniający
+krótkowzroczni, drugich --- wyceniający sieciowi (rozdz.~\ref{sec:agenci}). Różnicę dobrze widać na rafinerii VLO:
+bezpośrednia waga ropy wynosi 0,43, ale po dodaniu wydobywców do regresji przejmują oni prawie cały ten wpływ
+(COP $\to$ VLO 0,54, EOG $\to$ VLO 0,18), a~waga ropy spada do 0,05. W~danych wpływ ropy na rafinerie przechodzi
+więc głównie przez silnie z~nią skorelowane ceny wydobywców --- i~właśnie przez te ceny poznają go wyceniający
+sieciowi.
 
 \section{Model}\label{sec:model}
 

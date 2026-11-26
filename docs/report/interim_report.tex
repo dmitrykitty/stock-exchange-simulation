@@ -162,11 +162,14 @@ u_{i,t} & reszta: część ruchu spółki, której rodzice nie wyjaśniają.
 Dla każdej spółki szacujemy dwa zestawy wag, różniące się zbiorem rodziców $\mathcal P_i$. Wagi
 \emph{bezpośrednie} pochodzą z~regresji, w~której rodzicami spółki są tylko sygnały zewnętrzne i~indeks; wagi
 \emph{pełne} --- z~regresji, w~której rodzicami są także jej spółki-dostawcy. Pierwszych używają wyceniający
-krótkowzroczni, drugich --- wyceniający sieciowi (rozdz.~\ref{sec:agenci}). Różnicę dobrze widać na rafinerii VLO:
-bezpośrednia waga ropy wynosi 0,43, ale po dodaniu wydobywców do regresji przejmują oni prawie cały ten wpływ
-(COP $\to$ VLO 0,54, EOG $\to$ VLO 0,18), a~waga ropy spada do 0,05. W~danych wpływ ropy na rafinerie przechodzi
-więc głównie przez silnie z~nią skorelowane ceny wydobywców --- i~właśnie przez te ceny poznają go wyceniający
-sieciowi.
+krótkowzroczni, drugich --- wyceniający sieciowi (rozdz.~\ref{sec:agenci}). 
+
+Różnicę dobrze widać na rafinerii VLO. Gdy ropa drożeje o~1\%, VLO drożeje przeciętnie o~0,43\% --- to waga
+bezpośrednia. Wydobywcy COP i~EOG drożeją wtedy o~0,51\% i~0,55\%. Po dodaniu ich do regresji efekt ropy rozkłada
+się na ścieżki: przez COP $0{,}54 \cdot 0{,}51 \approx 0{,}28\%$, przez EOG $0{,}18 \cdot 0{,}55 \approx 0{,}10\%$,
+a~bezpośrednio z~ropy zostaje tylko 0,05\%; razem znów ok.~0,43\%. Wyceniający krótkowzroczny przelicza więc ruch
+ropy od razu, z~wagą 0,43, a~wyceniający sieciowy reaguje głównie na ceny COP i~EOG na symulowanej giełdzie
+i~poznaje ruch ropy dopiero wtedy, gdy te ceny się zmienią.
 
 \section{Model}\label{sec:model}
 

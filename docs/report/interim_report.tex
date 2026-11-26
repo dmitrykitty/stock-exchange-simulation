@@ -38,7 +38,8 @@
   \normalsize\mdseries Raport z~etapu: badanie główne}
 \author{\zespol\\[2pt]\small Przedmiot „Symulacja systemów dyskretnych”, AGH\thanks{Kod, konfiguracje
   i~polecenia odtwarzające wszystkie przebiegi, tabele i~rysunki: \url{https://github.com/dmitrykitty/stock-exchange-simulation}
-  (badanie główne: commit \texttt{99c62a7}).}}
+  (kod symulacji badania głównego jak w~commicie \texttt{99c62a7}; przebiegi zapisały commity gałęzi dokumentacji,
+  w~których kod symulacji jest identyczny).}}
 \date{26 listopada 2026}
 
 \begin{document}
@@ -54,15 +55,19 @@ przepływów międzygałęziowych BEA, a~wagi z~regresji stóp zwrotu z~lat 2021
 strategii trendowych i~siła naśladowania zmieniają przejście szoku przez graf, (ii)~czy wspólny portfel inwestora
 (limit ryzyka, rebalansowanie) sprawia, że razem poruszają się spółki, których nic nie łączy, oraz (iii)~czy
 inwestorzy znający pośrednie zależności przyspieszają reakcję rynku. Reguły rozstrzygania zapisaliśmy przed
-badaniem głównym (690 przebiegów na nowych ziarnach losowych, porównania parami).
+badaniem głównym (690 przebiegów na nowych ziarnach losowych, porównania parami). Wszystkie przebiegi dotyczą
+jednej historii rynku 2024--2025, na której model był też kalibrowany: ziarna losowe dają różne realizacje tej samej
+historii, a~nie niezależne historie.
 
-Strategie trendowe i~naśladowanie wyraźnie wzmacniają zmienność i~przestrzelenie cen oraz opóźniają reakcję;
-skład strategii działa przy tym mocniej niż naśladowanie. Spółki niepowiązane w~grafie poruszają się w~modelu
-razem, ale wyłączenie kanałów portfela tego nie zmienia: współruch wynika ze wspólnych błędów reakcji agentów na
-ruchy sygnałów. Inwestorzy znający pośrednie zależności nie przyspieszają fali, lecz przesuwają część reakcji
-rafinerii na następny dzień. Graf przewiduje prawdziwe dzienne ruchy cen z~lat 2024--2025 lepiej niż każdy
-z~200 grafów losowych, a~model odtwarza, które spółki i~jak silnie reagują na ropę i~miedź. Reaguje jednak
-wolniej i~bardziej jednolicie niż prawdziwy rynek, co jest głównym ograniczeniem wyników.
+Skład z~większym udziałem strategii trendowych i~silniejsze naśladowanie wyraźnie wzmacniają zmienność
+i~przestrzelenie cen oraz opóźniają reakcję; skład działa przy tym mocniej niż naśladowanie. Spółki niepowiązane
+w~grafie poruszają się w~modelu razem, ale wyłączenie limitu ryzyka i~rebalansowania tego nie zmienia; współruch
+pojawia się tylko przy ruchu sygnałów zewnętrznych i~rośnie z~udziałem strategii trendowych. Inwestorzy znający pośrednie zależności nie przyspieszają fali, lecz przesuwają część reakcji
+rafinerii na następny dzień. Graf objaśnia prawdziwe dzienne ruchy cen z~lat 2024--2025, spoza okresu
+szacowania wag, lepiej niż każdy z~200 grafów losowych, ale tę przewagę dają bezpośrednie ekspozycje spółek na
+surowce i~indeks, a~nie krawędzie między spółkami. Model odtwarza, które spółki i~jak silnie reagują na ropę
+i~miedź, lecz reaguje wolniej i~bardziej jednolicie niż prawdziwy rynek: wiadomość o~spółce wchłania w~ciągu
+około dwóch sesji, a~korelacje akcji są dwa razy wyższe niż w~rzeczywistości.
 
 \medskip\noindent\textbf{Słowa kluczowe:} symulacja agentowa, symulacja zdarzeń dyskretnych, arkusz zleceń,
 graf zależności, propagacja szoków, zachowania stadne, współruch.
@@ -95,7 +100,8 @@ współruchu spółek, których graf nie łączy.
   spółki do spółki przez rzeczywiście zawierane transakcje, razem z~błędami rynku. W~pracy, od której zaczynamy
   \cite{skrzynski}, cenę wymusza „wyimaginowany inwestor” podążający za danymi historycznymi.
   \item \textbf{Graf oparty na danych:} struktura z~tabel przepływów międzygałęziowych BEA, wagi z~regresji
-  dziennych stóp zwrotu 2021--2023, sprawdzony poza próbą na latach 2024--2025.
+  dziennych stóp zwrotu 2021--2023; poza okresem szacowania (2024--2025) sprawdzają się jego ekspozycje na surowce
+  i~indeks.
   \item \textbf{Badanie z~zamrożonym protokołem:} pilotaż, potem protokół (pytania, hipotezy, miary, reguły
   rozstrzygania) zapisany i~zamrożony \emph{przed} badaniem głównym na nowych ziarnach losowych; porównania
   parami na tych samych ziarnach z~przedziałami bootstrap.
@@ -433,7 +439,8 @@ E6a & kanały wspólnego portfela, prawdziwe sygnały & \{wszystkie; bez limitu 
   $\times$ $h \in \{0;\ 0{,}4\}$ & 180 (+60) \\
 E6b & wiadomość o~spółce, sygnały zamrożone na 2.01.2024 & wycena NVDA \{bez zmian; $-50\%$\} w~sesji 20
   $\times$ $h \in \{0;\ 0{,}6\}$, 50 sesji & 120 \\
-E7 & udział wyceniających sieciowych wśród 300 wyceniających & \{0; 25; 50\}\%, $h = 0{,}2$ & 90 (+30) \\
+E7 & udział wyceniających sieciowych wśród 500 inwestorów (300 wyceniających, 100 trendowych, 100 szumowych) &
+  \{0; 25; 50\}\% inwestorów, czyli 0, 125 i~250 z~300 wyceniających; $h = 0{,}2$ & 90 (+30) \\
 Kontrole & komórka główna (\cell{mixed}, $h = 0{,}2$) na dwóch losowych grafach i~na płaskich wejściach &
   3 warianty $\times$ 10 ziaren & 30 \\
 \bottomrule
@@ -448,11 +455,12 @@ działa), a~„portfel rozdzielony” zastępujemy wyłącznikami kanałów, prz
 i~rebalansowania (fundusze zachowują kapitał, ale nie handlują). Szok spółki zostaje jako E6b.
 
 \subsection{Miary}\label{sec:miary}
-Wszystkie miary liczymy z~cen na koniec sesji po rozgrzewce: $P$ (midpoint, przy pustej stronie arkusza --- ostatnia
-transakcja) i~$R$. W~nawiasach podajemy nazwy kolumn w~tabelach wyników.
+Miary liczymy po rozgrzewce z~cen na koniec sesji: $P$ (midpoint, przy pustej stronie arkusza --- ostatnia
+transakcja) i~$R$; wyjątkiem są opóźnienie i~$A_\sigma$, liczone na siatce co 0,25 sesji. W~nawiasach podajemy nazwy kolumn w~tabelach wyników.
 \begin{itemize}
   \item \textbf{Załamanie przebiegu:} $\max_t |\ln(P/R)| > \ln 2$. Przebieg załamany pomijamy w~średnich
-  i~w~parach; udział załamań jest osobnym wynikiem.
+  i~w~parach; udział załamań jest osobnym wynikiem. Reguły nie stosujemy w~E6b, gdzie wiadomość celowo oddala $P$
+  od $R$.
   \item \textbf{Propagacja (P5, P7).} Regresja łączna dziennych stóp zwrotu $P$ na dzisiejszą i~wczorajszą
   zmianę $\ln R$ daje część ruchu $R$, która dochodzi do ceny tego samego dnia, $\pi_0$ (\code{day0}), i~następnego
   dnia, $\pi_1$ (\code{day1}); $\pi_1^{(k)}$ i~$\Pi^{(k)} = \pi_0^{(k)} + \pi_1^{(k)}$ to te same wielkości dla
@@ -465,8 +473,9 @@ transakcja) i~$R$. W~nawiasach podajemy nazwy kolumn w~tabelach wyników.
   (\code{resid\_unrelated}); to samo w~10\% dni o~największych ruchach indeksu, $\rho_u^{\mathrm{s}}$. Definicja
   z~wniosku, $\operatorname{corr}(r^P) - \operatorname{corr}(r^R)$, jest liczona pomocniczo: w~pilotażu była
   ujemna we wszystkich komórkach, bo własny szum ceny rozmywa wspólny czynnik $R$.
-  \item \textbf{Wiadomość o~spółce (E6b):} różnica $\ln P$ z~wiadomością i~bez niej na tym samym ziarnie po 1, 5
-  i~20 sesjach --- dla NVDA, dla spółek połączonych z~nią w~grafie (GOOGL, META) i~średnio dla 15 spółek
+  \item \textbf{Wiadomość o~spółce (E6b):} różnica $\ln P$ z~wiadomością i~bez niej na tym samym ziarnie na
+  zamknięciu sesji $k$ po sesji z~wiadomością, $k = 1, 5, 20$ (protokół), oraz na zamknięciu samej sesji
+  z~wiadomością, $k = 0$ (analiza dodatkowa) --- dla NVDA, dla spółek połączonych z~nią w~grafie (GOOGL, META) i~średnio dla 15 spółek
   niepowiązanych.
 \end{itemize}
 
@@ -532,11 +541,17 @@ E1--E4 w~badaniu głównym & etapy wstępne, niepowtarzane & uproszczone rynki (
 Badanie główne objęło 690 przebiegów (tab.~\ref{tab:eksperymenty}), policzonych 25 listopada 2026~r. w~ok.~6,5~h
 na 10 procesach (\code{scripts/run\_main\_study.sh}).
 
-Załamania zdarzyły się w~2 z~690 przebiegów, oba w~składzie \cell{trend} (przy $h = 0$ i~$h = 0{,}4$; w~każdej
-z~tych komórek 1/30, przedział Wilsona [0,006; 0,167]). W~pozostałych komórkach E5, w~całym E6a, E7 i~w~kontrolach
-nie było żadnego. Załamania nie wiążą się z~naśladowaniem: \cell{trend} z~$h > 0$ --- 1 z~60, reszta --- 1 z~210,
-jednostronny test Fishera $p = 0{,}40$. W~pilotażu, przed poprawką animatora rynku, było ich 6 na 60 przebiegów
-trendowych z~$h \ge 0{,}2$.
+Regułę załamania przekracza z~założenia 32 z~60 przebiegów E6b z~wiadomością (23 przy $h = 0$, 9 przy
+$h = 0{,}6$; \code{runs/main/e6/p6\_shock\_extra.csv}): wiadomość obniża wycenę NVDA o~połowę, a~$R$ jej nie
+zawiera. To nie są awarie, więc E6b pomijamy w~liczeniu załamań. W~pozostałych 570 przebiegach doszło do 2 awarii,
+obu w~składzie \cell{trend} (przy $h = 0$ i~$h = 0{,}4$; w~każdej z~tych komórek 1/30, przedział Wilsona
+[0,006; 0,167]). Według dzienników przebiegów są to: DAL (ziarno 5028), który spadł do 17,85~USD przy $R$ równym
+47,97~USD, oraz AMD (ziarno 5020), który handlowano po 1--2 centy (63 transakcje w~sesji) przy $R$ równym
+179,61~USD; rynek tej spółki przestał działać. Obie awarie zaczynają się w~sesjach 318--320, czyli w~tym samym
+epizodzie spadków z~kwietnia 2025~r.; ich mechanizm wymaga analizy dzienników zleceń i~zapasów animatorów
+(rozdz.~\ref{sec:ograniczenia}). Awarie nie wiążą się z~naśladowaniem: \cell{trend} z~$h > 0$ --- 1 z~60, reszta
+E5 --- 1 z~210, jednostronny test Fishera $p = 0{,}40$. W~pilotażu, przed poprawką animatora rynku, było ich 6 na
+60 przebiegów trendowych z~$h \ge 0{,}2$.
 
 \subsection{P5: skład strategii i~naśladowanie (E5)}\label{sec:p5}
 
@@ -576,7 +591,14 @@ $\pi_1$ & 0,24 & 0,44 & +0,169 / +0,180 / +0,157 & +0,048 / +0,047 / +0,037 & +0
 \end{table}
 
 \textbf{Werdykt H3: potwierdzona.} Oba czynniki wyraźnie zwiększają wszystkie trzy miary przy każdym poziomie
-drugiego czynnika (reguła wymagała dwóch z~trzech). Co jeszcze pokazuje E5:
+drugiego czynnika (reguła wymagała dwóch z~trzech). Werdykt dotyczy jednak czynników w~postaci, w~jakiej je
+zmieniamy. Przejście \cell{mixed} $\to$ \cell{trend} zmienia naraz trzy udziały (trendowi 20 $\to$ 30\%,
+wyceniający sieciowi 30 $\to$ 15\%, krótkowzroczni 30 $\to$ 35\%), więc mierzy efekt składu, a~nie samego udziału
+trendowych. Naśladowanie $s = (1-h)\,b + h\,\bar d$ ma dwa skutki naraz: dodaje kierunek znajomych i~osłabia własny
+sygnał. W~sprawdzonych przebiegach (ziarno 5001, wszystkie trzy składy przy $h = 0{,}2$ i~$0{,}4$) w~ok.~66\% decyzji
+z~niezerowym własnym sygnałem znajomi w~danej spółce milczeli ($\bar d = 0$), a~wtedy wzrost $h$ tylko osłabia
+własny sygnał. Rozdzielenie obu skutków wymaga osobnej komórki kontrolnej (rozdz.~\ref{sec:ograniczenia}).
+Co jeszcze pokazuje E5:
 \begin{itemize}
   \item \textbf{Skład waży więcej niż naśladowanie.} Przejście z~\cell{mixed} do \cell{trend} zwiększa $A_\sigma$
   o~0,19--0,27, a~$h = 0{,}4$ zamiast 0 --- o~0,10--0,18.
@@ -608,13 +630,14 @@ wartości $h$. Linia przerywana: ta sama statystyka dla prawdziwych spółek. Ko
 \code{runs/main/validation/comovement.csv}.}\label{fig:e6a}
 \end{figure}
 
-\paragraph{Kanały portfela nie zmieniają współruchu.} We wszystkich ośmiu komórkach $\rho_u$ wynosi 0,091--0,122.
+\paragraph{Limit ryzyka i~rebalansowanie nie zmieniają współruchu.} We wszystkich ośmiu komórkach $\rho_u$ wynosi 0,091--0,122.
 Kontrast „bez obu kanałów” $-$ „wszystkie kanały” wynosi $-0{,}0009$ [$-0{,}0067$; 0,0052] przy $h = 0$
 i~$-0{,}0003$ [$-0{,}0040$; 0,0038] przy $h = 0{,}4$, a~w~dniach stresu $-0{,}011$ [$-0{,}029$; 0,006]
 i~$-0{,}005$ [$-0{,}018$; 0,009]. Żaden z~10 kontrastów kanałów nie jest wyraźnie ujemny ani dla $\rho_u$, ani dla
 $\rho_u^{\mathrm{s}}$. Wyłączniki przy tym działają: limit ryzyka wywołuje średnio 13,5 sprzedaży na przebieg przy
 $h = 0$ i~6,4 przy $h = 0{,}4$, bez limitu --- zero, a~bez rebalansowania 14,7 i~10,5 (przy $h = 0{,}4$ wyraźnie
-więcej niż ze wszystkimi kanałami: $+4{,}1$ [3,3; 4,9]). Kanały zmieniają więc zlecenia, ale nie współruch.
+więcej niż ze wszystkimi kanałami: $+4{,}1$ [3,3; 4,9]). Kanały zmieniają więc zlecenia, ale nie współruch. Wspólna gotówka inwestora pozostaje we wszystkich wariantach
+(zakup jednej spółki zmniejsza środki na inne), więc tego kanału portfela E6a nie wyłącza.
 Jedyna inna zmiana wyraźna z~Bonferronim jest drobna i~ma przeciwny znak: miara z~wniosku,
 $\operatorname{corr}(r^P) - \operatorname{corr}(r^R)$, przy $h = 0{,}4$ rośnie o~0,007 [0,003; 0,010] po
 wyłączeniu obu kanałów.
@@ -626,19 +649,22 @@ wyłączeniu obu kanałów.
 \centering\small
 \caption{Korelacja reszt: rynek prawdziwy i~symulowany. Tabela \code{runs/main/validation/comovement.csv}.}
 \label{tab:wspolruch}
-\begin{tabularx}{\textwidth}{@{}Y c c c@{}}
+\begin{tabularx}{\textwidth}{@{}Y c c c c@{}}
 \toprule
-Seria & $\rho_u$ (pary niepowiązane) & $\rho_u^{\mathrm{s}}$ (dni stresu) & pary powiązane \\
+Seria & \makecell{$\rho_u$ (pary\\niepowiązane)} & \makecell{udział par\\z~korelacją $> 0{,}1$} &
+  \makecell{$\rho_u^{\mathrm{s}}$\\(dni stresu)} & \makecell{pary\\powiązane} \\
 \midrule
-prawdziwe spółki 2024--2025 & 0,000 & 0,017 & 0,191 \\
-symulacja, komórka główna (\cell{mixed}, $h = 0{,}2$) & 0,121 & 0,200 & 0,136 \\
-symulacja, płaskie wejścia (te same ziarna) & 0,002 & $-0{,}004$ & 0,001 \\
+prawdziwe spółki 2024--2025 & 0,000 & 0,31 & 0,017 & 0,191 \\
+symulacja, komórka główna (\cell{mixed}, $h = 0{,}2$) & 0,121 & 0,54 & 0,200 & 0,136 \\
+symulacja, płaskie wejścia (te same ziarna) & 0,002 & 0,03 & $-0{,}004$ & 0,001 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Na prawdziwym rynku pary, których graf nie łączy, nie poruszają się razem ponad to, co wyjaśnia $R$. W~symulacji
-poruszają się, ale tylko wtedy, gdy sygnały zewnętrzne się ruszają: na płaskich wejściach współruch znika; silniejszy
+Na prawdziwym rynku średnia korelacja reszt par, których graf nie łączy, jest bliska zera, ale kryje duży
+rozrzut: u~34 ze 109 par przekracza 0,1, a~u~innych jest ujemna. W~symulacji średnia wynosi 0,12, a~korelację
+powyżej 0,1 ma ponad połowa par. Model zawyża więc i~przeciętny współruch, i~częstość dodatnich powiązań. Współruch
+w~symulacji pojawia się tylko wtedy, gdy sygnały zewnętrzne się ruszają: na płaskich wejściach współruch znika; silniejszy
 jest w~dniach dużych ruchów indeksu. Analiza dodatkowa na siatce E5 (poza regułami protokołu,
 \code{runs/main/e5/p5\_contrasts\_extra.csv}) pokazuje, że skład \cell{trend} zwiększa $\rho_u$ względem
 \cell{mixed} o~0,062 / 0,050 / 0,040 przy $h = 0 / 0{,}2 / 0{,}4$ (w~dniach stresu o~0,07--0,11; wszystko wyraźne
@@ -652,30 +678,35 @@ której osobno nie testowaliśmy.
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=\textwidth]{f7_p6_shock.png}
-\caption{E6b, sygnały zamrożone na 2 stycznia 2024~r.: różnica $\ln P$ z~wiadomością (wycena NVDA $-50\%$
-w~sesji 20) i~bez niej na tym samym ziarnie, po 1, 5 i~20 sesjach; średnie z~30 par z~przedziałami 95\%.
+\caption{E6b, sygnały zamrożone na 2 stycznia 2024~r.: różnica $\ln P$ z~wiadomością (wycena NVDA $-50\%$ na
+początku sesji 20) i~bez niej na tym samym ziarnie, na zamknięciu sesji $k = 1, 5, 20$ po sesji z~wiadomością;
+średnie z~30 par z~przedziałami 95\%.
 Konfiguracja \code{configs/main/e6\_shock.yaml}; tabela \code{runs/main/e6/p6\_shock\_effects.csv}.}
 \label{fig:e6b}
 \end{figure}
 
 \paragraph{Wiadomość o~spółce zostaje w~swoim sąsiedztwie grafu} (rys.~\ref{fig:e6b}).
 \begin{itemize}
-  \item \textbf{NVDA} przy $h = 0$ spada już po jednej sesji o~67,3 punktu logarytmicznego [63,6; 70,9]; pełny szok
-  to $100 \ln 0{,}5 = -69{,}3$.
-  \item \textbf{Naśladowanie spowalnia tę reakcję.} Przy $h = 0{,}6$ spadek wynosi 42,5 po jednej sesji, 60,1 po
-  pięciu i~58,4 po dwudziestu: cena nie dochodzi do nowej wyceny nawet po 20 sesjach.
-  \item \textbf{GOOGL i~META}, połączone z~NVDA w~grafie, tracą 2,0\% / 2,9\% / 2,2\% po 1 / 5 / 20 sesjach. Gdyby
+  \item \textbf{NVDA potrzebuje około dwóch sesji.} Przy $h = 0$ na zamknięciu sesji z~wiadomością ($k = 0$)
+  spada o~21,9 punktu logarytmicznego [18,7; 25,2], czyli o~32\% pełnego szoku ($100 \ln 0{,}5 = -69{,}3$), a~na
+  zamknięciu następnej sesji ($k = 1$) o~67,3 [63,6; 70,9], czyli o~97\% (\code{p6\_shock\_extra.csv},
+  \code{p6\_shock\_effects.csv}).
+  \item \textbf{Naśladowanie spowalnia tę reakcję.} Przy $h = 0{,}6$ spadek wynosi 13,3 przy $k = 0$ (19\%), 42,5
+  przy $k = 1$, 60,1 przy $k = 5$ i~58,4 przy $k = 20$: cena nie dochodzi do nowej wyceny nawet po 20 sesjach.
+  \item \textbf{GOOGL i~META}, połączone z~NVDA w~grafie, tracą 0,3\% przy $k = 0$ oraz 2,0\% / 2,9\% / 2,2\% przy
+  $k = 1 / 5 / 20$. Gdyby
   wszyscy wyceniający stosowali pełne wagi (NVDA $\to$ GOOGL 0,057, NVDA $\to$ META 0,086), spadek wyniósłby
   ok.~4,8\%. W~składzie \cell{mixed} połowa wyceniających patrzy na cenę NVDA, co daje ok.~2,4\% --- zgodnie
   z~pomiarem.
-  \item \textbf{15 spółek niepowiązanych} zmienia się średnio o~$-0{,}03\%$ / $-0{,}06\%$ / $-0{,}09\%$. Dwie
+  \item \textbf{15 spółek niepowiązanych} zmienia się średnio o~$-0{,}03\%$ / $-0{,}06\%$ / $-0{,}09\%$ przy
+  $k = 1 / 5 / 20$. Dwie
   ostatnie wartości są wyraźne z~Bonferronim, ale ponad 700 razy mniejsze niż ruch NVDA.
   \item \textbf{Limit ryzyka nie zadziałał} z~powodu wiadomości w~żadnej z~60 par.
 \end{itemize}
 
-\textbf{Werdykt H4: odrzucona w~badanym zakresie.} Wszystkie kontrasty kanałów są niewyraźne. Odpowiedź na P6:
-współruch spółek niepowiązanych w~symulacji powstaje, i~to silniejszy niż w~rzeczywistości, ale nie przez wspólny
-portfel i~rebalansowanie. Zastrzeżenie: portfele obejmują 4 spółki, limit ryzyka ma 25\% inwestorów, a~funduszy
+\textbf{Werdykt H4: odrzucona dla limitu ryzyka i~rebalansowania.} Wszystkie kontrasty kanałów są niewyraźne.
+Odpowiedź na P6: współruch spółek niepowiązanych w~symulacji powstaje, i~to silniejszy niż w~rzeczywistości, ale nie
+przez limit ryzyka i~rebalansowanie; roli wspólnej gotówki inwestora E6a nie sprawdza. Zastrzeżenie: portfele obejmują 4 spółki, limit ryzyka ma 25\% inwestorów, a~funduszy
 jest 25, więc kanał majątkowy jest słaby z~konstrukcji (rozdz.~\ref{sec:ograniczenia}).
 
 \subsection{P7: udział wyceniających sieciowych (E7)}\label{sec:p7}
@@ -683,18 +714,19 @@ jest 25, więc kanał majątkowy jest słaby z~konstrukcji (rozdz.~\ref{sec:ogra
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=\textwidth]{f7_p7_network_share.png}
-\caption{E7: udział wyceniających sieciowych wśród 300 wyceniających ($h = 0{,}2$); średnie komórek z~przedziałami
-95\%. Punkt 30\% to komórka główna E5. Konfiguracje \code{configs/main/e7\_network\{0,25,50\}.yaml}; tabele
+\caption{E7: udział wyceniających sieciowych wśród 500 inwestorów (0, 125, 150 i~250 z~300 wyceniających;
+$h = 0{,}2$); średnie komórek z~przedziałami 95\%. Punkt 30\% to komórka główna E5. Konfiguracje \code{configs/main/e7\_network\{0,25,50\}.yaml}; tabele
 \code{runs/main/e7/p7\_metrics.csv}, \code{p7\_contrasts.csv}.}\label{fig:e7}
 \end{figure}
 
 \begin{table}[!htbp]
 \centering\small
-\caption{E7: rafinerie (VLO, MPC; dwa kroki od ropy) i~wszystkie spółki. Kontrasty 50\%~$-$~0\% w~pierwszych
+\caption{E7: rafinerie (VLO, MPC; dwa kroki od ropy) i~wszystkie spółki. Kolumny: udział wyceniających
+sieciowych wśród 500 inwestorów, w~nawiasie --- wśród 300 wyceniających. Kontrasty 50\%~$-$~0\% w~pierwszych
 czterech wierszach są wyraźne z~Bonferronim.}\label{tab:e7}
 \begin{tabularx}{\textwidth}{@{}Y c c c c l@{}}
 \toprule
-Miara & 0\% & 25\% & 30\% & 50\% & 50\% $-$ 0\% \\
+Miara & 0\% (0\%) & 25\% (42\%) & 30\% (50\%) & 50\% (83\%) & 50\% $-$ 0\% \\
 \midrule
 rafinerie: $\pi_1^{(2)}$ & $-0{,}03$ & 0,27 & 0,31 & 0,49 & $\mathbf{+0{,}515}$ [0,480; 0,550] \\
 rafinerie: $\Pi^{(2)}$ & 1,19 & 1,32 & 1,34 & 1,44 & $+0{,}248$ [0,220; 0,276] \\
@@ -710,7 +742,9 @@ wszystkie spółki: $A_\sigma$ & 1,34 & 1,33 & 1,33 & 1,33 & $-0{,}011$ [$-0{,}0
 krótkowzroczny wycenia VLO bezpośrednio z~ropy (waga bezpośrednia 0,43), więc reaguje tego samego dnia. Wyceniający
 sieciowy wycenia VLO z~cen COP i~EOG \emph{na symulowanej giełdzie} (COP $\to$ VLO 0,54; ropa $\to$ VLO tylko 0,05):
 czeka, aż te ceny się zmienią, i~dokłada drugą, spóźnioną falę. Obie fale się sumują, więc przestrzelenie w~dwóch
-dniach rośnie z~1,19 do 1,44.
+dniach rośnie z~1,19 do 1,44. Efekt nie wymaga przewagi sieciowych: gdy wiedzę o~grafie ma połowa wyceniających
+(komórka 30\%, 150 z~300), $\pi_1^{(2)}$ jest wyższe niż przy 0\% o~0,332 [0,298; 0,365] (analiza dodatkowa,
+\code{runs/main/e7/p7\_contrasts\_extra.csv}).
 
 Odpowiedź na P7: na grafie \code{real\_v1} fala przechodzi nawet bez wyceniających sieciowych, bo wagi bezpośrednie
 już zawierają ścieżkę pośrednią. Wiedza o~pośrednich zależnościach, czytana z~cen innych spółek, dodaje opóźnienie
@@ -729,15 +763,18 @@ Hipoteza & Rozstrzygnięcie & Podstawa \\
 H1: naśladowanie zwiększa obsunięcia i~czas z~pustą stroną arkusza & potwierdzona (etap wstępny) & E1, pozycja
   docelowa: $h = 0{,}6$ wobec 0 daje +2,0--3,4 p.p.\ obsunięcia i~+15--19 p.p.\ czasu z~pustą stroną; przedziały
   powyżej zera \\
-H2: koncentracja kapitału zwiększa wpływ pojedynczych uczestników & częściowo (etap wstępny) & koncentracja
-  zwiększa obsunięcie tylko przy słabym naśladowaniu (stara reguła, $h = 0$: 0,21\% $\to$ 0,76\%); przy silnym
-  naśladowaniu nie ma efektu \\
+H2: koncentracja kapitału zwiększa wpływ pojedynczych uczestników & nierozstrzygnięta (etap wstępny) & zmierzyliśmy
+  tylko obsunięcie przy różnej koncentracji (stara reguła, $h = 0$: 0,21\% $\to$ 0,76\%; przy silnym naśladowaniu
+  bez efektu); wpływu pojedynczego uczestnika na cenę ta miara nie mierzy \\
 \textbf{H3}: trend i~naśladowanie wzmacniają falę i~przestrzelenie & \textbf{potwierdzona} &
-  rozdz.~\ref{sec:p5}: 3 z~3 miar, oba czynniki, wszystkie poziomy \\
-\textbf{H4}: kanały portfela tworzą nadmiarowy współruch & \textbf{odrzucona} (w~badanym zakresie) &
-  rozdz.~\ref{sec:p6}: kontrasty kanałów niewyraźne; współruch istnieje, ale ma inne źródło \\
+  rozdz.~\ref{sec:p5}: 3 z~3 miar, oba czynniki, wszystkie poziomy; efekt składu (zmieniają się trzy udziały)
+  i~naśladowania razem z~osłabieniem własnego sygnału \\
+\textbf{H4}: kanały portfela tworzą nadmiarowy współruch & \textbf{odrzucona} dla limitu ryzyka
+  i~rebalansowania & rozdz.~\ref{sec:p6}: kontrasty kanałów niewyraźne; współruch istnieje, ale ma inne źródło;
+  wspólnej gotówki nie wyłączaliśmy \\
 H5: agenci sieciowi skracają opóźnienie & \textbf{odrzucona} (efekt przeciwny) & rozdz.~\ref{sec:p7}:
-  $\pi_1^{(2)}$, 50\% $-$ 0\%: $+0{,}515$ [0,480; 0,550] \\
+  $\pi_1^{(2)}$, 50\% $-$ 0\% inwestorów (83\% wyceniających): $+0{,}515$ [0,480; 0,550]; połowa wyceniających:
+  $+0{,}332$ [0,298; 0,365] \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -747,7 +784,8 @@ H5: agenci sieciowi skracają opóźnienie & \textbf{odrzucona} (efekt przeciwny
 \section{Walidacja: co model odtwarza, a~czego nie}\label{sec:walidacja}
 
 Tylko sprawdzian z~rozdz.~\ref{sec:poza-proba} jest niezależny od kalibracji: wagi grafu pochodzą z~lat 2021--2023,
-a~porównujemy je z~latami 2024--2025. Pozostałe porównania z~rynkiem są wynikami kalibracji
+a~porównujemy je z~latami 2024--2025. Nie jest to prognoza: $R$ korzysta z~ruchów sygnałów zewnętrznych z~tego samego
+dnia, więc sprawdzamy, czy wagi objaśniają ruchy spoza okresu ich szacowania. Pozostałe porównania z~rynkiem są wynikami kalibracji
 (rozdz.~\ref{sec:plan}). Ponieważ te same własności statystyczne odtwarza wiele modeli~\cite{fagiolo2007}, każde
 porównanie ma kontrolę, bez której nie da się go zinterpretować:
 \begin{itemize}
@@ -766,13 +804,19 @@ pochodzą z~\code{runs/main/validation/*.csv}.
 \centering
 \includegraphics[width=\textwidth]{f8_out_of_sample.png}
 \caption{Korelacja dziennej stopy zwrotu $R$ (wagi 2021--2023, prawdziwe sygnały 2024--2025) z~prawdziwą stopą
-zwrotu każdej spółki w~latach 2024--2025, obok samej bety rynkowej. Linie: średnia i~95.~percentyl dla 200 grafów
-losowych. Tabele \code{out\_of\_sample.csv}, \code{out\_of\_sample\_by\_company.csv}.}\label{fig:oos}
+zwrotu każdej spółki w~latach 2024--2025, obok $R$ z~samymi bezpośrednimi ekspozycjami (bez krawędzi między
+spółkami) i~samej bety rynkowej. Linie: średnia i~95.~percentyl dla 200 grafów losowych. Tabele \code{out\_of\_sample.csv}, \code{out\_of\_sample\_by\_company.csv}.}\label{fig:oos}
 \end{figure}
 
 Mediana po spółkach korelacji $R$ z~prawdziwą stopą zwrotu wynosi 0,595, a~samej bety rynkowej 0,526. Grafy
-losowe dają średnio 0,563 (95.~percentyl 0,590) i~żaden z~200 nie dorównuje \code{real\_v1}. Graf zyskuje na
-spółkach surowcowych (COP 0,67 wobec 0,42 dla bety, EOG 0,66 wobec 0,40, NEM 0,66 wobec 0,23, VLO 0,53 wobec
+losowe dają średnio 0,563 (95.~percentyl 0,590) i~żaden z~200 nie dorównuje \code{real\_v1}. Tę samą medianę,
+0,595, daje jednak $R$ z~samymi bezpośrednimi ekspozycjami spółek na surowce i~indeks, bez krawędzi między
+spółkami; dla poszczególnych spółek różnice nie przekraczają 0,001. Przewagę nad grafami losowymi daje więc
+właściwy dobór ekspozycji na surowce (grafy losowe przestawiają także krawędzie surowiec $\to$ spółka), a~nie
+krawędzie między spółkami. Nie dziwi to: wagi bezpośrednie są szacowane na tych samych danych i~już zawierają
+ścieżki pośrednie (rozdz.~\ref{sec:graf}). Krawędzie między spółkami mają znaczenie wewnątrz modelu, bo od nich
+zależy, kiedy reagują wyceniający sieciowi (rozdz.~\ref{sec:p7}), ale ich dodatkowej wartości dla objaśnienia
+prawdziwego rynku ten sprawdzian nie pokazuje. Graf zyskuje na spółkach surowcowych (COP 0,67 wobec 0,42 dla bety, EOG 0,66 wobec 0,40, NEM 0,66 wobec 0,23, VLO 0,53 wobec
 0,41). Dla spółek technologicznych i~JPM $R$ zawiera tylko ruch indeksu, więc równa się becie. Dla DUK korelacja
 jest bliska zeru w~obu modelach ($-0{,}02$): w~latach 2024--2025 ta spółka energetyczna nie podążała ani za
 indeksem, ani za gazem.
@@ -790,14 +834,14 @@ Czarne punkty: prawdziwe spółki z~przedziałem 95\%. Tabele \code{events\_*.cs
 \centering\small
 \caption{Korelacja między spółkami średniej reakcji modelu i~prawdziwej reakcji w~dniach dużych ruchów surowca.}
 \label{tab:events}
-\begin{tabularx}{\textwidth}{@{}l c c c c Y@{}}
+\begin{tabularx}{\textwidth}{@{}l c c c c c Y@{}}
 \toprule
-Zdarzenia & $R$ & symulacja & symul., grafy losowe & płaskie wejścia & $R$ grafów losowych: średnia (udział
-  $\ge$ \code{real\_v1}) \\
+Zdarzenia & $R$ & \makecell{$R$, tylko\\bezpośr.} & \makecell{symu-\\lacja} & \makecell{symulacja,\\grafy losowe}
+  & \makecell{płaskie\\wejścia} & $R$ grafów losowych: średnia (udział $\ge$ \code{real\_v1}) \\
 \midrule
-ropa, 1 dzień & 0,87 & 0,82 & 0,61 / 0,48 & 0,19 & 0,76 (15,5\%) \\
-ropa, 2 dni & 0,84 & 0,80 & 0,70 / 0,44 & 0,37 & 0,67 (0,5\%) \\
-miedź, 2 dni & 0,79 & 0,75 & $-0{,}07$ / $-0{,}19$ & $-0{,}04$ & 0,15 (0\%) \\
+ropa, 1 dzień & 0,87 & 0,87 & 0,82 & 0,61 / 0,48 & 0,19 & 0,76 (15,5\%) \\
+ropa, 2 dni & 0,84 & 0,84 & 0,80 & 0,70 / 0,44 & 0,37 & 0,67 (0,5\%) \\
+miedź, 2 dni & 0,79 & 0,79 & 0,75 & $-0{,}07$ / $-0{,}19$ & $-0{,}04$ & 0,15 (0\%) \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -805,8 +849,9 @@ miedź, 2 dni & 0,79 & 0,75 & $-0{,}07$ / $-0{,}19$ & $-0{,}04$ & 0,15 (0\%) \\
 Model odtwarza, które spółki reagują na surowce i~jak mocno (tab.~\ref{tab:events}); stosunek wielkości reakcji
 do prawdziwej wynosi 0,93 dla ropy w~1 dzień i~1,19 w~2 dni. Przewaga nad grafami losowymi jest wyraźna dla
 miedzi i~dla dwudniowej reakcji na ropę; dla ropy w~1 dzień 15,5\% grafów losowych daje $R$ co najmniej tak dobre
-jak \code{real\_v1}. Znak reakcji spółek o~słabej reakcji symulacja trafia rzadziej niż $R$ (61\% wobec 89\%
-spółek).
+jak \code{real\_v1}. $R$ z~samymi bezpośrednimi ekspozycjami daje te same korelacje (0,8748 wobec 0,8745 dla ropy
+w~1 dzień), więc i~tu dopasowanie pochodzi z~ekspozycji na surowce. Znak reakcji spółek o~słabej reakcji symulacja
+trafia rzadziej niż $R$ (61\% wobec 89\% spółek).
 
 \subsection{Własności statystyczne stóp zwrotu}
 
@@ -919,10 +964,11 @@ służy.
 \toprule
 Model odtwarza & Model nie odtwarza \\
 \midrule
-zależności grafu poza próbą lepiej niż każdy z~200 grafów losowych & ścieżek cen konkretnych spółek \\
+ekspozycje spółek na surowce i~indeks poza okresem szacowania lepiej niż każdy z~200 grafów losowych & ścieżek
+  cen konkretnych spółek; dodatkowej wartości krawędzi między spółkami dla objaśnienia rynku nie widać \\
 przekrój reakcji spółek na duże ruchy ropy i~miedzi & braku przewidywalnych opóźnień między spółkami \\
 grube ogony, grupowanie zmienności, związek wolumenu z~ruchem (bez wartości dla grafu) & poziomu korelacji akcji
-  i~braku współruchu par niepowiązanych \\
+  i~średniej korelacji reszt par niepowiązanych bliskiej zera; tempa wchłaniania wiadomości \\
 strukturę grafu w~cenach & autokorelacji stóp zwrotu w~składzie \cell{trend} \\
 \bottomrule
 \end{tabularx}
@@ -933,19 +979,22 @@ strukturę grafu w~cenach & autokorelacji stóp zwrotu w~składzie \cell{trend} 
 \section{Dyskusja i~ograniczenia}\label{sec:dyskusja}
 
 \subsection{Co wynika z~badania}
-\textbf{O~tym, jak szok przechodzi przez rynek, decydują przede wszystkim strategie inwestorów, a~dopiero potem
-naśladowanie.} Udział strategii trendowych zmienia wzmocnienie zmienności i~odchylenia od $R$ mniej więcej dwa razy
-mocniej niż naśladowanie w~badanym zakresie, a~oba czynniki się wzmacniają (rozdz.~\ref{sec:p5}). Jakościowo
+\textbf{O~tym, jak szok przechodzi przez rynek, decyduje przede wszystkim skład strategii inwestorów, a~dopiero
+potem naśladowanie.} Zmiana składu zmienia wzmocnienie zmienności i~odchylenia od $R$ mniej więcej dwa razy mocniej
+niż naśladowanie w~badanym zakresie, a~oba czynniki się wzmacniają (rozdz.~\ref{sec:p5}). Oba czynniki są jednak
+złożone: zmiana składu przesuwa naraz trzy udziały, a~naśladowanie w~większości decyzji tylko osłabia własny sygnał,
+więc nie przypisujemy efektu samym strategiom trendowym ani samemu podążaniu za innymi. Jakościowo
 zgadza się to z~modelami fundamentalistów i~chartystów~\cite{lux,chiarella-iori}. Nowe jest to, że efekt mierzymy na
 fali rzeczywistego szoku wzdłuż grafu, a~nie na jednym aktywie, i~parami na tych samych ziarnach. Wynik odpowiada też
 mechanizmowi Honga i~Steina~\cite{hongstein1999}: gdy obok inwestorów reagujących na informację działają strategie
 trendowe, reakcja na szok przechodzi w~przestrzelenie.
 
-\textbf{Nadmiarowy współruch nie potrzebuje wspólnego portfela.} Kyle i~Xiong~\cite{kyle} wyprowadzają zarażanie
-z~efektu majątkowego wspólnych inwestorów. W~naszym rynku ten kanał istnieje (limit ryzyka działa kilkanaście razy
-na przebieg), ale nie zmienia współruchu, który powstaje z~tego, jak agenci wchłaniają wspólne ruchy sygnałów,
+\textbf{Nadmiarowy współruch nie potrzebuje limitu ryzyka ani rebalansowania.} Kyle i~Xiong~\cite{kyle}
+wyprowadzają zarażanie z~efektu majątkowego wspólnych inwestorów. W~naszym rynku limit ryzyka działa kilkanaście razy
+na przebieg, ale jego wyłączenie, podobnie jak wyłączenie rebalansowania, nie zmienia współruchu, który powstaje z~tego, jak agenci wchłaniają wspólne ruchy sygnałów,
 i~rośnie z~udziałem strategii trendowych (rozdz.~\ref{sec:p6}). To wynik dla naszej konstrukcji, w~której kanał
-majątkowy jest słaby (portfele z~4 spółek, limit u~25\% inwestorów), a~nie ogólne twierdzenie o~rynkach. Wynik ma
+majątkowy jest słaby (portfele z~4 spółek, limit u~25\% inwestorów), a~wspólna gotówka inwestora działa we
+wszystkich wariantach, a~nie ogólne twierdzenie o~rynkach. Wynik ma
 też drugą stronę: współruch, którego prawdziwy rynek nie ma, jest błędem modelu; wyjaśnia go to samo co za wysoki
 poziom korelacji (rozdz.~\ref{sec:korelacje}). Empirycznie akcje o~wspólnych właścicielach poruszają się razem
 wyraźnie~\cite{anton2014,greenwood2011}, ale ten współruch tworzą przepływy kapitału do funduszy i~z~funduszy,
@@ -958,6 +1007,8 @@ powstają przewidywalne opóźnienia z~rozdz.~\ref{sec:opoznienia}, których pra
 przypomina opóźnione reakcje na powiązania między dostawcami i~odbiorcami~\cite{cohen,menzly2010}, ale w~naszym
 modelu jest za silny. Menzly i~Ozbas~\cite{menzly2010} wiążą tę przewidywalność z~inwestorami, którzy śledzą tylko
 jedną branżę; u~nas podobny efekt daje nie specjalizacja, lecz poznawanie zależności przez ceny innych spółek.
+Ten wynik jest najlepiej podparty: kierunek nie zależy od tego, czy wiedzę o~grafie ma połowa, czy 83\%
+wyceniających, a~mechanizm wynika bezpośrednio z~wag grafu.
 
 \subsection{Ograniczenia}\label{sec:ograniczenia}
 \begin{itemize}
@@ -965,8 +1016,9 @@ jedną branżę; u~nas podobny efekt daje nie specjalizacja, lecz poznawanie zal
   o~spółce (wyniki, decyzje zarządu). Model ich nie ma i~nie powinien mieć; dlatego pasma przebiegów są wąskie i~nie
   obejmują prawdziwych cen. Nie prognozujemy ścieżek konkretnych spółek, porównujemy wzorce.
   \item \textbf{Rynek reaguje za wolno i~zbyt jednolicie.} Inwestor decyduje średnio dwa razy na sesję, więc część
-  ruchu $R$ dochodzi do ceny dopiero następnego dnia. W~symulacji 62\% krawędzi ma przewidywalne opóźnienie
-  (w~rzeczywistości 0\%), korelacje akcji są dwa razy wyższe niż prawdziwe, a~pary niepowiązane poruszają się razem.
+  ruchu $R$ dochodzi do ceny dopiero następnego dnia, a~wiadomość o~spółce rynek wchłania w~ciągu około dwóch
+  sesji. W~symulacji 62\% krawędzi ma przewidywalne opóźnienie (w~rzeczywistości 0\%), korelacje akcji są dwa razy
+  wyższe niż prawdziwe, a~pary niepowiązane poruszają się razem.
   Efekty z~rozdz.~\ref{sec:wyniki} są porównaniami wewnątrz modelu z~tą wadą, a~nie ilościowymi przewidywaniami dla
   rynku.
   \item \textbf{Kalibracja ręczna i~na okresie porównania} (rozdz.~\ref{sec:plan}). Niezależny jest tylko
@@ -976,36 +1028,49 @@ jedną branżę; u~nas podobny efekt daje nie specjalizacja, lecz poznawanie zal
   nawet bez zmiany powiązań~\cite{forbes2002}, więc $\rho_u^{\mathrm{s}}$ porównujemy tylko między komórkami
   i~z~tą samą statystyką dla prawdziwych spółek, a~nie z~$\rho_u$.
   \item \textbf{Słaby kanał majątkowy z~konstrukcji:} 4 spółki w~portfelu, limit ryzyka u~25\% inwestorów,
-  25 funduszy, brak kredytu i~krótkiej sprzedaży. Odrzucenie H4 dotyczy tego zakresu.
+  25 funduszy, brak kredytu i~krótkiej sprzedaży. Odrzucenie H4 dotyczy tego zakresu i~tylko limitu ryzyka
+  oraz rebalansowania; porównanie wspólnej i~rozdzielonej gotówki jest dalszym krokiem.
+  \item \textbf{Złożone czynniki w~E5:} zmiana składu przesuwa naraz trzy udziały typów inwestorów, a~naśladowanie
+  w~większości decyzji tylko osłabia własny sygnał. Rozdzielenie skutków wymaga komórek kontrolnych: zmiany udziału
+  trendowych przy stałych proporcjach wyceniających oraz osłabienia własnego sygnału bez przekazywania kierunku
+  znajomych.
   \item \textbf{H1 i~H2 tylko z~etapu wstępnego} (1 aktywo, 30 sesji, ziarna pilotażu); w~badaniu głównym ich nie
   powtarzaliśmy.
-  \item \textbf{Dwóch animatorów jednej spółki} nadal przesuwa kwotowania względem siebie nawzajem; w~badaniu
-  głównym zostały 2 załamania na 690 przebiegów, oba w~składzie \cell{trend}.
+  \item \textbf{Dwie awarie rynku spółki} (DAL, AMD) w~570 przebiegach bez wiadomości, obie w~składzie
+  \cell{trend} i~w~tym samym epizodzie z~kwietnia 2025~r.; AMD spadł do 1--2 centów. Mechanizmu jeszcze nie
+  rozłożyliśmy; podejrzewamy wzajemne przesuwanie kwotowań przez dwóch animatorów jednej spółki.
   \item \textbf{Jedna historia i~jeden graf:} lata 2024--2025, stałe wagi z~lat 2021--2023, jedna spółka to jedna
-  branża, tylko dane z~USA.
+  branża, tylko dane z~USA. 30 ziaren to 30 realizacji tej samej historii, a~nie 30 niezależnych historii rynku.
 \end{itemize}
 
 % =================================================================================================================
 \section{Wnioski}\label{sec:wnioski}
 \begin{enumerate}
-  \item \textbf{Strategie i~naśladowanie (P5, H3 potwierdzona).} Więcej strategii trendowych i~silniejsze
-  naśladowanie wyraźnie zwiększają przestrzelenie, odchylenia od trajektorii referencyjnej i~spóźnioną reakcję na
-  rzeczywiste szoki surowcowe. Skład strategii działa mocniej niż naśladowanie, a~oba czynniki się wzmacniają.
+  \item \textbf{Strategie i~naśladowanie (P5, H3 potwierdzona).} Skład z~większym udziałem strategii trendowych
+  i~silniejsze naśladowanie wyraźnie zwiększają przestrzelenie, odchylenia od trajektorii referencyjnej i~spóźnioną
+  reakcję na rzeczywiste szoki surowcowe. Skład działa mocniej niż naśladowanie, a~oba czynniki się wzmacniają; oba
+  są jednak złożone i~wymagają komórek kontrolnych.
   \item \textbf{Współruch (P6, H4 odrzucona).} Symulowany rynek wytwarza współruch spółek niepowiązanych w~grafie,
-  ale nie przez wspólny portfel i~rebalansowanie: wyłączenie tych kanałów go nie zmienia. Współruch pojawia się
-  tylko przy ruchu sygnałów i~rośnie z~udziałem strategii trendowych. Prawdziwy rynek go nie ma, więc jest to
-  zarazem błąd modelu. Wiadomość o~pojedynczej spółce nie wychodzi poza jej sąsiedztwo w~grafie.
+  ale nie przez limit ryzyka i~rebalansowanie: wyłączenie tych kanałów go nie zmienia (wspólnej gotówki nie
+  wyłączaliśmy). Współruch pojawia się tylko przy ruchu sygnałów i~rośnie z~udziałem strategii trendowych. Na
+  prawdziwym rynku średnia korelacja reszt tych par jest bliska zera, więc jest to zarazem błąd modelu. Wiadomość
+  o~pojedynczej spółce prawie nie wychodzi poza jej sąsiedztwo w~grafie.
   \item \textbf{Wiedza o~sieci (P7, H5 odrzucona, efekt przeciwny).} Fala przechodzi bez agentów znających
-  pośrednie zależności, a~ich udział przesuwa reakcję rafinerii na następny dzień i~zwiększa przestrzelenie.
-  \item \textbf{Walidacja.} Graf przewiduje prawdziwe ruchy 2024--2025 poza próbą lepiej niż wszystkie 200 grafów
-  losowych, a~model odtwarza przekrój reakcji spółek na ropę i~miedź. Głównym błędem do usunięcia jest za wolna
-  i~zbyt jednolita reakcja rynku (przewidywalne opóźnienia, za wysokie korelacje).
+  pośrednie zależności, a~ich udział przesuwa reakcję rafinerii na następny dzień i~zwiększa przestrzelenie; tak
+  jest już wtedy, gdy wiedzę o~grafie ma połowa wyceniających. To najlepiej podparty wynik badania.
+  \item \textbf{Walidacja.} Ekspozycje spółek na surowce i~indeks objaśniają prawdziwe ruchy 2024--2025 spoza
+  okresu szacowania lepiej niż wszystkie 200 grafów losowych, ale krawędzie między spółkami nie dodają do tego nic
+  mierzalnego. Model odtwarza przekrój reakcji spółek na ropę i~miedź. Głównym błędem do usunięcia jest za wolna
+  i~zbyt jednolita reakcja rynku (przewidywalne opóźnienia, wchłanianie wiadomości przez dwie sesje, za wysokie
+  korelacje), a~zaraz po nim dwie awarie rynku spółki.
 \end{enumerate}
 
-\paragraph{Dalsze kroki.} Przed artykułem: szybsza i~bardziej zróżnicowana reakcja agentów (częstsze decyzje,
-rozrzut opóźnień, losowe wiadomości o~spółkach) i~sprawdzenie, czy rozstrzygnięcia H3--H5 się utrzymują, gdy test
-opóźnień i~poziom korelacji są bliższe rzeczywistym; E6 z~silniejszym kanałem majątkowym (większe portfele,
-dźwignia); powtórzenie na innym okresie i~grafie.
+\paragraph{Dalsze kroki.} Przed artykułem: rozłożenie obu awarii na podstawie dzienników zleceń i~zapasów
+animatorów; szybsza i~bardziej zróżnicowana reakcja agentów (częstsze decyzje, rozrzut opóźnień, losowe wiadomości
+o~spółkach) i~sprawdzenie, czy rozstrzygnięcia H3--H5 się utrzymują, gdy test opóźnień i~poziom korelacji są bliższe
+rzeczywistym; komórki kontrolne rozdzielające skutki składu i~naśladowania; E6 ze wspólną i~rozdzieloną gotówką
+oraz silniejszym kanałem majątkowym; zamrożenie poprawionych parametrów przed sprawdzeniem na innym okresie
+i~grafie.
 
 % =================================================================================================================
 \bibliographystyle{unsrtnat}

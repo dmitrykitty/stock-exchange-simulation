@@ -42,6 +42,9 @@ The E6b figure combines p6_shock_extra.csv (the close of the news session) and p
 Company selection and economic roles are documented in data/mapping/companies.csv.
 
 The accompanying result_tables.zip contains the study's aggregate tables (contrasts, validation results
-and the company-level figure data), with paths relative to runs/main. It omits individual run histories,
+and the company-level figure data), with paths relative to runs/main. The E5 and E7 cell-mean tables
+average p5_metrics.csv and p7_metrics.csv over noncollapsed runs, grouped by composition and herding for E5
+and by the share of network valuers among all investors for E7, including the shared E5 cell at 30%.
+The archive omits individual run histories,
 identifiers of market participants and raw market data. The direct-exposure validation and first-close
 analyses were added in commits 06c153c and 2d27a9f; the supplementary oil regression is bundled with this revision.

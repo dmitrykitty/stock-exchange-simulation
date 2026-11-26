@@ -121,6 +121,10 @@ def p6(root: Path, out: Path) -> list[Path]:
     effects_path = root / "e6" / "p6_shock_effects.csv"
     if effects_path.exists():
         e = pd.read_csv(effects_path)
+        extra_path = effects_path.with_name("p6_shock_extra.csv")
+        if extra_path.exists():
+            extra = pd.read_csv(extra_path)
+            e = pd.concat([e, extra.loc[extra.metric.str.endswith("_0")]], ignore_index=True)
         change = e.change.min()  # the largest fall, when several shock sizes were run
         e = e.loc[e.change == change]
         horizons = sorted({int(x.rsplit("_", 1)[1]) for x in e.metric if x.rsplit("_", 1)[-1].isdigit()})
@@ -136,8 +140,8 @@ def p6(root: Path, out: Path) -> list[Path]:
                             fmt="o-", capsize=3, color=color, label=f"h = {h:g}")
             ax.axhline(0, color="k", lw=0.6)
             ax.set_xticks(horizons)
-            ax.set_xlabel("sessions after the news")
-            ax.set_ylabel("ln P with − without the news, %")
+            ax.set_xlabel("closing session relative to the news session")
+            ax.set_ylabel("100 × difference in log prices")
             ax.set_title(title, fontsize=10)
         axes[0].legend()
         fig.suptitle(f"E6, frozen signals: company valuations {100 * change:+.0f}% at the news, against the same "

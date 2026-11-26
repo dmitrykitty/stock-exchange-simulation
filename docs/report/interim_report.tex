@@ -32,6 +32,9 @@
 \renewcommand{\arraystretch}{1.15}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 \newcommand{\code}[1]{\texttt{#1}}
+% legend of the symbols under an equation: "gdzie:" and one row per symbol
+\newenvironment{legenda}{\par\vspace{1pt}\noindent gdzie:\par\vspace{1pt}\noindent\small
+  \tabularx{\linewidth}{@{\hspace{1.5em}}>{$}l<{$}@{\hspace{0.7em}--\hspace{0.7em}}Y@{}}}{\endtabularx\par\vspace{4pt}}
 \newcommand{\cell}[1]{\textsf{#1}}
 
 \title{Opóźniona reakcja cen akcji na zmiany cen surowców w~agentowym modelu wieloaktywowym}
@@ -145,12 +148,16 @@ regresją dziennych logarytmicznych stóp zwrotu z~lat 2021--2023 (752 dni) z~in
 \begin{equation}
   r_{i,t} = \alpha_i + \sum_{j \in \mathcal P_i\setminus\{\mathrm{indeks}\}} w_{ij}\, r_{j,t} + \beta_i\, r^{\mathrm{S\&P500}}_t + u_{i,t},
 \end{equation}
-gdzie $r_{i,t}$ to dzienna logarytmiczna stopa zwrotu spółki $i$ w~dniu $t$, a~$r_{j,t}$ --- stopa zwrotu jej
-rodzica $j$ (sygnału zewnętrznego lub innej spółki). Waga $w_{ij}$ mówi, o~ile procent zmienia się wycena spółki
-$i$, gdy rodzic $j$ zmienia się o~1\%. Indeks S\&P~500 jest rodzicem każdej spółki, dlatego wyłączamy go z~sumy
-i~zapisujemy osobno: $r^{\mathrm{S\&P500}}_t$ to jego stopa zwrotu, a~$\beta_i$ --- wrażliwość spółki na rynek
-(waga krawędzi S\&P~500 $\to i$). $\alpha_i$ to wyraz wolny, a~$u_{i,t}$ --- reszta, czyli część ruchu spółki,
-której rodzice nie wyjaśniają.
+\begin{legenda}
+r_{i,t} & dzienna logarytmiczna stopa zwrotu spółki $i$ w~dniu $t$; \\
+\mathcal P_i & rodzice spółki $i$ w~grafie (sygnały zewnętrzne, indeks i~--- w~wagach pełnych --- spółki-dostawcy); \\
+r_{j,t} & stopa zwrotu rodzica $j$; \\
+w_{ij} & waga krawędzi $j \to i$: o~ile procent zmienia się wycena spółki $i$, gdy rodzic $j$ zmienia się o~1\%; \\
+r^{\mathrm{S\&P500}}_t & stopa zwrotu indeksu; indeks jest rodzicem każdej spółki, więc zapisujemy go poza sumą; \\
+\beta_i & wrażliwość spółki na rynek (waga krawędzi S\&P~500 $\to i$); \\
+\alpha_i & wyraz wolny; \\
+u_{i,t} & reszta: część ruchu spółki, której rodzice nie wyjaśniają.
+\end{legenda}
 
 Dla każdej spółki szacujemy dwa zestawy wag, różniące się zbiorem rodziców $\mathcal P_i$. Wagi
 \emph{bezpośrednie} pochodzą z~regresji, w~której rodzicami spółki są tylko sygnały zewnętrzne i~indeks; wagi
@@ -257,15 +264,25 @@ Składy w~E5 (udziały wyceniających krótkowzrocznych / sieciowych / trendowyc
   \ln V_{a,i}(t) = \ln V_{a,i}(0) + \sum_{j} \hat w_{a,ij}\,\bigl[\ln P^{\mathrm{obs}}_{a,j}(t)
     - \ln P^{\mathrm{obs}}_{a,j}(0)\bigr],
 \end{equation}
-gdzie $V_{a,i}(t)$ to wycena spółki $i$ przez agenta $a$ w~chwili $t$, a~$V_{a,i}(0)$ --- cena startowa spółki
-z~osobistym błędem agenta (odchylenie standardowe 2\%). Suma obejmuje rodziców $j$ z~zestawu wag właściwego dla
-typu agenta: bezpośredniego dla krótkowzrocznego, pełnego dla sieciowego (rozdz.~\ref{sec:graf}). $P_j(t)$ to cena
-rodzica: dla sygnału zewnętrznego jego poziom z~danych, dla spółki --- jej cena na symulowanej giełdzie.
-$P^{\mathrm{obs}}_{a,j}(t) = P_j(t - d_a)$ to ta cena obserwowana z~opóźnieniem $d_a$ (średnio 0,05 sesji),
-a~$\hat w_{a,ij} = w_{ij}(1 + \eta_{a,ij})$ --- waga z~osobistym błędem agenta ($\sigma_\eta = 0{,}1$). Z~wyceny
-$V = V_{a,i}(t)$ i~bieżącej ceny spółki $P$ agent tworzy sygnał
-$b = \operatorname{clip}\bigl((V - P)/(\gamma P), -1, 1\bigr)$: przy $\gamma = 0{,}05$ sygnał osiąga $\pm 1$, gdy
-wycena odbiega od ceny o~5\%, a~funkcja $\operatorname{clip}$ obcina wartości do przedziału $[-1, 1]$.
+\begin{legenda}
+V_{a,i}(t) & wycena spółki $i$ przez agenta $a$ w~chwili $t$; \\
+V_{a,i}(0) & cena startowa spółki z~osobistym błędem agenta (odchylenie standardowe 2\%); \\
+j & rodzice spółki $i$ z~zestawu wag właściwego dla typu agenta: bezpośredniego dla krótkowzrocznego, pełnego dla
+  sieciowego (rozdz.~\ref{sec:graf}); \\
+P^{\mathrm{obs}}_{a,j}(t) & cena rodzica obserwowana z~opóźnieniem: $P_j(t - d_a)$, gdzie $P_j$ to poziom sygnału
+  zewnętrznego z~danych albo cena spółki na symulowanej giełdzie, a~$d_a$ --- opóźnienie agenta (średnio 0,05
+  sesji); \\
+\hat w_{a,ij} & waga grafu z~osobistym błędem agenta: $w_{ij}(1 + \eta_{a,ij})$, $\sigma_\eta = 0{,}1$.
+\end{legenda}
+\noindent Z~wyceny agent tworzy sygnał
+\begin{equation}
+  b = \operatorname{clip}\!\left(\frac{V_{a,i}(t) - P_i(t)}{\gamma\, P_i(t)},\, -1,\, 1\right),
+\end{equation}
+\begin{legenda}
+P_i(t) & bieżąca cena spółki na giełdzie; \\
+\gamma & odchylenie wyceny od ceny, przy którym sygnał osiąga $\pm 1$ ($\gamma = 0{,}05$, czyli 5\%); \\
+\operatorname{clip} & obcięcie wartości do przedziału $[-1, 1]$.
+\end{legenda}
 
 \paragraph{Naśladowanie.} Każdy inwestor ma 5 „znajomych”; ostateczny sygnał to $s = (1-h)\, b + h\, \bar d$,
 gdzie $\bar d$ to średni kierunek ostatnich zleceń znajomych w~tej spółce (ważny 0,5 sesji), a~$h$ --- siła
@@ -289,11 +306,14 @@ pełne wagi grafu do ruchów sygnałów zewnętrznych:
 \begin{equation}
   \ln R_i(t) - \ln R_i(0) = \sum_{j} w_{ij}\,\bigl[\ln R_j(t) - \ln R_j(0)\bigr],
 \end{equation}
-gdzie $R_i(t)$ to referencyjna cena spółki $i$ w~sesji $t$, $R_i(0)$ --- jej cena startowa, a~$w_{ij}$ --- pełne
-wagi grafu. Dla sygnału zewnętrznego $k$ (ropy, gazu, miedzi, złota lub indeksu) $R_k(t) = X_k(t)$, czyli jego
-poziom z~danych. Graf między
-spółkami jest acykliczny, więc $R$ liczymy kolejno: najpierw spółki zależne tylko od sygnałów, potem ich odbiorców.
-Agenci nie znają $R$; służy wyłącznie do pomiarów.
+\begin{legenda}
+R_i(t) & referencyjna cena spółki $i$ w~sesji $t$; \\
+R_i(0) & cena startowa spółki; \\
+w_{ij} & pełne wagi grafu; \\
+R_k(t) & dla sygnału zewnętrznego $k$ (ropa, gaz, miedź, złoto, indeks) --- jego poziom z~danych.
+\end{legenda}
+\noindent Graf między spółkami jest acykliczny, więc $R$ liczymy kolejno: najpierw spółki zależne tylko od sygnałów, potem ich
+odbiorców. Agenci nie znają $R$; służy wyłącznie do pomiarów.
 
 \paragraph{Dobór parametrów.}
 Wagi grafu są estymowane na dziennych danych z~lat 2021--2023. Pozostałe parametry opisują eksperymentalny rynek.

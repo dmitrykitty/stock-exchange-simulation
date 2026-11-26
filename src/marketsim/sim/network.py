@@ -482,8 +482,11 @@ class NetworkSimulation:
                     gap = neutral * (1 + s.position_tilt * signal) - held * price
                     intent = None
                     if abs(signal) > s.threshold or abs(gap) > s.rebalance_band * neutral:
-                        intent = target_order(gap, s.rho * self._wealth(portfolio), price, self._top(asset),
-                                              portfolio, self.asset_settings[asset], self._decision_rng[agent], asset)
+                        # at least one share per decision, as in F4: otherwise an investor whose rho x wealth is
+                        # below the price could never trade
+                        cap = max(s.rho * self._wealth(portfolio), price) if s.rho > 0 else 0
+                        intent = target_order(gap, cap, price, self._top(asset), portfolio,
+                                              self.asset_settings[asset], self._decision_rng[agent], asset)
                 else:
                     own = self._own_signal(agent, kind, asset, price, now)
                     herd, signal = self.network.mix(agent, own, now, h, asset)

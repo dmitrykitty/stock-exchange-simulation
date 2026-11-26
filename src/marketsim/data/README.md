@@ -12,11 +12,12 @@ Every other part of the project reads data **only** through the functions in `ap
 |---|---|---|
 | `schemas.py` | every table: file, index, columns, dtypes; `validate()` | only via the contract procedure |
 | `api.py` | reading (`load_*`) and writing (`write_table`) with schema validation | only via the contract procedure |
-| `check.py` | `python -m marketsim.data.check`: validates every file | output may be improved |
-| `fetch.py` | download into `data/raw/` | **you implement it** |
-| `clean.py` | `data/raw/` → `data/processed/` | **you implement it** |
+| `extra_tables.py` | schemas of the auxiliary tables outside the contract: outlier explanations and report, FF49 → BEA mapping | freely |
+| `check.py` | `python -m marketsim.data.check`: validates every file, the external scenarios and the auxiliary tables | output may be improved |
+| `fetch.py` | download into `data/raw/` | implemented; the inside may change freely |
+| `clean.py` | `data/raw/` → `data/processed/` | implemented; the inside may change freely |
 
-## Functions you implement: why they exist and who uses the result
+## Pipeline functions (implemented): why they exist and who uses the result
 
 | Function | Owner | What it does | Why the project needs it | Who uses the result |
 |---|---|---|---|---|

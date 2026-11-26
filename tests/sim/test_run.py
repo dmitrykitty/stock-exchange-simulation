@@ -219,3 +219,13 @@ def test_target_keeps_small_retail_portfolios_in_the_market(tmp_path, concentrat
     funds = set(log.meta["population"]["fund_ids"])
     retail = log["orders"].loc[lambda d: ~d.agent.isin(funds) & (d.agent < 80) & (d.t >= 1)]
     assert retail.agent.nunique() >= 40
+
+
+def test_single_asset_meta_lists_every_resolved_setting_like_the_network_runs(tmp_path):
+    from dataclasses import fields
+
+    from marketsim.sim.settings import AgentSettings
+
+    meta = load_run(run(small_config(), 1, tmp_path)).meta
+    assert set(meta["resolved_agents"]) == {f.name for f in fields(AgentSettings)}
+    assert meta["resolved_agents"]["position_sizing"] == "flow"

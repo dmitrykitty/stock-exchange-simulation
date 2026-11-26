@@ -1,6 +1,7 @@
 """F9 live server: a real simulation process behind a local HTTP server, driven as the page drives it."""
 
 import json
+import os
 import threading
 import time
 import urllib.error
@@ -129,8 +130,8 @@ def test_other_sites_and_malformed_requests_are_refused(server):
     assert state["status"]["error"] is None and not state["controls"]
 
 
+@pytest.mark.skipif(not hasattr(os, "killpg"), reason="process groups and SIGINT to a group are POSIX only")
 def test_ctrl_c_in_the_terminal_writes_the_log(tmp_path):
-    import os
     import signal
     import subprocess
     import sys

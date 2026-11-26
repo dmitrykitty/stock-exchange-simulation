@@ -5,7 +5,7 @@ Mandatory for everyone who works in this repository: team members and AI coding 
 ## Language
 
 - Code, identifiers, comments, docstrings, error messages, commit messages, branch names, file and directory names: **English**.
-- README files: English. Documentation under `docs/`: Russian. `docs/research_proposal.md` and the final report: Polish.
+- README files: English. Documentation under `docs/`: Russian. Polish (texts for the instructor): `docs/research_proposal.md`, `docs/progress_overview.md` and the reports under `docs/report/`; the article for publication: English.
 
 ## Git
 
